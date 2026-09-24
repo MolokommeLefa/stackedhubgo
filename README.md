@@ -4,17 +4,17 @@ Management&CustomerEngagementSystem
 
 ## Tech stack:
 
-Frontend web - React Native
+1.Frontend web - React Native
 
-Database - SQL (to be built by the database developer)
+2.Database - SQL (to be built by the database developer)
 
-mobile application - (Kotlin Native)
+3.mobile application - (Kotlin Native)
 
-Backend - ASP.NET CORE WEB API
+4.Backend - ASP.NET CORE WEB API
 
-Authentication - JWT
+5.Authentication - JWT
 
-AI Component - Google Gemini API
+6.AI Component - Google Gemini API
 
 the frontend should be able to seamlessly connect with the other components of the system, so consider the design considerations that follow the given tech stack when building the frontend. A guide is attached to give you an overview of what the application is intended to do.
 
