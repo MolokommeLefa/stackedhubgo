@@ -150,7 +150,7 @@ function DashboardPage() {
                 <div className="h-1.5 rounded-full bg-secondary">
                   <div
                     className="bg-gradient-brand h-full rounded-full"
-                    style={{ width: `${(item.sold / bestSellers[0].sold) * 100}%` }}
+                    style={{ width: `${(item.sold / (bestSellers[0]?.sold ?? 1)) * 100}%` }}
                   />
                 </div>
               </div>
