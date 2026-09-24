@@ -1,6 +1,8 @@
-# StackedHub
+# StackedHub - 
+AnIntelligentRestaurant
+Management&CustomerEngagementSystem
 
-you are required to develop and build the frontend of an a customer management application, that will be used to manage customers, orders, and other various activities that will be conducted by the restaurant. the application composes of three different layers, backend, frontend and the mobile application. you will be responsible for developing the Frontend component of this system. the tech stack you will use consists of the following:
+## Tech stack:
 
 Frontend web - React Native
 
