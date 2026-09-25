@@ -1,0 +1,29 @@
+@StackedHub.Api_HostAddress = http://localhost:5032
+
+### Public menu
+GET {{StackedHub.Api_HostAddress}}/api/menu
+
+### Login (demo customer)
+POST {{StackedHub.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "priya.nair@example.co.za",
+  "password": "Stacked123!"
+}
+
+### Forgot password
+POST {{StackedHub.Api_HostAddress}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "priya.nair@example.co.za"
+}
+
+### AI recommendations (Gemini with grounded fallback)
+POST {{StackedHub.Api_HostAddress}}/api/ai/recommendations
+Content-Type: application/json
+
+{
+  "prompt": "something spicy under R150"
+}
