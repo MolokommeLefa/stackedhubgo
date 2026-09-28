@@ -1,40 +1,168 @@
-# StackedHub - 
-AnIntelligentRestaurant
-Management&CustomerEngagementSystem
+# StackedHub Go Frontend — User Manual
 
-## Tech stack:
+This guide explains how to run the StackedHub frontend locally for demos, testing, and user acceptance.
 
-1.Frontend web - React Native
+## 1) What this application is
 
-2.Database - SQL (to be built by the database developer)
+StackedHub is a restaurant management and customer engagement frontend.  
+It can run in:
 
-3.mobile application - (Kotlin Native)
+- **Demo mode** (no backend required)
+- **Live API mode** (connected to the backend API)
 
-4.Backend - ASP.NET CORE WEB API
+---
 
-5.Authentication - JWT
+## 2) System requirements
 
-6.AI Component - Google Gemini API
+Install the following before starting:
 
-the frontend should be able to seamlessly connect with the other components of the system, so consider the design considerations that follow the given tech stack when building the frontend. A guide is attached to give you an overview of what the application is intended to do.
+- **Node.js 20+** (recommended: latest LTS)
+- **npm 10+**
+- A modern browser (Chrome, Edge, Firefox)
 
-This project was built with [Lovable](https://lovable.dev).
+To confirm installation:
 
-## Build with Lovable
+```sh
+node -v
+npm -v
+```
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/bd7363b2-0415-4c19-a5c6-dea7f1f4dfd7).
+---
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## 3) Get the project
 
 ```sh
 git clone <this-repository-url>
-cd <repository-name>
-npm i
+cd stackedhubgo
+```
+
+---
+
+## 4) Install dependencies
+
+```sh
+npm install
+```
+
+Run this command again whenever `package.json` changes.
+
+---
+
+## 5) Start the application (development mode)
+
+```sh
 npm run dev
 ```
+
+After startup, open the URL shown in the terminal (typically `http://localhost:5173`).
+
+### Stop the app
+
+Press `Ctrl + C` in the same terminal window.
+
+---
+
+## 6) Connect to backend API (optional)
+
+If you want live backend data instead of demo data, configure the API base URL.
+
+### Option A: Use environment variable (recommended for setup)
+
+Create a `.env` file in the project root:
+
+```env
+VITE_API_BASE_URL=http://localhost:5000
+```
+
+Then restart:
+
+```sh
+npm run dev
+```
+
+### Option B: Configure from the app Settings page
+
+The app can also save API URL and auth token in browser local storage.
+
+### Important behavior
+
+- If no API URL is configured, the app stays in **demo mode**
+- If API URL is configured, API calls use JWT auth where required
+
+---
+
+## 7) Build for deployment
+
+Create a production build:
+
+```sh
+npm run build
+```
+
+Build output is generated in `dist/`.
+
+Preview the production build locally:
+
+```sh
+npm run preview
+```
+
+---
+
+## 8) Quality checks
+
+Lint the project:
+
+```sh
+npm run lint
+```
+
+Format code:
+
+```sh
+npm run format
+```
+
+---
+
+## 9) Troubleshooting
+
+### Port already in use
+
+If Vite reports a port conflict, stop the other process or rerun with another port:
+
+```sh
+npm run dev -- --port 5174
+```
+
+### Dependencies fail to install
+
+Delete `node_modules` and reinstall:
+
+```sh
+rm -rf node_modules
+npm install
+```
+
+### API not reachable
+
+- Confirm backend is running
+- Confirm `VITE_API_BASE_URL` points to the correct host/port
+- Restart the frontend after changing `.env`
+
+---
+
+## 10) Project scripts reference
+
+- `npm run dev` — start local development server
+- `npm run build` — create production build
+- `npm run build:dev` — create development-mode build
+- `npm run preview` — preview built app
+- `npm run lint` — run ESLint checks
+- `npm run format` — run Prettier formatting
+
+---
+
+## Lovable sync
+
+This project is connected to [Lovable](https://lovable.dev) and can also be edited in the [Lovable project editor](https://lovable.dev/projects/bd7363b2-0415-4c19-a5c6-dea7f1f4dfd7).
