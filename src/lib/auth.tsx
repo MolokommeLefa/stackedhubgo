@@ -1,23 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { tokenStore } from "./api-client";
+import { apiRequest, endpoints, isLiveApi, tokenStore } from "./api-client";
 import type { AuthUser, Role } from "./types";
 
 const USER_KEY = "stackedhub.user";
 
-/** Demo accounts used while the .NET API is not connected. */
+/** Demo accounts used while the API is not connected. */
 const demoUsers: Record<Role, AuthUser> = {
-  Admin: {
-    id: "u1",
-    name: "Thandi Mokoena",
-    email: "thandi@stackedfoods.co.za",
-    role: "Admin",
-  },
-  Staff: {
-    id: "u2",
-    name: "Jason Reid",
-    email: "jason@stackedfoods.co.za",
-    role: "Staff",
-  },
+  Admin: { id: "u1", name: "Thandi Mokoena", email: "thandi@stackedfoods.co.za", role: "Admin" },
+  Staff: { id: "u2", name: "Jason Reid", email: "jason@stackedfoods.co.za", role: "Staff" },
   Customer: {
     id: "c1",
     name: "Priya Nair",
@@ -27,10 +17,13 @@ const demoUsers: Record<Role, AuthUser> = {
   },
 };
 
+export const demoEmailForRole = (role: Role) => demoUsers[role].email;
+
 interface AuthContextValue {
   user: AuthUser | null;
   ready: boolean;
-  signIn: (role: Role, email?: string) => AuthUser;
+  /** Live mode: checks email + password with the API. Demo mode: uses the chosen role. */
+  signIn: (args: { email: string; password: string; role: Role }) => Promise<AuthUser>;
   signOut: () => void;
 }
 
@@ -52,11 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const signIn = useCallback((role: Role, email?: string) => {
-    const next: AuthUser = { ...demoUsers[role], ...(email ? { email } : {}) };
+  const signIn = useCallback<AuthContextValue["signIn"]>(async ({ email, password, role }) => {
+    let next: AuthUser;
+    if (isLiveApi()) {
+      const res = await apiRequest<{ token: string; user: AuthUser }>(endpoints.login, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      tokenStore.set(res.token);
+      next = res.user;
+    } else {
+      next = { ...demoUsers[role], email: email || demoUsers[role].email };
+      tokenStore.set(`demo.${role.toLowerCase()}.token`);
+    }
     window.localStorage.setItem(USER_KEY, JSON.stringify(next));
-    // Live mode replaces this with the JWT returned by /api/auth/login.
-    tokenStore.set(`demo.${role.toLowerCase()}.token`);
     setUser(next);
     return next;
   }, []);
@@ -68,7 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({ user, ready, signIn, signOut }), [user, ready, signIn, signOut]);
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -78,5 +79,4 @@ export function useAuth() {
   return ctx;
 }
 
-export const homeRouteForRole = (role: Role) =>
-  role === "Customer" ? "/portal" : "/dashboard";
+export const homeRouteForRole = (role: Role) => (role === "Customer" ? "/portal" : "/dashboard");
