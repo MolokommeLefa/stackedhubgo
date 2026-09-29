@@ -184,6 +184,54 @@ public class ApiFlowTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, forgot.StatusCode);
     }
 
+    [Fact]
+    public async Task Inventory_stock_patch_does_not_clear_availability()
+    {
+        using var client = await SignIn("jason@stackedfoods.co.za");
+        var menu = await client.GetFromJsonAsync<List<MenuItemDto>>("/api/menu", Json.Options);
+        var smash = menu!.First(x => x.Name == "Double Smash Burger" && x.Available);
+        using var body = JsonContent.Create(new { stock = smash.Stock - 1 }, options: Json.Options);
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"/api/inventory/{smash.Id}") { Content = body };
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var updated = await response.Content.ReadFromJsonAsync<MenuItemDto>(Json.Options);
+        Assert.True(updated!.Available);
+        Assert.Equal(smash.Stock - 1, updated.Stock);
+    }
+
+    [Fact]
+    public async Task Admin_can_patch_customer_note_and_see_active_users()
+    {
+        using var client = await SignIn("thandi@stackedfoods.co.za");
+        var customers = await client.GetFromJsonAsync<List<CustomerDto>>("/api/customers", Json.Options);
+        var priya = customers!.First(x => x.Email == "priya.nair@example.co.za");
+        using var body = JsonContent.Create(new CustomerNoteRequest("Prefers extra chilli."), options: Json.Options);
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"/api/customers/{priya.Id}") { Content = body };
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var updated = await response.Content.ReadFromJsonAsync<CustomerDto>(Json.Options);
+        Assert.Equal("Prefers extra chilli.", updated!.Note);
+
+        var users = await client.GetFromJsonAsync<List<AuthUserDto>>("/api/admin/users", Json.Options);
+        Assert.Contains(users!, x => x.Email == "thandi@stackedfoods.co.za" && x.Active);
+    }
+
+    [Fact]
+    public async Task Customer_checkout_can_set_channel()
+    {
+        using var client = await SignIn("priya.nair@example.co.za");
+        var menu = await client.GetFromJsonAsync<List<MenuItemDto>>("/api/menu", Json.Options);
+        var rings = menu!.First(x => x.Name == "Onion Rings");
+        var response = await client.PostAsJsonAsync("/api/orders", new PlaceOrderRequest(
+            PaymentMethod.Cash,
+            null,
+            [new CartLineRequest(rings.Id, 1, null)],
+            OrderChannel.WhatsApp), Json.Options);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var order = await response.Content.ReadFromJsonAsync<OrderDto>(Json.Options);
+        Assert.Equal(OrderChannel.WhatsApp, order!.Channel);
+    }
+
     private async Task<HttpClient> SignIn(string email)
     {
         var client = _factory.CreateClient();

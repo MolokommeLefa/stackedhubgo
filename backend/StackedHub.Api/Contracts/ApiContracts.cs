@@ -17,7 +17,7 @@ public record LoginRequest(
 
 public record ForgotPasswordRequest([Required, EmailAddress] string Email);
 
-public record AuthUserDto(string Id, string Name, string Email, UserRole Role, int? LoyaltyPoints);
+public record AuthUserDto(string Id, string Name, string Email, UserRole Role, int? LoyaltyPoints, bool Active);
 
 public record AuthResponse(string Token, AuthUserDto User);
 
@@ -50,7 +50,8 @@ public record CartLineRequest(
 public record PlaceOrderRequest(
     PaymentMethod PaymentMethod,
     string? SpecialInstructions,
-    [Required, MinLength(1)] List<CartLineRequest> Items);
+    [Required, MinLength(1)] List<CartLineRequest> Items,
+    OrderChannel? Channel = null);
 
 public record OrderItemDto(string MenuItemId, string Name, int Quantity, decimal UnitPrice);
 
@@ -67,9 +68,14 @@ public record OrderDto(
 
 public record UpdateStatusRequest(OrderStatus? Status, OrderStatus? NextStatus);
 
-public record AvailabilityRequest(bool Available, int? Stock);
+public record AvailabilityRequest(bool? Available, int? Stock);
 
-public record ActivateUserRequest(bool IsActive);
+public record ActivateUserRequest(bool IsActive = false, bool? Active = null)
+{
+    public bool Flag => Active ?? IsActive;
+}
+
+public record CustomerNoteRequest(string? Note);
 
 public record AssistantRequest([Required, MaxLength(400)] string Message);
 

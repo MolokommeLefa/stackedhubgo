@@ -73,12 +73,7 @@ public class StaffController : ControllerBase
             return NotFound(new { error = "Menu item not found." });
         }
 
-        item.Available = request.Available;
-        if (request.Stock is not null)
-        {
-            item.Stock = request.Stock.Value;
-        }
-
+        MenuStock.Apply(item, request);
         item.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(item.ToDto());

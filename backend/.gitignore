@@ -1,0 +1,11 @@
+# Build output and local databases — keep these out of Git.
+bin/
+obj/
+*.user
+*.db
+*.db-shm
+*.db-wal
+
+# In stackedhubgo/.gitignore (repo root):
+# 1. Delete the line: *.sln   (Visual Studio needs StackedHub.sln committed)
+# 2. Add the rules above if they are not already there.

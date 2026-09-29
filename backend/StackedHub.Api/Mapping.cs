@@ -6,7 +6,7 @@ namespace StackedHub.Api;
 public static class Mapping
 {
     public static AuthUserDto ToAuth(this User user) =>
-        new(user.Id.ToString(), user.Name, user.Email, user.Role, user.Role == UserRole.Customer ? user.LoyaltyPoints : null);
+        new(user.Id.ToString(), user.Name, user.Email, user.Role, user.Role == UserRole.Customer ? user.LoyaltyPoints : null, user.IsActive);
 
     public static MenuItemDto ToDto(this MenuItem item) =>
         new(item.Id.ToString(), item.Name, item.Description, item.Category, item.Price, item.Stock, item.LowStockThreshold, item.Spicy, item.Available);

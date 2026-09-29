@@ -63,7 +63,7 @@ public class OrderService
         {
             CustomerId = customerId,
             Status = OrderStatus.Placed,
-            Channel = OrderChannel.Website,
+            Channel = request.Channel ?? OrderChannel.Website,
             PaymentMethod = payment,
             Total = total,
             SpecialInstructions = string.IsNullOrWhiteSpace(request.SpecialInstructions) ? null : request.SpecialInstructions.Trim(),

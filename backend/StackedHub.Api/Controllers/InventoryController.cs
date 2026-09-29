@@ -44,16 +44,7 @@ public class InventoryController : ControllerBase
             return NotFound(new { error = "Menu item not found." });
         }
 
-        item.Available = request.Available;
-        if (request.Stock is not null)
-        {
-            item.Stock = request.Stock.Value;
-            if (item.Stock <= 0)
-            {
-                item.Available = false;
-            }
-        }
-
+        MenuStock.Apply(item, request);
         item.UpdatedAt = DateTime.UtcNow;
         _db.AuditLogs.Add(new AuditLog
         {

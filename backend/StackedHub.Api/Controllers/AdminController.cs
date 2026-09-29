@@ -44,11 +44,11 @@ public class AdminController : ControllerBase
             return NotFound(new { error = "User not found." });
         }
 
-        user.IsActive = request.IsActive;
+        user.IsActive = request.Flag;
         _db.AuditLogs.Add(new AuditLog
         {
             AdminId = User.RequireUserId(),
-            Action = request.IsActive ? "Activate user" : "Deactivate user",
+            Action = request.Flag ? "Activate user" : "Deactivate user",
             Entity = "User",
             EntityId = userId,
             Details = user.Email
