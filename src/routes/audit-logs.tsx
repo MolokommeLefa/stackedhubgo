@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppShell, Panel } from "@/components/AppShell";
-import { auditLog, formatDate, formatTime } from "@/lib/mock-data";
+import { AppShell, LoadState, Panel } from "@/components/AppShell";
+import { getAuditLog } from "@/lib/data";
+import { formatDate, formatTime } from "@/lib/mock-data";
+import { useLoad } from "@/lib/use-load";
 
 export const Route = createFileRoute("/audit-logs")({
   head: () => ({
@@ -18,8 +20,9 @@ export const Route = createFileRoute("/audit-logs")({
 });
 
 function AuditPage() {
+  const { data, loading, error } = useLoad(getAuditLog, []);
   const [role, setRole] = useState("All");
-  const shown = auditLog.filter((a) => role === "All" || a.role === role);
+  const shown = data.filter((a) => role === "All" || a.role === role);
   return (
     <AppShell title="Audit Logs" subtitle="Security" allow={["Admin"]}>
       <Panel
@@ -30,9 +33,10 @@ function AuditPage() {
           </select>
         }
       >
-        <div className="space-y-2">
+        <LoadState loading={loading} error={error} />
+        <div className="divide-y divide-border">
           {shown.map((a) => (
-            <div key={a.id} className="glass-soft flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3">
+            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
               <div>
                 <p className="text-sm"><span className="font-semibold">{a.actor}</span> {a.action.toLowerCase()} — <span className="text-primary">{a.target}</span></p>
                 <p className="text-xs text-muted-foreground">{a.role}</p>

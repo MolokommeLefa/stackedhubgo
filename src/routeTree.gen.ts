@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
+import { Route as AvailabilityRouteImport } from './routes/availability'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as MenuRouteImport } from './routes/menu'
@@ -19,6 +20,7 @@ import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PromotionsRouteImport } from './routes/promotions'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as UsersRouteImport } from './routes/users'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuditLogsRoute = AuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AvailabilityRoute = AvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersRoute = CustomersRouteImport.update({
@@ -70,10 +77,16 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/menu': typeof MenuRoute
@@ -82,10 +95,12 @@ export interface FileRoutesByFullPath {
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/menu': typeof MenuRoute
@@ -94,11 +109,13 @@ export interface FileRoutesByTo {
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
+  '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/menu': typeof MenuRoute
@@ -107,12 +124,14 @@ export interface FileRoutesById {
   '/promotions': typeof PromotionsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/audit-logs'
+    | '/availability'
     | '/customers'
     | '/dashboard'
     | '/menu'
@@ -121,10 +140,12 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/reports'
     | '/settings'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/audit-logs'
+    | '/availability'
     | '/customers'
     | '/dashboard'
     | '/menu'
@@ -133,10 +154,12 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/reports'
     | '/settings'
+    | '/users'
   id:
     | '__root__'
     | '/'
     | '/audit-logs'
+    | '/availability'
     | '/customers'
     | '/dashboard'
     | '/menu'
@@ -145,11 +168,13 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/reports'
     | '/settings'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditLogsRoute: typeof AuditLogsRoute
+  AvailabilityRoute: typeof AvailabilityRoute
   CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
   MenuRoute: typeof MenuRoute
@@ -158,6 +183,7 @@ export interface RootRouteChildren {
   PromotionsRoute: typeof PromotionsRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -174,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/audit-logs'
       fullPath: '/audit-logs'
       preLoaderRoute: typeof AuditLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/availability': {
+      id: '/availability'
+      path: '/availability'
+      fullPath: '/availability'
+      preLoaderRoute: typeof AvailabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers': {
@@ -232,12 +265,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditLogsRoute: AuditLogsRoute,
+  AvailabilityRoute: AvailabilityRoute,
   CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
   MenuRoute: MenuRoute,
@@ -246,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   PromotionsRoute: PromotionsRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
