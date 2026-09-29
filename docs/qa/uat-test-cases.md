@@ -1,8 +1,8 @@
 # BruvHub UAT Test Cases
 
-**Revision:** Live Staff UAT 2026-09-29 (`:5032` / `:8080`). Original UAT-STA-004 Fail retained; retest Pass recorded. `dotnet test` is **not** a UAT Pass by itself.  
+**Revision:** Live Staff/Admin UAT through 2026-09-30 (`:5032` / `:8080`). Original UAT-STA-004 Fail retained; retest Pass recorded. `dotnet test` is **not** a UAT Pass. Transient **17/18** then **18/18** recorded as automation only.  
 **Status values:** `Not Run` | `Pass` | `Fail` | `Blocked`  
-**Actual result / Status:** do not Pass from code review or from `dotnet test` alone. Customer cases and unexecuted Staff/Admin cases remain **Not Run**.
+**Actual result / Status:** do not Pass from code review, `--list-tests`, or `dotnet test` alone. Partial Day 2 notes do **not** convert a case to Pass.
 
 Administrator implementation value: `Admin`. Requirements lifecycle names stay in **Expected result**; implemented UI/API uses `Placed` / `In kitchen` / `Ready` (VAL-001 **open**). Record actual labels after a real run.
 
@@ -10,7 +10,7 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 
 **Live vs mock:** Staff/Admin Must screens use `data.ts` (API if URL set). **Customer portal menu/cart/place/history stay on mock even when connected.**
 
-**Live Staff run environment (2026-09-29):** API `http://localhost:5032`; frontend `http://localhost:8080` with `VITE_API_BASE_URL=http://localhost:5032`; `GET /health` `{ status: "ok" }`; Staff Jason Reid authenticated; Order Queue loaded live data. Integration tests against the same dev DB increased visible queue **9 → 13** (isolation observation, not a product Fail).
+**Live Staff/Admin run environment:** API `http://localhost:5032`; frontend `http://localhost:8080`; live API indicator visible. `GET /health` `{ status: "ok" }` (prior). Staff Jason Reid and Admin Thandi Mokoena authenticated. Shared LocalDB contamination remains valid (queue 9 → 13; `Customer_checkout_can_set_channel` 17/18 while Onion Rings Sold out; Rings restored Available; subsequent **18/18**, no product-code change). VAL-001 **Open**. Customer portal/live order path unwired.
 
 ---
 
@@ -269,9 +269,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | `/availability` + Customer `/portal` (second session) |
 | **Test steps** | 1. Mark unavailable. 2. Customer attempts order. 3. Restore. |
 | **Expected result** | Customer catalogue reflects change. **Post-merge likely Fail if portal still mock** (DEF-007) — still record after execution only. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case. Day 2 note (does **not** Pass FR-014 vs Customer): Staff Jason Reid, live `/availability`, 10 items. Onion Rings Available → Sold out; no UI error; Ctrl+R; remained Sold out. Admin dashboard then showed **2** sold-out items (Koeksister Bites and Onion Rings). Admin Menu Catalogue showed Onion Rings Sold out. **Customer portal availability was not tested.** After the controlled UAT, Onion Rings was restored to **Available** so the shared LocalDB would not fail `Customer_checkout_can_set_channel` (automation isolation; **not** a STA-006 Pass). DEF-007 remains. Related Pass: UAT-STA-007. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 2026-09-30 Staff persist + Admin visibility only; portal not executed |
 
 ---
 
@@ -286,9 +286,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Staff. **Route `/availability` now exists** (DEF-006 404 resolved in code). |
 | **Test steps** | 1. Click Item Availability. 2. Confirm working UI. |
 | **Expected result** | Not a 404; toggles load. |
-| **Actual result** | Not Run |
-| **Status** | Not Run |
-| **Evidence** | — |
+| **Actual result** | **Pass.** Staff Jason Reid, live API. Item Availability loaded **10** menu items (not a 404). Onion Rings was Available; Staff set Sold out; no visible error; full Ctrl+R; Onion Rings remained Sold out. Toggles loaded and the change persisted. |
+| **Status** | Pass |
+| **Evidence** | Live UAT 2026-09-30; `/availability`; Ctrl+R persistence. DEF-006 404 closed by this run. |
 
 ---
 
@@ -305,9 +305,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Demo Admin or live `thandi@stackedfoods.co.za` / `Stacked123!` |
 | **Test steps** | 1. Sign in as Admin. 2. Open dashboard, orders, menu, reports, audit, users. |
 | **Expected result** | Management UI accessible. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case (orders page not recorded). Day 2 note: Admin Thandi Mokoena signed in live (`:8080` / `:5032`). Dashboard, Menu Catalogue, Users, Reports, and Audit Logs were used in later cases. Direct `/orders` as Admin was not recorded. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 environment only; full step list not completed |
 
 ---
 
@@ -322,9 +322,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Admin; `/menu` uses `saveMenuItem`. No DELETE API. |
 | **Test steps** | 1. Create. 2. Edit name/price. 3. Remove/deactivate if possible. 4. Check Customer menu. 5. Refresh. |
 | **Expected result** | Changes persist; Customer catalogue updates where applicable. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case (create, name/price, DELETE, Customer menu not executed). Day 2 note: Admin Thandi, live Menu Catalogue loaded **10** items. Malva Pudding stock **12 → 13**, save, refresh, reopen showed **13**. Test data restored **13 → 12**. Persistence of this stock edit through the live backend is verified. No DELETE claim. Customer catalogue not checked. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 2026-09-30 stock-edit persist only; DEF-016 DELETE still open |
 
 ---
 
@@ -339,9 +339,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Admin. **`/users` exists** (DEF-005 404 resolved). Watch DEF-014 (all Active on load). |
 | **Test steps** | 1. Open Users. 2. View accounts. 3. Toggle active. 4. Confirm login impact. Role change if present. |
 | **Expected result** | Active-state persists and enforces access. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case (active toggle and login impact not executed). Day 2 note: Admin Users page loaded from live API; **8** users shown across Admin, Customer, and Staff. **Displayed Active is not trusted** (DEF-014 live map forces `active: true`). Scope verified: list load/view only. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 2026-09-30 list load; DEF-014 |
 
 ---
 
@@ -356,9 +356,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Admin; live `getReport` vs demo mixed mock series |
 | **Test steps** | 1. Open `/reports`. 2. Date filter if any. 3. Compare to known orders. |
 | **Expected result** | Authoritative totals. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case (no date-filter check; totals not compared to known orders). Day 2 note: Admin, Connected to API, Reports loaded with populated data: order count, completed sales, revenue by day, best sellers, sales by channel. **No independent mathematical verification.** |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 2026-09-30 populated live report view only |
 
 ---
 
@@ -373,9 +373,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Admin; live audit after a menu/user change |
 | **Test steps** | 1. Mutate menu or user. 2. Open `/audit-logs`. 3. Find matching row. |
 | **Expected result** | Actor, action, target, time; read-only UI. |
-| **Actual result** | Not Run |
+| **Actual result** | **Not Run** as this case (row **time** and read-only UI not recorded). Day 2 note: after the Malva Pudding stock edit, Audit Logs loaded (**12** entries). Matching row present: **Thandi Mokoena updated menu item — Malva Pudding**. Multiple Malva Pudding rows from save/restore. Actor/action/target of that edit were represented; do not Pass the full expected result. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Day 2 2026-09-30 matching audit row; time/read-only not asserted |
 
 ---
 
@@ -390,9 +390,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Customer session |
 | **Test steps** | 1. Admin nav hidden. 2. Direct `/reports`, `/audit-logs`. |
 | **Expected result** | Cannot use Administrator functions. |
-| **Actual result** | Not Run |
+| **Actual result** | Not Run (Customer-session UI denial not executed). Day 2 related API note: unauthenticated `GET http://localhost:5032/api/admin/users` with **no JWT** returned **HTTP 401 Unauthorized**. That does **not** Pass this case. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Manual 401 is RBV-002, not UAT-ADM-006 |
 
 ---
 
@@ -426,9 +426,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | API on **5032** (not README 5000) |
 | **Test steps** | 1. Settings: URL, Test. 2. Save, live sign-in. 3. Record which screens are API vs mock (expect portal mock). |
 | **Expected result** | `/health` OK; login JWT; tester lists mock vs live screens. |
-| **Actual result** | Not Run |
+| **Actual result** | Not Run (Settings Test/Save flow not recorded as this case). Day 2 environment: live API indicator visible on `:8080`; Admin/Staff used Connected-to-API screens. Portal still mock. |
 | **Status** | Not Run |
-| **Evidence** | — |
+| **Evidence** | Live indicator is environment, not this smoke case |
 
 ---
 
@@ -450,17 +450,17 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | UAT-STA-003 | Staff | Must | Pass | — (live queue view/load; not a status-transition test) |
 | UAT-STA-004 | Staff | Must | Pass (retest) | DEF-017 original Fail retained in case; now Resolved / Verified |
 | UAT-STA-005 | Staff | Must | Not Run | — (invalid skip/revert not executed) |
-| UAT-STA-006 | Staff | Must | Not Run | — |
-| UAT-STA-007 | Staff | Must | Not Run | — |
-| UAT-ADM-001 | Administrator | Must | Not Run | — |
-| UAT-ADM-002 | Administrator | Must | Not Run | — |
-| UAT-ADM-003 | Administrator | Must | Not Run | — |
-| UAT-ADM-004 | Administrator | Must | Not Run | — |
-| UAT-ADM-005 | Administrator | Must | Not Run | — |
+| UAT-STA-006 | Staff | Must | Not Run | DEF-007 (portal not executed; Staff/Admin persist noted in case) |
+| UAT-STA-007 | Staff | Must | Pass | DEF-006 404 closed by this run |
+| UAT-ADM-001 | Administrator | Must | Not Run | — (Day 2 note only; `/orders` not recorded) |
+| UAT-ADM-002 | Administrator | Must | Not Run | — (stock-edit persist noted; not full CRUD) |
+| UAT-ADM-003 | Administrator | Must | Not Run | DEF-014 (list load noted; Active not trusted) |
+| UAT-ADM-004 | Administrator | Must | Not Run | — (populated view noted; totals not verified) |
+| UAT-ADM-005 | Administrator | Must | Not Run | — (matching Malva row noted; time/read-only not asserted) |
 | UAT-ADM-006 | Customer | Must | Not Run | — |
 | UAT-E2E-001 | Cross-role | Must | Blocked | DEF-002 (portal unwired). VAL-001 open. |
-| UAT-API-001 | Integration | Must | Not Run | — (`GET /health` ok is environment, not this case) |
+| UAT-API-001 | Integration | Must | Not Run | — (live indicator is environment, not this case) |
 
-**Passed:** 2 (UAT-STA-003; UAT-STA-004 retest)  **Failed (current):** 0  **Blocked:** 1 (UAT-E2E-001)  **Not Run:** 21
+**Passed:** 3 (UAT-STA-003; UAT-STA-004 retest; UAT-STA-007)  **Failed (current):** 0  **Blocked:** 1 (UAT-E2E-001)  **Not Run:** 20
 
-Historical: UAT-STA-004 original execution remains **Fail** in the case body (DEF-017). Do not treat that as the current verdict.
+Historical: UAT-STA-004 original execution remains **Fail** in the case body (DEF-017). Do not treat that as the current verdict. `--list-tests` (18 discovered) is not execution. Automated Day 2: **17/18** then Onion Rings restore then **18/18** — **not** UAT Pass.

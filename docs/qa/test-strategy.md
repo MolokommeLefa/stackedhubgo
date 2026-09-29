@@ -5,7 +5,7 @@
 **Baseline:** post-merge repository (frontend + `backend/StackedHub.*`) + architecture docs  
 **Revision:** Pre-merge strategy assumed **no backend in repo** and unused `data.ts`. That is **historical**. Current strategy below.
 
-**UAT execution:** Live Staff 2026-09-29 on **`http://localhost:5032`** + frontend **`:8080`** (`VITE_API_BASE_URL` set). UAT-STA-003 **Pass** (queue load). UAT-STA-004 original **Fail** retained; **Pass on retest** (implemented lifecycle). UAT-E2E-001 **Blocked** (DEF-002). Remaining cases **Not Run**. `dotnet test` is **not** a UAT Pass by itself. DEF-017 **Resolved / Verified**. VAL-001 **Open**.
+**UAT execution:** Through **2026-09-30** on **`http://localhost:5032`** + frontend **`:8080`**. UAT-STA-003 **Pass**; UAT-STA-004 original **Fail** retained / **Pass on retest**; UAT-STA-007 **Pass**. UAT-E2E-001 **Blocked** (DEF-002). Admin Day 2 evidence is **notes on Not Run cases**. Remaining cases **Not Run**. Automated: transient **17/18** (Onion Rings still Sold out on shared LocalDB) then restore → **18 passed / 0 failed / 0 skipped**; **no product-code change**. `--list-tests` ≠ execution. 18/18 is **not** UAT Pass. DEF-017 **Resolved / Verified**. VAL-001 **Open**.
 
 ---
 
@@ -44,7 +44,7 @@ Frontend unit/e2e runner, CI test workflow.
 
 ## 4. Must MVP priority (post-merge)
 
-1. Live Staff/Admin smoke on **`http://localhost:5032`** — Staff queue + implemented status progression executed 2026-09-29. Remaining Staff/Admin (availability, Admin screens, invalid transitions) **Not Run**.
+1. Live Staff/Admin smoke on **`http://localhost:5032`** — Staff queue, implemented status progression, and Item Availability executed. Admin menu/users/reports/audit have **partial notes** (cases remain Not Run). Invalid transitions **Not Run**.
 2. Customer portal integration: menu + `POST /api/orders` + tracking (DEF-002–004, 007).
 3. Register UI (API exists).
 4. VAL-001 acceptance — **still open**; do not treat implemented names as requirements New/Confirmed/Preparing/ReadyForPickup.
@@ -58,10 +58,10 @@ Frontend unit/e2e runner, CI test workflow.
 |---|---|
 | Static review | This pack + post-merge re-audit |
 | Unit | **Backend:** `OrderLifecycleTests`. **Frontend:** none in `package.json` |
-| Integration / API | **Backend:** `ApiFlowTests` (in-memory SQLite factory). Live Staff browser↔API: queue + lifecycle retest executed. |
-| Functional / role / responsive | Partial (Staff orders only) |
-| UAT | 24 cases: **2 Pass**, **0 current Fail**, **1 Blocked**, **21 Not Run** |
-| Regression | `dotnet test` after API changes; re-run Staff Accept if converters change; Must UAT after portal wiring |
+| Integration / API | **Backend:** `ApiFlowTests`. Live Staff browser↔API: queue, lifecycle, availability. Manual unauthenticated `GET /api/admin/users` → 401. |
+| Functional / role / responsive | Partial (Staff orders + availability; Admin screens noted not Passed) |
+| UAT | 24 cases: **3 Pass**, **0 current Fail**, **1 Blocked**, **20 Not Run** |
+| Regression | Latest **execution:** 18 passed / 0 failed / 0 skipped (after Onion Rings restored to Available). Prior same-day full run: **17/18** — `Customer_checkout_can_set_channel` 400 because Rings remained Sold out on shared LocalDB (UAT leftover; not product regression; not unmerged `origin/main`). `--list-tests` discovered 18 earlier (discovery only). |
 
 A feature is not Passed because `data.ts` or a controller exists.
 
@@ -72,7 +72,7 @@ A feature is not Passed because `data.ts` or a controller exists.
 | Environment | Definition | Notes |
 |---|---|---|
 | **Demo** | No API URL | Staff/Admin: `data.ts` memory store. Portal: `mock-data`. Demo login: any password. |
-| **Live API** | Base URL set | Use **`http://localhost:5032`**. README **5000** is wrong for current launchSettings. Staff/Admin: REST. **Portal menu/cart/place/history still mock.** 2026-09-29: `GET /health` ok; Staff Jason Reid live login; queue live. **Isolation:** `dotnet test` on the shared dev DB grew the queue **9 → 13**. |
+| **Live API** | Base URL set | Use **`http://localhost:5032`**. README **5000** is wrong for current launchSettings. Staff/Admin: REST. **Portal menu/cart/place/history still mock.** Through 2026-09-30: live indicator visible; Staff Jason Reid; Admin Thandi Mokoena. **Isolation (still valid):** `ApiFlowTests` use shared LocalDB, not a fresh SQLite. Queue grew **9 → 13**. Onion Rings Sold out from UAT caused **17/18**; restored Available → **18/18**. |
 
 Do not assume Settings “Connected to API” means the Customer Must path is live.
 
@@ -115,10 +115,10 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 | `Customer_cannot_open_staff_or_customer_crm_routes` | API 403 |
 | `Admin_can_read_frontend_contract_routes` | Admin smoke (includes non-Must CRM/inventory) |
 | `Admin_can_patch_customer_note_and_see_active_users` | Partial users list |
-| `Customer_checkout_can_set_channel` | Channel, not Pickup UI |
+| `Customer_checkout_can_set_channel` | Channel, not Pickup UI. Transient Day 2 **Fail** when Onion Rings was Sold out on shared LocalDB; **Pass** after restore. Not UAT. |
 | Assistant / AI tests | **Not Must** |
 
-**Must still untested by these files:** register; Customer UI tracking of a shared order; invalid status **HTTP**; Staff vs `/api/admin/*`; payment on DTO; menu CRUD; user deactivate then login. Automated suite after DEF-017: **18 passed, 0 failed, 0 skipped** (was 17/17 before the regression test). UAT is recorded separately — do not infer remaining UAT Pass from this suite. Shared-dev-DB runs contaminate the live Staff queue.
+**Must still untested by these files:** register; Customer UI tracking of a shared order; invalid status **HTTP** in UAT; Staff vs `/api/admin/*` as Staff; payment on DTO; full menu CRUD; user deactivate then login. Latest **executed** suite: **18 passed, 0 failed, 0 skipped** (no product-code change vs the 17/18 isolation Fail). Day 2 `--list-tests` discovered 18 (discovery ≠ execution). Shared LocalDB runs contaminate live Staff queue and menu availability.
 
 ---
 
@@ -130,7 +130,7 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 | README :5000 vs API :5032 | False live-connect failures | RBV-004 |
 | VAL-001 | Requirements vs implemented lifecycle names | **Keep open** — runtime Pass used `Placed` / `In kitchen` / `Ready` / `Completed`, not New→Confirmed→Preparing→ReadyForPickup |
 | Staff Accept JSON `"In kitchen"` | Live PATCH bind 400 | DEF-017 **Resolved / Verified** (converter order + 18/18 + manual retest) |
-| Shared SQLite for `dotnet test` + live API | Queue 9 → 13 during UAT | Isolation observation, not a product DEF |
+| Shared LocalDB for `dotnet test` + live API | Queue 9 → 13; 17/18 then 18/18 | Isolation observation, not a product DEF. Factory SQLite override does not isolate. |
 | `getUsers` `active: true` | Wrong Active labels | DEF-014 |
 | `OrderDto` omits payment | Cannot assert Cash/Card on tracking | DEF-015 |
 | No menu DELETE | FR-013 incomplete | DEF-016 |
@@ -145,6 +145,6 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 
 | Deliverable | Status |
 |---|---|
-| This strategy / traceability / UAT / defects / architecture | Live Staff UAT recorded; STA-004 original Fail retained; DEF-017 Resolved / Verified; VAL-001 Open; E2E Blocked |
-| Backend automated tests | Present; not a substitute for UAT |
+| This strategy / traceability / UAT / defects / architecture | Day 2 Staff availability Pass; Admin notes without overstating; DEF-017 Resolved / Verified; VAL-001 Open; E2E Blocked |
+| Backend automated tests | Present; latest **18/18** after test-data restore; not a substitute for UAT; not isolated from LocalDB |
 | Frontend automated tests / CI | Still absent |
