@@ -1,0 +1,71 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{C60E0367-2064-4BA9-A3F7-387F35843134}|backend\\StackedHub.Api\\StackedHub.Api.csproj|c:\\users\\atlga\\onedrive\\documentos\\insy7315 (wil)\\stackedhubgo\\backend\\stackedhub.api\\stackedhub.api.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{C60E0367-2064-4BA9-A3F7-387F35843134}|backend\\StackedHub.Api\\StackedHub.Api.csproj|solutionrelative:backend\\stackedhub.api\\stackedhub.api.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{97DDAFC1-21A6-42EF-B60A-D3D8ED9E6915}|backend\\StackedHub.Domain\\StackedHub.Domain.csproj|c:\\users\\atlga\\onedrive\\documentos\\insy7315 (wil)\\stackedhubgo\\backend\\stackedhub.domain\\stackedhub.domain.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{97DDAFC1-21A6-42EF-B60A-D3D8ED9E6915}|backend\\StackedHub.Domain\\StackedHub.Domain.csproj|solutionrelative:backend\\stackedhub.domain\\stackedhub.domain.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C60E0367-2064-4BA9-A3F7-387F35843134}|backend\\StackedHub.Api\\StackedHub.Api.csproj|c:\\users\\atlga\\onedrive\\documentos\\insy7315 (wil)\\stackedhubgo\\backend\\stackedhub.api\\controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C60E0367-2064-4BA9-A3F7-387F35843134}|backend\\StackedHub.Api\\StackedHub.Api.csproj|solutionrelative:backend\\stackedhub.api\\controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "StackedHub.Api",
+              "DocumentMoniker": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Api\\StackedHub.Api.csproj",
+              "RelativeDocumentMoniker": "backend\\StackedHub.Api\\StackedHub.Api.csproj",
+              "ToolTip": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Api\\StackedHub.Api.csproj",
+              "RelativeToolTip": "backend\\StackedHub.Api\\StackedHub.Api.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-09-25T11:08:11.675Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "StackedHub.Domain",
+              "DocumentMoniker": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Domain\\StackedHub.Domain.csproj",
+              "RelativeDocumentMoniker": "backend\\StackedHub.Domain\\StackedHub.Domain.csproj",
+              "ToolTip": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Domain\\StackedHub.Domain.csproj",
+              "RelativeToolTip": "backend\\StackedHub.Domain\\StackedHub.Domain.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-09-25T11:08:08.506Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AdminController.cs",
+              "DocumentMoniker": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Api\\Controllers\\AdminController.cs",
+              "RelativeDocumentMoniker": "backend\\StackedHub.Api\\Controllers\\AdminController.cs",
+              "ToolTip": "C:\\Users\\atlga\\OneDrive\\Documentos\\INSY7315 (WIL)\\stackedhubgo\\backend\\StackedHub.Api\\Controllers\\AdminController.cs",
+              "RelativeToolTip": "backend\\StackedHub.Api\\Controllers\\AdminController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-25T11:07:30.059Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
