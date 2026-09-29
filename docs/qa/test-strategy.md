@@ -5,7 +5,7 @@
 **Baseline:** post-merge repository (frontend + `backend/StackedHub.*`) + architecture docs  
 **Revision:** Pre-merge strategy assumed **no backend in repo** and unused `data.ts`. That is **historical**. Current strategy below.
 
-**UAT execution:** **No UAT case has been run.** All 24 remain **Not Run**. Backend `dotnet test` existence does **not** mark UAT Passed.
+**UAT execution:** Live Staff 2026-09-29 on **`http://localhost:5032`** + frontend **`:8080`** (`VITE_API_BASE_URL` set). UAT-STA-003 **Pass** (queue load). UAT-STA-004 original **Fail** retained; **Pass on retest** (implemented lifecycle). UAT-E2E-001 **Blocked** (DEF-002). Remaining cases **Not Run**. `dotnet test` is **not** a UAT Pass by itself. DEF-017 **Resolved / Verified**. VAL-001 **Open**.
 
 ---
 
@@ -44,10 +44,10 @@ Frontend unit/e2e runner, CI test workflow.
 
 ## 4. Must MVP priority (post-merge)
 
-1. Live Staff/Admin smoke on **`http://localhost:5032`** (queue, availability, users, reports, audit) — code is wired; **UAT Not Run**.
+1. Live Staff/Admin smoke on **`http://localhost:5032`** — Staff queue + implemented status progression executed 2026-09-29. Remaining Staff/Admin (availability, Admin screens, invalid transitions) **Not Run**.
 2. Customer portal integration: menu + `POST /api/orders` + tracking (DEF-002–004, 007).
 3. Register UI (API exists).
-4. VAL-001 acceptance before failing UAT-STA-004 solely on requirements status **names**.
+4. VAL-001 acceptance — **still open**; do not treat implemented names as requirements New/Confirmed/Preparing/ReadyForPickup.
 5. Extended screens last.
 
 ---
@@ -58,10 +58,10 @@ Frontend unit/e2e runner, CI test workflow.
 |---|---|
 | Static review | This pack + post-merge re-audit |
 | Unit | **Backend:** `OrderLifecycleTests`. **Frontend:** none in `package.json` |
-| Integration / API | **Backend:** `ApiFlowTests` (in-memory SQLite factory). **Browser↔API UAT:** Not Run |
-| Functional / role / responsive | Not Run |
-| UAT | 24 cases, all **Not Run** |
-| Regression | Re-run Must UAT after portal wiring; `dotnet test` on API changes |
+| Integration / API | **Backend:** `ApiFlowTests` (in-memory SQLite factory). Live Staff browser↔API: queue + lifecycle retest executed. |
+| Functional / role / responsive | Partial (Staff orders only) |
+| UAT | 24 cases: **2 Pass**, **0 current Fail**, **1 Blocked**, **21 Not Run** |
+| Regression | `dotnet test` after API changes; re-run Staff Accept if converters change; Must UAT after portal wiring |
 
 A feature is not Passed because `data.ts` or a controller exists.
 
@@ -72,7 +72,7 @@ A feature is not Passed because `data.ts` or a controller exists.
 | Environment | Definition | Notes |
 |---|---|---|
 | **Demo** | No API URL | Staff/Admin: `data.ts` memory store. Portal: `mock-data`. Demo login: any password. |
-| **Live API** | Base URL set | Use **`http://localhost:5032`**. README **5000** is wrong for current launchSettings. Staff/Admin: REST. **Portal menu/cart/place/history still mock.** |
+| **Live API** | Base URL set | Use **`http://localhost:5032`**. README **5000** is wrong for current launchSettings. Staff/Admin: REST. **Portal menu/cart/place/history still mock.** 2026-09-29: `GET /health` ok; Staff Jason Reid live login; queue live. **Isolation:** `dotnet test` on the shared dev DB grew the queue **9 → 13**. |
 
 Do not assume Settings “Connected to API” means the Customer Must path is live.
 
@@ -103,7 +103,7 @@ Run (from backend solution, as documented by Role 2): `dotnet test StackedHub.sl
 
 Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does not cover HTTP 409 or UI.
 
-#### `ApiFlowTests.cs` (11 facts) — approximate Must mapping
+#### `ApiFlowTests.cs` (12 facts) — approximate Must mapping
 
 | Test | Helps |
 |---|---|
@@ -111,13 +111,14 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 | `Demo_customer_can_login_and_place_pickup_order` | Login + API place Cash, status `Placed` |
 | `Unavailable_item_cannot_be_ordered` | FR-026 API |
 | `Staff_can_move_order_through_kitchen` | One step to In kitchen + queue contains order |
+| `Staff_status_patch_accepts_frontend_in_kitchen_wire_value` | DEF-017 regression: Staff JWT, `PATCH /api/staff/orders/{id}/status`, literal `{"status":"In kitchen"}`. **Passes.** Not a substitute for UAT; manual retest also Passed. |
 | `Customer_cannot_open_staff_or_customer_crm_routes` | API 403 |
 | `Admin_can_read_frontend_contract_routes` | Admin smoke (includes non-Must CRM/inventory) |
 | `Admin_can_patch_customer_note_and_see_active_users` | Partial users list |
 | `Customer_checkout_can_set_channel` | Channel, not Pickup UI |
 | Assistant / AI tests | **Not Must** |
 
-**Must still untested by these files:** register; full chain to Completed + Customer UI tracking; invalid status **HTTP**; Staff vs `/api/admin/*`; payment on DTO; menu CRUD; user deactivate then login; **all UAT**.
+**Must still untested by these files:** register; Customer UI tracking of a shared order; invalid status **HTTP**; Staff vs `/api/admin/*`; payment on DTO; menu CRUD; user deactivate then login. Automated suite after DEF-017: **18 passed, 0 failed, 0 skipped** (was 17/17 before the regression test). UAT is recorded separately — do not infer remaining UAT Pass from this suite. Shared-dev-DB runs contaminate the live Staff queue.
 
 ---
 
@@ -127,7 +128,9 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 |---|---|---|
 | Portal bypasses `data.ts` | E2E and DEF-002–004/007 | Highest Must risk |
 | README :5000 vs API :5032 | False live-connect failures | RBV-004 |
-| VAL-001 | UAT-STA-004/E2E name mismatch | Keep open |
+| VAL-001 | Requirements vs implemented lifecycle names | **Keep open** — runtime Pass used `Placed` / `In kitchen` / `Ready` / `Completed`, not New→Confirmed→Preparing→ReadyForPickup |
+| Staff Accept JSON `"In kitchen"` | Live PATCH bind 400 | DEF-017 **Resolved / Verified** (converter order + 18/18 + manual retest) |
+| Shared SQLite for `dotnet test` + live API | Queue 9 → 13 during UAT | Isolation observation, not a product DEF |
 | `getUsers` `active: true` | Wrong Active labels | DEF-014 |
 | `OrderDto` omits payment | Cannot assert Cash/Card on tracking | DEF-015 |
 | No menu DELETE | FR-013 incomplete | DEF-016 |
@@ -142,6 +145,6 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 
 | Deliverable | Status |
 |---|---|
-| This strategy / traceability / UAT / defects / architecture | Updated to post-merge; UAT **Not Run** |
+| This strategy / traceability / UAT / defects / architecture | Live Staff UAT recorded; STA-004 original Fail retained; DEF-017 Resolved / Verified; VAL-001 Open; E2E Blocked |
 | Backend automated tests | Present; not a substitute for UAT |
 | Frontend automated tests / CI | Still absent |

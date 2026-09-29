@@ -1,10 +1,10 @@
 # BruvHub Requirements Traceability (Must MVP)
 
-**Rule:** code existence is **not** Implemented. Runtime/UAT is outstanding for every row.  
+**Rule:** code existence is **not** Implemented. Runtime/UAT is recorded only where executed.  
 **Statuses:** `Implemented` | `Partial` | `Missing` | `Not Tested` | `Requires Backend Verification`  
-**Revision:** Post-merge. Pre-merge matrix had **0 Implemented / 15 Partial / 7 Missing**. Users page moved Missing → Partial. No row is Implemented.
+**Revision:** Post-merge + live Staff UAT 2026-09-29. No row is Implemented solely from `dotnet test`.
 
-Administrator ≡ `Admin` (VAL-002 accepted mapping). VAL-001 lifecycle names remain **unaccepted**.
+Administrator ≡ `Admin` (VAL-002 accepted mapping). VAL-001 lifecycle names remain **unaccepted / Open**.
 
 ---
 
@@ -29,9 +29,9 @@ Administrator ≡ `Admin` (VAL-002 accepted mapping). VAL-001 lifecycle names re
 
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
-| FR-002 / FR-004 | Login + role | Staff | Staff access; Admin denied | `AppShell` + API `[Authorize]`. 403 tested for Customer vs staff routes. | **Partial** | UAT-STA-001/002 | UAT-STA-001, UAT-STA-002 | UAT Not Run. |
-| FR-030 | Order queue | Staff | View/filter | `orders.tsx` + `useLoad(getOrderQueue)`. Live GET staff orders. Status filter (channel/search reduced vs pre-merge UI). | **Partial** | UAT-STA-003 | UAT-STA-003 | Strong after live UAT; not Implemented. |
-| FR-031 | Status updates | Staff | Requirements lifecycle; reject invalid | UI `Placed→In kitchen→Ready→Completed`. API `OrderLifecycle` + 409. | **Partial** | UAT-STA-004/005 | UAT-STA-004, UAT-STA-005 | VAL-001. Unit tests ≠ UAT. |
+| FR-002 / FR-004 | Login + role | Staff | Staff access; Admin denied | `AppShell` + API `[Authorize]`. 403 tested for Customer vs staff routes. Live Jason Reid login used as environment for STA-003/004. | **Partial** | UAT-STA-001/002 | UAT-STA-001, UAT-STA-002 | UAT-STA-001/002 **Not Run** as separate cases (negative Admin not executed). |
+| FR-030 | Order queue | Staff | View/filter | `orders.tsx` + `useLoad(getOrderQueue)`. Live GET staff orders. | **Partial** | UAT-STA-003 | UAT-STA-003 | UAT-STA-003 **Pass** for live queue **view/load**. Filter step not separately recorded. Shared-DB tests grew queue 9→13. Not Implemented (filters / Customer share). |
+| FR-031 | Status updates | Staff | Requirements lifecycle; reject invalid | UI `Placed→In kitchen→Ready→Completed`. API `OrderLifecycle` + 409. | **Partial** | UAT-STA-004/005 | UAT-STA-004, UAT-STA-005 | **VAL-001 Open.** UAT-STA-004 original **Fail** (DEF-017) then **Pass retest** on implemented names (`#4808` Placed→In kitchen; `#4813` In kitchen→Ready→Completed; `#4808` Ready not observed). UAT-STA-005 invalid transitions **Not Run**. DEF-017 **Resolved / Verified**. |
 | FR-014 | Availability | Staff | Toggle; Customer sees it | **`/availability` exists** (`useLoad` + `setAvailability`). Portal mock unchanged. | **Partial** | UAT-STA-006/007 | UAT-STA-006, UAT-STA-007 | DEF-006 resolved as 404; DEF-007 remains. |
 
 ---
@@ -53,27 +53,27 @@ Administrator ≡ `Admin` (VAL-002 accepted mapping). VAL-001 lifecycle names re
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
 | NFR-SEC-02 | Authorization | All | Server enforces roles | API roles + `ApiFlowTests` 403. `AppShell` still client-only. | **Partial** | UAT + API | UAT-STA-002, UAT-ADM-006 | DEF-010 partial. |
-| NFR-REL-03 | Shared lifecycle | Customer + Staff | Same order; requirements statuses | Backend can share. **Portal not wired.** Status names ≠ requirements. | **Missing** | UAT-E2E-001 | UAT-E2E-001 | DEF-002 + VAL-001. |
+| NFR-REL-03 | Shared lifecycle | Customer + Staff | Same order; requirements statuses | Backend can share. **Portal not wired.** Status names ≠ requirements. | **Missing** | UAT-E2E-001 | UAT-E2E-001 | DEF-002 + **VAL-001 Open**. UAT-E2E-001 **Blocked**. Staff-only lifecycle Pass does not satisfy this row. |
 | INT-API | Live MVP data | All | API drives Must data | Staff/Admin `data.ts` yes. Customer Must **no**. | **Partial** | UAT-API-001 | UAT-API-001 | Use port **5032**. |
 
 ---
 
 ## End-to-end Must path
 
-Still **not** executable as specified: portal does not persist Pickup/Cash/Card/`New`, and VAL-001 is open. UAT-E2E-001 remains **Not Run**.
+Still **not** executable as specified: portal does not persist Pickup/Cash/Card/`New`, and VAL-001 is **Open**. UAT-E2E-001 is **Blocked** (DEF-002). Staff implemented lifecycle on existing orders does **not** Pass E2E.
 
-Staff/Admin live path is **code-complete enough to UAT** on `:5032`; that UAT has **not** been executed.
+Staff live path on `:5032` (2026-09-29): queue **Pass** (UAT-STA-003); implemented status **Pass on retest** (UAT-STA-004) after original DEF-017 Fail. DEF-017 **Resolved / Verified**. VAL-001 remains **Open** (New→Confirmed→Preparing→ReadyForPickup vs Placed→In kitchen→Ready→Completed).
 
 ---
 
-## Counts (post-merge, pending runtime UAT)
+## Counts (post-merge + Staff runtime notes)
 
 | Implementation status | Rows |
 |---|---|
 | Implemented | **0** |
 | Partial | **16** |
 | Missing | **6** |
-| Not Tested (execution / UAT) | **All 22** |
+| Not Tested (execution / UAT) | Customer + Admin + remaining Staff (availability, STA-001/002/005) + UAT-API-001 |
 
 **22** rows: Customer 10, Staff 4, Administrator 5, Cross-cutting 3.
 

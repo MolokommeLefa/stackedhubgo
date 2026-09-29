@@ -1,14 +1,16 @@
 # BruvHub UAT Test Cases
 
-**Revision:** Post-merge notes added. **No case has been executed.**  
+**Revision:** Live Staff UAT 2026-09-29 (`:5032` / `:8080`). Original UAT-STA-004 Fail retained; retest Pass recorded. `dotnet test` is **not** a UAT Pass by itself.  
 **Status values:** `Not Run` | `Pass` | `Fail` | `Blocked`  
-**Actual result / Status:** **Not Run** — do not Pass from code review or from `dotnet test`.
+**Actual result / Status:** do not Pass from code review or from `dotnet test` alone. Customer cases and unexecuted Staff/Admin cases remain **Not Run**.
 
 Administrator implementation value: `Admin`. Requirements lifecycle names stay in **Expected result**; implemented UI/API uses `Placed` / `In kitchen` / `Ready` (VAL-001 **open**). Record actual labels after a real run.
 
 **Live API URL for this repo:** `http://localhost:5032`. Frontend README still mentions `http://localhost:5000` — using 5000 is a tester setup fail, not an API-down defect.
 
 **Live vs mock:** Staff/Admin Must screens use `data.ts` (API if URL set). **Customer portal menu/cart/place/history stay on mock even when connected.**
+
+**Live Staff run environment (2026-09-29):** API `http://localhost:5032`; frontend `http://localhost:8080` with `VITE_API_BASE_URL=http://localhost:5032`; `GET /health` `{ status: "ok" }`; Staff Jason Reid authenticated; Order Queue loaded live data. Integration tests against the same dev DB increased visible queue **9 → 13** (isolation observation, not a product Fail).
 
 ---
 
@@ -216,9 +218,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Staff. Live: queue from API via `getOrderQueue`. |
 | **Test steps** | 1. Open `/orders`. 2. Filter by status. 3. Note identity, time, channel, status. |
 | **Expected result** | Queue shows orders; filters work as implemented. |
-| **Actual result** | Not Run |
-| **Status** | Not Run |
-| **Evidence** | — |
+| **Actual result** | **Pass (queue view/load).** Live Staff Jason Reid on `:8080` / `:5032`. `/orders` showed live backend orders (including `#4808` Placed, `#4813` In kitchen). Filter-by-status was not a separately recorded step; this Pass is for **viewing/loading** the live queue (FR-030 load), not for status transitions. Queue count rose 9 → 13 after `dotnet test` (shared-DB contamination). |
+| **Status** | Pass |
+| **Evidence** | Live UAT 2026-09-29; Staff authenticated; live queue |
 
 ---
 
@@ -233,9 +235,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Preconditions** | Order in starting state. **Do not Pass on requirements names** without VAL-001. |
 | **Test steps** | 1. Advance through implemented or requirements chain. 2. Refresh. 3. Check Customer tracking if a real shared order exists. |
 | **Expected result** | Valid steps persist; Customer sees the same order (blocked if portal mock). |
-| **Actual result** | Not Run |
-| **Status** | Not Run |
-| **Evidence** | — |
+| **Actual result** | **Original execution: Fail.** Staff Jason Reid, live `:5032` / `:8080`. Accept on `#4808` while **Placed**. UI: “One or more validation errors occurred.” Order remained **Placed**. No UPDATE SQL. PATCH `{ "status": "In kitchen" }` failed bind (`In kitchen` vs `InKitchen`; converter order). **DEF-017.** VAL-001 is unrelated (requirements names). **Retest: Pass (implemented Staff lifecycle, API restarted).** `#4808` still Placed before retest. Accept → **In kitchen**; full browser reload; remained In kitchen and showed **Mark ready**. Persistence verified. **Do not claim `#4808` was observed at Ready.** `#4813` began In kitchen; Mark ready; full reload; remained **Ready** (Complete). Complete; full reload; remained **Completed** with no further progression action. Persistence verified for In kitchen→Ready and Ready→Completed. Implemented chain is evidenced **collectively** across `#4808` and `#4813`. Customer tracking **not** executed (portal unwired). |
+| **Status** | Pass (retest). Original Fail retained above. |
+| **Evidence** | Original Fail: live 2026-09-29 DEF-017. Retest: same day, restarted API; reload persistence on `#4808` / `#4813`. Automated: 18/18 including `Staff_status_patch_accepts_frontend_in_kitchen_wire_value`. |
 
 ---
 
@@ -404,12 +406,12 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | **Role** | Customer + Staff |
 | **Requirement/feature** | FR-020, FR-025, FR-030, FR-031, FR-032 |
 | **Priority** | Must |
-| **Preconditions** | Prefer live `:5032`. Portal likely **not** sharing staff queue until wired. |
+| **Preconditions** | Prefer live `:5032`. Portal does **not** share staff queue (DEF-002). Staff Accept bind (DEF-017) is no longer the blocker. |
 | **Test steps** | 1. Customer Pickup + Cash/Card. 2. Confirm New (or mapped). 3. Staff finds **that** order. 4. Advance lifecycle. 5. Customer confirms each status. |
 | **Expected result** | One persisted order; both roles consistent. |
-| **Actual result** | Not Run |
-| **Status** | Not Run |
-| **Evidence** | — |
+| **Actual result** | **Blocked.** Customer place-order UI still does not persist an order, so Staff cannot find **that** Customer order and Customer cannot confirm shared statuses. Staff implemented lifecycle was later verified on existing kitchen orders; that does **not** Pass this cross-role case. VAL-001 still open. |
+| **Status** | Blocked |
+| **Evidence** | DEF-002; VAL-001 (names). DEF-017 no longer blocking Staff Accept. |
 
 ---
 
@@ -445,9 +447,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | UAT-CUS-009 | Customer | Must | Not Run | — |
 | UAT-STA-001 | Staff | Must | Not Run | — |
 | UAT-STA-002 | Staff | Must | Not Run | — |
-| UAT-STA-003 | Staff | Must | Not Run | — |
-| UAT-STA-004 | Staff | Must | Not Run | — |
-| UAT-STA-005 | Staff | Must | Not Run | — |
+| UAT-STA-003 | Staff | Must | Pass | — (live queue view/load; not a status-transition test) |
+| UAT-STA-004 | Staff | Must | Pass (retest) | DEF-017 original Fail retained in case; now Resolved / Verified |
+| UAT-STA-005 | Staff | Must | Not Run | — (invalid skip/revert not executed) |
 | UAT-STA-006 | Staff | Must | Not Run | — |
 | UAT-STA-007 | Staff | Must | Not Run | — |
 | UAT-ADM-001 | Administrator | Must | Not Run | — |
@@ -456,7 +458,9 @@ Administrator implementation value: `Admin`. Requirements lifecycle names stay i
 | UAT-ADM-004 | Administrator | Must | Not Run | — |
 | UAT-ADM-005 | Administrator | Must | Not Run | — |
 | UAT-ADM-006 | Customer | Must | Not Run | — |
-| UAT-E2E-001 | Cross-role | Must | Not Run | — |
-| UAT-API-001 | Integration | Must | Not Run | — |
+| UAT-E2E-001 | Cross-role | Must | Blocked | DEF-002 (portal unwired). VAL-001 open. |
+| UAT-API-001 | Integration | Must | Not Run | — (`GET /health` ok is environment, not this case) |
 
-**Passed:** 0  **Failed:** 0  **Not Run:** 24
+**Passed:** 2 (UAT-STA-003; UAT-STA-004 retest)  **Failed (current):** 0  **Blocked:** 1 (UAT-E2E-001)  **Not Run:** 21
+
+Historical: UAT-STA-004 original execution remains **Fail** in the case body (DEF-017). Do not treat that as the current verdict.

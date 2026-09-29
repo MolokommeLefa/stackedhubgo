@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
@@ -18,9 +19,9 @@ internal static class Json
     {
         Converters =
         {
-            new JsonStringEnumConverter(),
             new OrderStatusJsonConverter(),
-            new OrderChannelJsonConverter()
+            new OrderChannelJsonConverter(),
+            new JsonStringEnumConverter(),
         }
     };
 }
@@ -169,6 +170,36 @@ public class ApiFlowTests : IClassFixture<ApiFactory>
 
         var queue = await staff.GetFromJsonAsync<List<OrderDto>>("/api/orders", Json.Options);
         Assert.Contains(queue!, x => x.Id == order.Id);
+    }
+
+    [Fact]
+    public async Task Staff_status_patch_accepts_frontend_in_kitchen_wire_value()
+    {
+        using var customer = await SignIn("priya.nair@example.co.za");
+        var menu = await customer.GetFromJsonAsync<List<MenuItemDto>>("/api/menu", Json.Options);
+        var smash = menu!.First(x => x.Name == "Double Smash Burger" && x.Available);
+        var created = await customer.PostAsJsonAsync("/api/orders", new PlaceOrderRequest(
+            PaymentMethod.Cash,
+            null,
+            [new CartLineRequest(smash.Id, 1, null)]), Json.Options);
+        created.EnsureSuccessStatusCode();
+        var order = await created.Content.ReadFromJsonAsync<OrderDto>(Json.Options);
+        Assert.Equal(OrderStatus.Placed, order!.Status);
+
+        using var staff = await SignIn("jason@stackedfoods.co.za");
+        using var patchRequest = new HttpRequestMessage(HttpMethod.Patch, $"/api/staff/orders/{order.Id}/status")
+        {
+            Content = new StringContent("""{"status":"In kitchen"}""", Encoding.UTF8, "application/json"),
+        };
+        var patch = await staff.SendAsync(patchRequest);
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+
+        var payload = await patch.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(payload);
+        Assert.Equal("In kitchen", doc.RootElement.GetProperty("status").GetString());
+
+        var updated = JsonSerializer.Deserialize<OrderDto>(payload, Json.Options);
+        Assert.Equal(OrderStatus.InKitchen, updated!.Status);
     }
 
     [Fact]
