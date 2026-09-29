@@ -1,83 +1,138 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { endpoints, getApiBaseUrl, setApiBaseUrl } from "@/lib/api-client";
+import { BrandMark } from "@/components/BrandMark";
+import { fieldClass, primaryBtnClass } from "@/components/AuthCard";
+import { endpoints, getApiBaseUrl, setApiBaseUrl, tokenStore } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "API Connection — StackedHub" },
-      { name: "description", content: "Connect StackedHub to the Stacked Foods ASP.NET Core API." },
-      { property: "og:title", content: "API Connection — StackedHub" },
-      { property: "og:description", content: "Connect StackedHub to the Stacked Foods ASP.NET Core API." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { title: "Settings — StackedHub" },
+      { name: "description", content: "Profile and API connection for StackedHub." },
     ],
   }),
   component: SettingsPage,
 });
 
 function SettingsPage() {
+  const { user, signOut, ready } = useAuth();
+  const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => setUrl(getApiBaseUrl()), []);
 
   const test = async () => {
     const clean = url.trim().replace(/\/+$/, "");
     if (!clean) return setStatus({ ok: false, text: "Enter the API address first." });
+    setTesting(true);
     try {
       const res = await fetch(`${clean}${endpoints.health}`);
-      setStatus(res.ok ? { ok: true, text: "The API answered — you're good to go." } : { ok: false, text: `The API answered with an error (${res.status}).` });
+      setStatus(
+        res.ok
+          ? { ok: true, text: "The API answered — you're good to go." }
+          : { ok: false, text: `The API answered with an error (${res.status}). Check the path and try again.` },
+      );
     } catch {
-      setStatus({ ok: false, text: "Couldn't reach the API. Check it's running and the address is right." });
+      setStatus({
+        ok: false,
+        text: "Couldn't reach the API. Confirm it is running and that the address includes http://.",
+      });
+    } finally {
+      setTesting(false);
     }
   };
 
   const save = () => {
     setApiBaseUrl(url);
-    // Signing in again is required: demo tokens don't work against the real API.
     window.localStorage.removeItem("stackedhub.user");
-    window.localStorage.removeItem("stackedhub.jwt");
+    tokenStore.clear();
     window.location.href = "/";
   };
 
   return (
-    <div className="grid min-h-screen place-items-center bg-background p-4">
-      <div className="w-full max-w-lg rounded-3xl bg-card p-8 shadow-sm">
-        <h1 className="text-2xl font-bold">Connect the API</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Paste the address where the StackedHub API is running. Leave it empty to use demo data.
-        </p>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="http://localhost:5032"
-          className="mt-6 w-full rounded-xl border border-border px-4 py-2.5 text-sm outline-none focus:border-primary"
-        />
-        {status && (
-          <p className={`mt-3 rounded-xl px-3 py-2 text-sm ${status.ok ? "bg-success/15" : "bg-destructive/10 text-destructive"}`}>
-            {status.text}
-          </p>
+    <div id="main-content" className="grid min-h-screen place-items-center bg-background p-4">
+      <div className="w-full max-w-lg space-y-6">
+        {ready && user && (
+          <section className="rounded-3xl bg-card p-8 shadow-sm">
+            <h1 className="text-2xl font-bold">Your profile</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Signed in as {user.role}.</p>
+            <dl className="mt-4 space-y-2 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">Name</dt>
+                <dd className="font-semibold">{user.name}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Email</dt>
+                <dd>{user.email}</dd>
+              </div>
+            </dl>
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                void navigate({ to: "/" });
+              }}
+              className="mt-4 min-h-11 rounded-xl bg-secondary px-4 text-sm font-semibold"
+            >
+              Sign out
+            </button>
+          </section>
         )}
-        <div className="mt-4 flex gap-2">
-          <button onClick={test} className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-semibold">
-            Test connection
-          </button>
-          <button onClick={save} className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground">
-            Save & sign in again
-          </button>
-        </div>
-        <div className="mt-6 rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
-          <p className="font-semibold text-foreground">Running it on your computer</p>
-          <p className="mt-1">
-            In the backend folder run <code>dotnet run --project StackedHub.Api</code>, then use{" "}
-            <code>http://localhost:5032</code>. Demo logins: thandi@stackedfoods.co.za (Admin),
-            jason@stackedfoods.co.za (Staff), password <code>Stacked123!</code>.
+
+        <section className="rounded-3xl bg-card p-8 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <BrandMark />
+            <span className="text-lg font-bold">StackedHub</span>
+          </div>
+          <h2 className="mt-6 text-2xl font-bold">Connect the API</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Paste the address where the StackedHub API is running. Leave it empty to use demo data.
           </p>
-        </div>
-        <Link to="/" className="mt-4 inline-block text-sm font-semibold text-primary">
-          ← Back
-        </Link>
+          <label className="mt-6 block text-xs font-medium text-muted-foreground">
+            API base URL
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="http://127.0.0.1:5032"
+              className={fieldClass}
+            />
+          </label>
+          {status && (
+            <p
+              className={`mt-3 rounded-xl px-3 py-2 text-sm ${status.ok ? "bg-success/15" : "bg-destructive/10 text-destructive"}`}
+              role="status"
+            >
+              {status.text}
+            </p>
+          )}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              disabled={testing}
+              onClick={() => void test()}
+              className="min-h-11 flex-1 rounded-xl bg-secondary py-2.5 text-sm font-semibold disabled:opacity-60"
+            >
+              {testing ? "Testing…" : "Test connection"}
+            </button>
+            <button type="button" onClick={save} className={`${primaryBtnClass} flex-1`}>
+              Save & sign in again
+            </button>
+          </div>
+          <div className="mt-6 rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
+            <p className="font-semibold text-foreground">Running it on your computer</p>
+            <p className="mt-1">
+              From the Backend-database branch run <code>dotnet run --project backend/StackedHub.Api --urls http://127.0.0.1:5032</code>.
+              Demo logins: thandi@stackedfoods.co.za (Admin), jason@stackedfoods.co.za (Staff),
+              priya.nair@example.co.za (Customer), password <code>Stacked123!</code>.
+            </p>
+          </div>
+          <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+            ← Back to sign in
+          </Link>
+        </section>
       </div>
     </div>
   );

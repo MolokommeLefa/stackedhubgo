@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth";
 import { isLiveApi } from "@/lib/api-client";
 import type { Role } from "@/lib/types";
@@ -32,7 +33,7 @@ const groups: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Dashboard", to: "/dashboard", icon: LayoutGrid, roles: ["Admin", "Staff"] },
       { label: "Order Queue", to: "/orders", icon: ClipboardList, roles: ["Admin", "Staff"] },
-      { label: "Item Availability", to: "/availability", icon: ToggleRight, roles: ["Staff"] },
+      { label: "Item Availability", to: "/availability", icon: ToggleRight, roles: ["Staff", "Admin"] },
     ],
   },
   {
@@ -92,10 +93,8 @@ export function AppShell({
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] gap-6 p-4 lg:p-6">
         <aside className="hidden w-60 shrink-0 flex-col self-start rounded-3xl bg-card p-5 lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100vh-3rem)]">
-          <Link to="/dashboard" className="flex items-center gap-2.5 px-2">
-            <div className="grid size-9 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground">
-              S
-            </div>
+          <Link to="/dashboard" className="flex items-center gap-2.5 px-2" aria-label="StackedHub dashboard">
+            <BrandMark className="size-9" />
             <span className="text-lg font-bold tracking-tight">StackedHub</span>
           </Link>
 
@@ -116,13 +115,14 @@ export function AppShell({
                         <Link
                           key={item.to}
                           to={item.to}
+                          aria-current={active ? "page" : undefined}
                           className={
                             active
-                              ? "flex items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-foreground"
-                              : "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                              ? "flex min-h-11 items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-foreground"
+                              : "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           }
                         >
-                          <Icon className={active ? "size-[18px] text-primary" : "size-[18px]"} />
+                          <Icon className={active ? "size-[18px] text-primary" : "size-[18px]"} aria-hidden />
                           {item.label}
                         </Link>
                       );
@@ -142,19 +142,20 @@ export function AppShell({
               <p className="text-xs text-muted-foreground">{user.role}</p>
             </div>
             <button
+              type="button"
               aria-label="Sign out"
               onClick={() => {
                 signOut();
                 void navigate({ to: "/" });
               }}
-              className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="min-h-11 min-w-11 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <LogOut className="size-4" />
             </button>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
+        <main id="main-content" className="min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
@@ -170,11 +171,12 @@ export function AppShell({
                 {live ? "Connected to API" : "Demo data"}
               </Link>
               <button
+                type="button"
                 onClick={() => {
                   signOut();
                   void navigate({ to: "/" });
                 }}
-                className="rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground lg:hidden"
+                className="min-h-11 rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground lg:hidden"
               >
                 Sign out
               </button>
@@ -189,10 +191,11 @@ export function AppShell({
                 <Link
                   key={item.to}
                   to={item.to}
+                  aria-current={pathname === item.to ? "page" : undefined}
                   className={
                     pathname === item.to
-                      ? "shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
-                      : "shrink-0 rounded-full bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                      ? "inline-flex min-h-11 shrink-0 items-center rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                      : "inline-flex min-h-11 shrink-0 items-center rounded-full bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
                   }
                 >
                   {item.label}
@@ -246,13 +249,39 @@ export function StatusPill({ status }: { status: string }) {
   );
 }
 
-export function LoadState({ loading, error }: { loading: boolean; error: unknown }) {
-  if (loading) return <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>;
-  if (error)
+export function LoadState({
+  loading,
+  error,
+  onRetry,
+}: {
+  loading: boolean;
+  error: unknown;
+  onRetry?: () => void;
+}) {
+  if (loading) {
     return (
-      <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
-        {error instanceof Error ? error.message : "Something went wrong."}
+      <p className="py-8 text-center text-sm text-muted-foreground" role="status">
+        Loading…
       </p>
     );
+  }
+  if (error) {
+    const message =
+      error instanceof Error ? error.message : "The request failed. Check your connection and try again.";
+    return (
+      <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+        <p>{message}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 min-h-11 rounded-xl bg-card px-4 text-xs font-semibold text-foreground"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
   return null;
 }
