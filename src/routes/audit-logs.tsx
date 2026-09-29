@@ -4,11 +4,6 @@ import { AppShell, LoadState, Panel } from "@/components/AppShell";
 import { getAuditLog } from "@/lib/data";
 import { formatDate, formatTime } from "@/lib/mock-data";
 import type { AuditLogEntry } from "@/lib/types";
-import { useState } from "react";
-import { AppShell, LoadState, Panel } from "@/components/AppShell";
-import { getAuditLog } from "@/lib/data";
-import { formatDate, formatTime } from "@/lib/mock-data";
-import { useLoad } from "@/lib/use-load";
 
 export const Route = createFileRoute("/audit-logs")({
   head: () => ({
@@ -81,28 +76,6 @@ function AuditPage() {
                   </p>
                 </div>
               ))}
-  const { data, loading, error } = useLoad(getAuditLog, []);
-  const [role, setRole] = useState("All");
-  const shown = data.filter((a) => role === "All" || a.role === role);
-  return (
-    <AppShell title="Audit Logs" subtitle="Security" allow={["Admin"]}>
-      <Panel
-        title={`${shown.length} entries`}
-        action={
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="glass-soft rounded-xl px-3 py-2 text-sm outline-none">
-            <option value="All">All roles</option><option>Admin</option><option>Staff</option>
-          </select>
-        }
-      >
-        <LoadState loading={loading} error={error} />
-        <div className="divide-y divide-border">
-          {shown.map((a) => (
-            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-              <div>
-                <p className="text-sm"><span className="font-semibold">{a.actor}</span> {a.action.toLowerCase()} — <span className="text-primary">{a.target}</span></p>
-                <p className="text-xs text-muted-foreground">{a.role}</p>
-              </div>
-              <p className="text-xs text-muted-foreground">{formatDate(a.at)} · {formatTime(a.at)}</p>
             </div>
           )}
         </Panel>
