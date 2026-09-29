@@ -14,10 +14,12 @@ import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as AvailabilityRouteImport } from './routes/availability'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PromotionsRouteImport } from './routes/promotions'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UsersRouteImport } from './routes/users'
@@ -77,6 +79,21 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AvailabilityRoute = AvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -89,10 +106,12 @@ export interface FileRoutesByFullPath {
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/menu': typeof MenuRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
@@ -103,10 +122,12 @@ export interface FileRoutesByTo {
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/menu': typeof MenuRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
@@ -118,10 +139,12 @@ export interface FileRoutesById {
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/menu': typeof MenuRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
+  '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
@@ -134,10 +157,12 @@ export interface FileRouteTypes {
     | '/availability'
     | '/customers'
     | '/dashboard'
+    | '/forgot-password'
     | '/menu'
     | '/orders'
     | '/portal'
     | '/promotions'
+    | '/register'
     | '/reports'
     | '/settings'
     | '/users'
@@ -148,10 +173,12 @@ export interface FileRouteTypes {
     | '/availability'
     | '/customers'
     | '/dashboard'
+    | '/forgot-password'
     | '/menu'
     | '/orders'
     | '/portal'
     | '/promotions'
+    | '/register'
     | '/reports'
     | '/settings'
     | '/users'
@@ -162,10 +189,12 @@ export interface FileRouteTypes {
     | '/availability'
     | '/customers'
     | '/dashboard'
+    | '/forgot-password'
     | '/menu'
     | '/orders'
     | '/portal'
     | '/promotions'
+    | '/register'
     | '/reports'
     | '/settings'
     | '/users'
@@ -177,10 +206,12 @@ export interface RootRouteChildren {
   AvailabilityRoute: typeof AvailabilityRoute
   CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   MenuRoute: typeof MenuRoute
   OrdersRoute: typeof OrdersRoute
   PortalRoute: typeof PortalRoute
   PromotionsRoute: typeof PromotionsRoute
+  RegisterRoute: typeof RegisterRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   UsersRoute: typeof UsersRoute
@@ -265,6 +296,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/availability': {
+      id: '/availability'
+      path: '/availability'
+      fullPath: '/availability'
+      preLoaderRoute: typeof AvailabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/users': {
       id: '/users'
       path: '/users'
@@ -281,10 +333,12 @@ const rootRouteChildren: RootRouteChildren = {
   AvailabilityRoute: AvailabilityRoute,
   CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   MenuRoute: MenuRoute,
   OrdersRoute: OrdersRoute,
   PortalRoute: PortalRoute,
   PromotionsRoute: PromotionsRoute,
+  RegisterRoute: RegisterRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   UsersRoute: UsersRoute,
