@@ -1,11 +1,10 @@
 # BruvHub Requirements Traceability (Must MVP)
 
-**Rule:** a route, TypeScript type, or `endpoints` constant is **not** Implemented.  
-**Statuses (one primary per row):** `Implemented` | `Partial` | `Missing` | `Not Tested` | `Requires Backend Verification`
+**Rule:** code existence is **not** Implemented. Runtime/UAT is outstanding for every row.  
+**Statuses:** `Implemented` | `Partial` | `Missing` | `Not Tested` | `Requires Backend Verification`  
+**Revision:** Post-merge. Pre-merge matrix had **0 Implemented / 15 Partial / 7 Missing**. Users page moved Missing → Partial. No row is Implemented.
 
-No row is `Implemented` for Must MVP after static review: either the behaviour is incomplete, UI-only, or unexecuted. **Not Tested** applies to execution; it is recorded in Planned QA / Test case, not used to hide Missing/Partial.
-
-Role mapping: Administrator ≡ implemented `Admin` (`src/lib/types.ts`). See `docs/architecture/domain-contract.md`.
+Administrator ≡ `Admin` (VAL-002 accepted mapping). VAL-001 lifecycle names remain **unaccepted**.
 
 ---
 
@@ -13,16 +12,16 @@ Role mapping: Administrator ≡ implemented `Admin` (`src/lib/types.ts`). See `d
 
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
-| FR-001 | Register | Customer | Create an account with valid credentials | `endpoints.register` in `src/lib/api-client.ts` only. No register UI or `apiRequest` call. Sign-in is `src/routes/index.tsx`. | **Missing** | UAT register; live API when backend exists | UAT-CUS-002 | Constant ≠ feature. |
-| FR-002 | Login | Customer | Authenticate before protected use | Demo: `src/lib/auth.tsx` uses `demoUsers[role]`, **any password**. Live: `POST /api/auth/login`. Session: `localStorage` `stackedhub.user` / `stackedhub.jwt`. | **Partial** | UAT demo + live | UAT-CUS-001, UAT-CUS-003 | Live login **Requires Backend Verification**. Demo is not credential auth. |
-| FR-010 | Browse menu | Customer | View items (name, description, price, availability) | `src/routes/portal.tsx` lists `menuItems.filter(m => m.available)` from `src/lib/mock-data.ts`. `getMenu()` unused. | **Partial** | UAT portal menu | UAT-CUS-004 | Mock only; not live catalogue. |
-| FR-012 / FR-026 | Unavailable items | Customer | Cannot order unavailable items | Portal hides `available: false` (e.g. Koeksister Bites in mock). Staff toggle in `src/routes/menu.tsx` is **separate** `useState`. | **Partial** | UAT hide + Staff toggle then Customer | UAT-CUS-005, UAT-STA-006 | Staff change does not affect portal. |
-| FR-020a | Add to cart | Customer | Add available items; quantities and total | Cart `useState` in `src/routes/portal.tsx`. Lost on refresh. | **Partial** | UAT cart | UAT-CUS-006 | UI-only; not shared with staff queue. |
-| FR-020b | Place / persist order | Customer | Submit a real order belonging to the Customer | Place order: `setCart({}); setPlaced(true)` in `portal.tsx`. No `Order` created; no create path in `endpoints`. | **Missing** | UAT create | UAT-CUS-007 | Do not treat the success message as order creation. |
-| FR-021a | Pickup checkout | Customer | Explicit Pickup order type | No pickup field on `Order` (`src/lib/types.ts`). No checkout step. Channels include delivery brands (extended domain). | **Missing** | UAT checkout | UAT-CUS-007 | — |
-| FR-022 | Cash/Card | Customer | Capture payment method | No payment fields in types or portal. | **Missing** | UAT checkout | UAT-CUS-007 | — |
-| FR-024 / FR-025 | Confirmation + New | Customer | Confirm; order starts **New** | Banner “Order placed!” only. Status type is `Placed`, not `New`. No order id/reference created. | **Missing** | UAT confirmation + status | UAT-CUS-007 | Lifecycle mismatch: VAL-001. |
-| FR-032 | Track status | Customer | See **current** status of **own** order | Portal “Order history” filters static `orders` by `user?.id`. New placements never appear. | **Partial** | UAT after real create + Staff update | UAT-CUS-008, UAT-E2E-001 | Cannot satisfy until create + shared store. |
+| FR-001 | Register | Customer | Create account | API `POST /api/auth/register`. No UI; `endpoints.register` unused. | **Missing** | UAT-CUS-002 | UAT-CUS-002 | DEF-001. API ≠ product. |
+| FR-002 | Login | Customer | Authenticate | Demo: any password. Live: `POST /api/auth/login` + JWT. | **Partial** | Demo + live UAT | UAT-CUS-001, UAT-CUS-003 | Live **Requires Runtime Verification**. |
+| FR-010 | Browse menu | Customer | View catalogue | Portal still `mock-data.menuItems`. `getMenu()` used by Staff/Admin only. | **Partial** | UAT-CUS-004 | UAT-CUS-004 | Live portal still mock. |
+| FR-012 / FR-026 | Unavailable | Customer | Cannot order | Portal hides mock unavailable. API rejects unavailable (`ApiFlowTests`). Staff `/availability` does not feed portal. | **Partial** | UAT-CUS-005, UAT-STA-006 | UAT-CUS-005, UAT-STA-006 | DEF-007. |
+| FR-020a | Cart | Customer | Add/qty/total | `useState` in `portal.tsx`. | **Partial** | UAT-CUS-006 | UAT-CUS-006 | Not shared with queue. |
+| FR-020b | Persist order | Customer | Real order for user | Portal: `setPlaced(true)` only. API `POST /api/orders` **not** in `endpoints`. | **Missing** | UAT-CUS-007 | UAT-CUS-007 | DEF-002 Critical. |
+| FR-021a | Pickup checkout | Customer | Pickup type | No checkout UI. Backend `PlacePickupAsync` unused by UI. | **Missing** | UAT-CUS-007 | UAT-CUS-007 | DEF-003. |
+| FR-022 | Cash/Card | Customer | Capture method | No UI. API requires Cash/Card; **`OrderDto` omits it**. | **Missing** | UAT-CUS-007 | UAT-CUS-007 | DEF-004, DEF-015. |
+| FR-024 / FR-025 | Confirm + New | Customer | Confirm; start **New** | Fake banner. Implemented status **`Placed`**. VAL-001. | **Missing** | UAT-CUS-007 | UAT-CUS-007 | |
+| FR-032 | Track | Customer | Own current status | Mock history by `user.id`. `GET /api/orders` unused. | **Partial** | UAT-CUS-008, E2E | UAT-CUS-008, UAT-E2E-001 | |
 
 ---
 
@@ -30,10 +29,10 @@ Role mapping: Administrator ≡ implemented `Admin` (`src/lib/types.ts`). See `d
 
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
-| FR-002 / FR-004 | Login + role | Staff | Staff access; Admin-only denied | Demo role tab `index.tsx`; `AppShell` `allow` + nav. Redirect if role not allowed. No server check in this repo. | **Partial** | Positive + negative UAT | UAT-STA-001, UAT-STA-002 | API RBAC **Requires Backend Verification**. |
-| FR-030 | Order queue | Staff | View/filter orders | `src/routes/orders.tsx`: `useState(seedOrders)` from mock; search/status/channel filters. `getOrderQueue()` unused. | **Partial** | UAT queue filters | UAT-STA-003 | Not the Customer’s newly placed order. |
-| FR-031 | Status updates | Staff | New→Confirmed→Preparing→ReadyForPickup→Completed; reject invalid | Flow in `orders.tsx`: `Placed`→`In kitchen`→`Ready`→`Completed`; Cancelled from non-terminal. Local state only. `updateOrderStatus` unused. | **Partial** | UAT transitions + negative | UAT-STA-004, UAT-STA-005 | Requirements names **absent** (VAL-001). UI does not enforce skip-ahead beyond hiding next button. |
-| FR-014 | Item availability | Staff | Set available/unavailable; Customer sees it | Nav “Item Availability” → `/availability` — **no route**. Toggle on `/menu` (`allow` Admin+Staff) but Staff nav hides Menu Catalogue. `setAvailability()` unused. | **Partial** | UAT nav + toggle + portal | UAT-STA-006, UAT-STA-007 | DEF-006, DEF-007. |
+| FR-002 / FR-004 | Login + role | Staff | Staff access; Admin denied | `AppShell` + API `[Authorize]`. 403 tested for Customer vs staff routes. | **Partial** | UAT-STA-001/002 | UAT-STA-001, UAT-STA-002 | UAT Not Run. |
+| FR-030 | Order queue | Staff | View/filter | `orders.tsx` + `useLoad(getOrderQueue)`. Live GET staff orders. Status filter (channel/search reduced vs pre-merge UI). | **Partial** | UAT-STA-003 | UAT-STA-003 | Strong after live UAT; not Implemented. |
+| FR-031 | Status updates | Staff | Requirements lifecycle; reject invalid | UI `Placed→In kitchen→Ready→Completed`. API `OrderLifecycle` + 409. | **Partial** | UAT-STA-004/005 | UAT-STA-004, UAT-STA-005 | VAL-001. Unit tests ≠ UAT. |
+| FR-014 | Availability | Staff | Toggle; Customer sees it | **`/availability` exists** (`useLoad` + `setAvailability`). Portal mock unchanged. | **Partial** | UAT-STA-006/007 | UAT-STA-006, UAT-STA-007 | DEF-006 resolved as 404; DEF-007 remains. |
 
 ---
 
@@ -41,11 +40,11 @@ Role mapping: Administrator ≡ implemented `Admin` (`src/lib/types.ts`). See `d
 
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
-| FR-002 / FR-004 | Login + role | Administrator | Access admin functions; others denied | Same auth as Staff; nav Admin-only items. `allow` on pages. Client-only. | **Partial** | UAT Admin + Customer/Staff negative | UAT-ADM-001, UAT-ADM-006 | Live role claim **Requires Backend Verification**. |
-| FR-013 | Menu CRUD | Administrator | Create / update / remove (or deactivate) items | `src/routes/menu.tsx`: add, stock +/−, availability toggle. **No** edit of name/price/description, **no** delete. Local `useState`. `saveMenuItem()` unused. | **Partial** | UAT CRUD + portal visibility | UAT-ADM-002 | Incomplete CRUD; no persistence. |
-| FR-005 / FR-072 | User / role management | Administrator | View users; roles; activate/deactivate | Nav Users → `/users` — **no route file**. `getUsers` / `setUserActive` only in unused `data.ts`. | **Missing** | UAT when page exists | UAT-ADM-003 | DEF-005. |
-| FR-070 | Essential reports | Administrator | Order/sales information (filterable) | `src/routes/dashboard.tsx`, `src/routes/reports.tsx` from mock; hardcoded KPI “New customers: 24”; CSV of `revenueByDay`. No date-range control. `getReport()` unused. | **Partial** | UAT reports vs live data | UAT-ADM-004 | Not authoritative sales. |
-| FR-071 | Audit logs | Administrator | Logs of critical actions; read-only UI | `src/routes/audit-logs.tsx` renders static `auditLog` from mock. Menu/order actions do not append entries. `getAuditLog()` unused. | **Partial** | UAT after an admin action | UAT-ADM-005 | Display only. |
+| FR-002 / FR-004 | Login + role | Administrator | Admin functions | Same auth; Admin nav. API Admin-only controllers. | **Partial** | UAT-ADM-001/006 | UAT-ADM-001, UAT-ADM-006 | |
+| FR-013 | Menu CRUD | Administrator | Create/update/remove | `menu.tsx` create+**edit** via `saveMenuItem`. No DELETE API/UI. Portal isolated. | **Partial** | UAT-ADM-002 | UAT-ADM-002 | DEF-011 partial; DEF-016. |
+| FR-005 / FR-072 | Users | Administrator | View; roles; activate | **`/users` exists**; activate/deactivate. No role edit. Live list may force `active: true`. | **Partial** | UAT-ADM-003 | UAT-ADM-003 | Was Missing pre-merge. DEF-005 404 resolved; DEF-014. |
+| FR-070 | Reports | Administrator | Order/sales | `reports.tsx`/`dashboard.tsx` + `getReport`. Live `ReportService`. Demo still uses some mock series. No date filter. | **Partial** | UAT-ADM-004 | UAT-ADM-004 | DEF-012 partial. |
+| FR-071 | Audit | Administrator | Action log | `audit-logs.tsx` + `getAuditLog`. Live admin audit. | **Partial** | UAT-ADM-005 | UAT-ADM-005 | DEF-012 partial. |
 
 ---
 
@@ -53,28 +52,29 @@ Role mapping: Administrator ≡ implemented `Admin` (`src/lib/types.ts`). See `d
 
 | ID | Requirement | Role | Expected behaviour | Current implementation evidence | Implementation status | Planned QA evidence | Test case ID | Notes / gap |
 |---|---|---|---|---|---|---|---|---|
-| NFR-SEC-02 | Authorization | All | Server/API enforces roles | `AppShell` `useEffect` redirect only (`src/components/AppShell.tsx`). Settings has no `allow`. | **Partial** | Negative UI + API 403 | UAT-STA-002, UAT-ADM-006 | UI hide ≠ authorization. API **Requires Backend Verification**. |
-| NFR-REL-03 | Shared lifecycle | Customer + Staff | Same order, requirements statuses | Two copies of mock orders; statuses `Placed` / `In kitchen` / `Ready`. | **Missing** (shared New…Completed path) | UAT-E2E-001 | UAT-E2E-001 | VAL-001 + DEF-002. |
-| INT-API | Live MVP data | All | Configured API drives auth, menu, orders, users, reports, audit | UI calls: login, `/health`, AI. `data.ts` unused by routes. | **Partial** | UAT-API-001; backend contract when API runs | UAT-API-001 | Login/health **Requires Backend Verification**. Do not Pass “live mode” from Settings badge. |
+| NFR-SEC-02 | Authorization | All | Server enforces roles | API roles + `ApiFlowTests` 403. `AppShell` still client-only. | **Partial** | UAT + API | UAT-STA-002, UAT-ADM-006 | DEF-010 partial. |
+| NFR-REL-03 | Shared lifecycle | Customer + Staff | Same order; requirements statuses | Backend can share. **Portal not wired.** Status names ≠ requirements. | **Missing** | UAT-E2E-001 | UAT-E2E-001 | DEF-002 + VAL-001. |
+| INT-API | Live MVP data | All | API drives Must data | Staff/Admin `data.ts` yes. Customer Must **no**. | **Partial** | UAT-API-001 | UAT-API-001 | Use port **5032**. |
 
 ---
 
-## End-to-end Must path (not executable as specified today)
+## End-to-end Must path
 
-Customer auth → menu → cart → Pickup + Cash/Card → order **New** → Staff queue → Confirmed → Preparing → ReadyForPickup → Customer track → Completed.
+Still **not** executable as specified: portal does not persist Pickup/Cash/Card/`New`, and VAL-001 is open. UAT-E2E-001 remains **Not Run**.
 
-**Static conclusion:** blocked by Missing create/Pickup/payment, Partial mock queue, and VAL-001 status names. UAT-E2E-001 remains **Not Run** (expected Fail if executed now).
+Staff/Admin live path is **code-complete enough to UAT** on `:5032`; that UAT has **not** been executed.
 
 ---
 
-## Counts
+## Counts (post-merge, pending runtime UAT)
 
 | Implementation status | Rows |
 |---|---|
-| Implemented | 0 |
-| Partial | 15 |
-| Missing | 7 |
-| Requires Backend Verification | Noted in Notes (login, RBAC, live login/health) — not used as the sole row status except where no frontend behaviour exists |
-| Not Tested (execution) | **All** rows |
+| Implemented | **0** |
+| Partial | **16** |
+| Missing | **6** |
+| Not Tested (execution / UAT) | **All 22** |
 
-**22** requirement rows: Customer 10, Staff 4, Administrator 5, Cross-cutting 3.
+**22** rows: Customer 10, Staff 4, Administrator 5, Cross-cutting 3.
+
+Missing: FR-001, FR-020b, FR-021a, FR-022, FR-024/025, NFR-REL-03.

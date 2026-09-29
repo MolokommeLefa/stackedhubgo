@@ -2,227 +2,200 @@
 
 **Project:** BruvHub  
 **Client:** Bruv Burger  
-**Scope:** Task 2 baseline — current frontend repository  
-**Status:** Recorded from implementation. Requirements mappings that differ from code are **pending team/consultant validation**.
+**Scope:** Task 2 — post-merge baseline (frontend + ASP.NET Core API in this repository)  
+**Revision:** Updated after `origin/main` backend/database merge. Pre-merge findings are retained; implementation that has since landed is marked as such.
+
+Requirements mappings that differ from code remain **pending team/consultant validation** (especially VAL-001).
 
 ## Purpose
 
 This document records the domain model **as implemented in this repository** and maps it to the requirements-level BruvHub vocabulary.
 
-It is a shared contract for architecture, development and QA. It does **not** prescribe a database schema and does **not** authorise renaming working code solely to match requirements terminology.
+It is a shared contract for architecture, development and QA. It does **not** prescribe that class names must match requirements names and does **not** authorise renaming working code solely for terminology.
 
 ---
 
 ## 1. Current roles (repository)
 
-Defined in `src/lib/types.ts`:
+Frontend (`src/lib/types.ts`) and backend (`StackedHub.Domain.UserRole`):
 
-```ts
-type Role = "Admin" | "Staff" | "Customer"
+```
+Admin | Staff | Customer
 ```
 
-Used by:
+JWT role claims use the same strings (`ClaimTypes.Role` / `"role"`). There is **no** `Administrator` string in application or API source.
 
-- `src/lib/auth.tsx` (demo accounts and live `user.role`)
-- `src/components/AppShell.tsx` (nav `roles` and page `allow` lists)
+### Mapping to requirements roles (VAL-002 — accepted implementation mapping)
 
-There is **no** `Administrator` string in source.
-
-### Mapping to requirements roles
-
-| Requirements role | Current implementation value | Mapping rule |
+| Requirements role | Implementation value | Mapping rule |
 |---|---|---|
 | Customer | `Customer` | Direct |
 | Staff | `Staff` | Direct |
-| Administrator | `Admin` | Treat `Admin` as Administrator. Do **not** refactor solely to rename. |
+| Administrator | `Admin` | **Accepted mapping.** Do **not** rename code. |
 
-QA and architecture documents should say **Administrator (`Admin`)** when referring to the implemented role.
+QA and architecture documents say **Administrator (`Admin`)** when referring to the implemented role.
 
 ---
 
-## 2. Domain types in `src`
+## 2. Layers that own domain types
 
-Source of truth: `src/lib/types.ts`, plus `ManagedUser` / `Report` / `MenuInput` in `src/lib/data.ts`.
-
-### `AuthUser`
-
-| Field | Type | Notes |
+| Layer | Location | Role |
 |---|---|---|
-| `id` | `string` | |
-| `name` | `string` | |
-| `email` | `string` | |
-| `role` | `Role` | `Admin` \| `Staff` \| `Customer` |
-| `loyaltyPoints` | `number?` | Optional. Loyalty is **not** Must-have MVP. |
+| Frontend types | `src/lib/types.ts` | UI / `apiRequest` parse shapes |
+| Frontend data access | `src/lib/data.ts`, `src/lib/use-load.ts` | Demo store **or** live API for Staff/Admin screens |
+| Backend domain | `backend/StackedHub.Domain` (`Order`, `MenuItem`, `User`, `OrderLifecycle`, `Enums`) | Authoritative persistence model |
+| Backend contracts | `backend/StackedHub.Api/Contracts/ApiContracts.cs` | HTTP DTOs |
+| Infrastructure | `backend/StackedHub.Infrastructure` (`AppDbContext`, `DbSeeder`) | EF Core + SQLite (and configured SQL) |
 
-### `Order`
+Pre-merge: domain lived only in frontend TypeScript. Post-merge: **backend enums and EF entities are the live-mode source of truth**; frontend types must stay JSON-compatible.
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `string` | |
-| `reference` | `string` | Display reference, e.g. `#4821` in mock data |
-| `customerId` | `string` | |
-| `customerName` | `string` | |
-| `channel` | union (see §6) | Not a Pickup/Delivery type field |
-| `items` | `OrderItem[]` | |
-| `total` | `number` | |
-| `status` | `OrderStatus` | See §3 |
-| `placedAt` | `string` | ISO timestamp |
+### `AuthUser` (frontend) / `AuthUserDto` (API)
 
-**Not present on `Order`:** pickup vs delivery, payment method (Cash/Card), special instructions.
-
-### `OrderItem`
-
-| Field | Type |
+| Field | Notes |
 |---|---|
-| `menuItemId` | `string` |
-| `name` | `string` |
-| `quantity` | `number` |
-| `unitPrice` | `number` |
+| `id`, `name`, `email` | Strings (API id is numeric, serialized as string) |
+| `role` | `Admin` \| `Staff` \| `Customer` |
+| `loyaltyPoints` | Optional; not Must MVP |
+| `active` (API only) | `AuthUserDto.Active`. Frontend `AuthUser` has no `active`. Live `getUsers()` currently forces `active: true` (DEF-014). |
 
-### `MenuItem`
+### `Order` (frontend) / `OrderDto` (API)
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `string` | |
-| `name` | `string` | |
-| `description` | `string` | |
-| `category` | `"Mains"` \| `"Sides"` \| `"Drinks"` \| `"Desserts"` | |
-| `price` | `number` | |
-| `stock` | `number` | Inventory-style field; **not** Must-have MVP |
-| `lowStockThreshold` | `number` | Same |
-| `spicy` | `boolean` | Used by demo AI suggestions |
-| `available` | `boolean` | Availability flag used by the portal menu filter |
+| Field | Notes |
+|---|---|
+| `id`, `reference`, `customerId`, `customerName` | |
+| `channel` | See §6 |
+| `items`, `total`, `status`, `placedAt` | |
+| Payment / pickup / special instructions | **Not on frontend `Order` or `OrderDto`.** Backend **entity** stores `PaymentMethod` and special instructions on place (`PlaceOrderRequest`). |
 
-No image field exists on `MenuItem`.
+### `OrderItem` / `OrderItemDto`
 
-### Other types (extended domain, not Must-have MVP)
+`menuItemId`, `name`, `quantity`, `unitPrice`.
 
-| Type | Location | Role in current UI |
-|---|---|---|
-| `Customer` | `types.ts` | CRM screen (`src/routes/customers.tsx`) |
-| `Promotion` | `types.ts` | Promotions screen |
-| `AuditLogEntry` | `types.ts` | Audit log screen (static mock) |
-| `ManagedUser` | `data.ts` | `AuthUser` + `active: boolean` — **not imported by routes** |
-| `Report` | `data.ts` | Aggregates for intended API reports — **not imported by routes** |
-| `MenuInput` | `data.ts` | `Omit<MenuItem, "id">` for create/update |
+### `MenuItem` / `MenuItemDto`
+
+`id`, `name`, `description`, `category` (Mains/Sides/Drinks/Desserts), `price`, `stock`, `lowStockThreshold`, `spicy`, `available`. No image field.
+
+### Other types
+
+| Type | Notes |
+|---|---|
+| `Customer` / `Promotion` | Extended domain. UI (`customers.tsx`, `promotions.tsx`) still uses **mock** seed; APIs exist. |
+| `AuditLogEntry` / `AuditLogDto` | Admin audit UI uses `getAuditLog()` (live or demo store). |
+| `ManagedUser`, `Report`, `MenuInput` | `data.ts` — **used** by users/reports/menu routes via `useLoad`. |
+| Backend `PaymentMethod` | `Cash` \| `Card` — used on **place order**, not returned on `OrderDto`. |
 
 ---
 
-## 3. Current order status values
+## 3. Current order status values (implemented)
 
-Implemented `OrderStatus` (`src/lib/types.ts`):
+Frontend `OrderStatus` and backend `OrderStatus` (JSON writes `"In kitchen"` for `InKitchen`):
 
 `Placed` | `In kitchen` | `Ready` | `Completed` | `Cancelled`
 
-Staff happy-path in `src/routes/orders.tsx`:
+Staff happy-path (`orders.tsx` + `OrderLifecycle.cs`):
 
 ```
 Placed → In kitchen → Ready → Completed
 ```
 
-`Cancelled` is applied from any non-terminal state (`Completed` and `Cancelled` cannot be advanced or cancelled again). Invalid transitions are not centrally validated; the UI only offers the next `flow` step.
+Allowed cancel: from `Placed`, `In kitchen`, or `Ready` (not from Completed). Customer API cancel only while `Placed`.
+
+Invalid transitions are **enforced on the API** (`OrderLifecycle.CanTransition` → HTTP 409). The UI only offers the next `flow` step.
+
+**Pre-merge:** UI-only flow, no server machine. **Post-merge:** frontend and backend **agree** on these names. That does **not** close VAL-001.
 
 ---
 
 ## 4. Requirements-level order lifecycle
 
-Canonical requirements lifecycle:
-
 ```
 New → Confirmed → Preparing → ReadyForPickup → Completed
 ```
 
-`Cancelled` is an alternative terminal state where cancellation is permitted.
+`Cancelled` where permitted.
 
-These names **do not appear** in `src/`.
+These names **do not appear** in `src/` or `backend/` domain/API code.
 
 ---
 
-## 5. Lifecycle mapping (pending reconciliation)
+## 5. Lifecycle mapping — VAL-001 **open**
 
-Suggested **provisional** mapping for discussion only. **Not validated** with backend or consultant.
+Provisional mapping for discussion only. **Not accepted** by consultant/team. Do **not** treat the implemented machine as equivalent to the requirements machine in UAT Pass criteria.
 
-| Requirements status | Current frontend status | Confidence |
+| Requirements status | Implemented status | Confidence |
 |---|---|---|
-| New | `Placed` | Provisional — semantic overlap, names differ |
-| Confirmed | *(no distinct value)* | **Gap** — no matching status |
+| New | `Placed` | Provisional |
+| Confirmed | *(none)* | **Gap** — no distinct step |
 | Preparing | `In kitchen` | Provisional |
 | ReadyForPickup | `Ready` | Provisional |
 | Completed | `Completed` | Direct |
 | Cancelled | `Cancelled` | Direct |
 
-**Baseline rule:** do not change functioning `OrderStatus` values merely to force terminology alignment. Record the mismatch until the team agrees a mapping or a coordinated change.
+**Baseline rule:** do not rename functioning `OrderStatus` values solely for terminology. API tests (`Status_machine_matches_frontend_board`) lock the implemented names further.
+
+QA against the running system uses **implemented** strings until VAL-001 is accepted.
 
 ---
 
-## 6. Order channels currently represented
-
-`Order.channel` (`src/lib/types.ts`):
+## 6. Order channels
 
 `In-store` | `Website` | `Mobile app` | `Uber Eats` | `Mr D` | `WhatsApp`
 
-There is **no** dedicated Pickup order-type field. Pickup is a Must-have MVP requirement; delivery-style channels exist in the type union as **extended domain**, not as confirmation that delivery is in MVP scope.
+No dedicated Pickup type on `Order`/`OrderDto`. Backend `PlacePickupAsync` is the pickup **operation** (Cash/Card collection); channel defaults to `Website`. Delivery-style channels are **extended domain**.
 
 ---
 
 ## 7. Menu availability
 
-- Concept: boolean `MenuItem.available`.
-- Customer portal (`src/routes/portal.tsx`) lists only `menuItems.filter((m) => m.available)` from `src/lib/mock-data.ts`.
-- Staff/Admin menu page (`src/routes/menu.tsx`) can toggle `available` on **local React state**. That state is **not** shared with the portal.
-- Intended API helper: `setAvailability()` in `src/lib/data.ts` (`PATCH` `{ available }`) — **not called by any route**.
-
-Availability is therefore a domain field, but not yet a single shared rule across Customer and Staff views.
+- Field: `MenuItem.available`.
+- **Staff:** `/availability` uses `getMenu` / `setAvailability` (`data.ts` → live `PATCH` or demo store).
+- **Admin menu:** `getMenu` / `saveMenuItem` (create/update). No HTTP DELETE.
+- **Customer portal:** still `menuItems.filter(m => m.available)` from **`src/lib/mock-data.ts`**. Staff/Admin live changes **do not** update the portal (DEF-007).
+- Backend rejects ordering unavailable items (`ApiFlowTests.Unavailable_item_cannot_be_ordered`). The portal never calls that API.
 
 ---
 
-## 8. Current authentication model
-
-Implemented in `src/lib/auth.tsx` + `src/lib/api-client.ts`.
+## 8. Authentication model
 
 | Aspect | Current behaviour |
 |---|---|
-| Session user | `localStorage` key `stackedhub.user` (`AuthUser` JSON) |
-| Token | `localStorage` key `stackedhub.jwt` |
-| Sign-in UI | `src/routes/index.tsx` — email, password, **role tab** |
-| Demo mode | Ignores password; uses `demoUsers[role]` and a fake token `demo.{role}.token` |
-| Live mode | `POST /api/auth/login` with `{ email, password }`; expects `{ token, user }` where `user` is `AuthUser` |
-| Register | Endpoint constant only — **no UI, no call** |
-| Authorization | Client redirect in `AppShell` if `user.role` is not in `allow`. No server enforcement in this repo |
-| Post-login home | Customer → `/portal`; Admin/Staff → `/dashboard` |
+| Session | `localStorage` `stackedhub.user`, `stackedhub.jwt` |
+| Demo | `auth.tsx` ignores password; role tab; fake token (DEF-009) |
+| Live login | `POST /api/auth/login` `{ email, password }` → `{ token, user }`. Backend: BCrypt, JWT ~12h, inactive → 403 |
+| Register | **API:** `POST /api/auth/register` (Customer role). **UI:** none (DEF-001) |
+| Forgot password | API stub always 200; no email/reset |
+| Frontend authZ | `AppShell` `allow` redirect (UX only) |
+| Backend authZ | `[Authorize]` + role attributes (DEF-010 partially resolved) |
+| Home | Customer → `/portal`; Admin/Staff → `/dashboard` |
 
-Backend credential and role-claim behaviour: **to be verified against backend implementation.**
+Seeded demo password (backend): `Stacked123!` (`DbSeeder`).
 
 ---
 
 ## 9. Demo mode versus live API mode
 
-`isLiveApi()` in `src/lib/api-client.ts` is true when a non-empty API base URL exists:
+`isLiveApi()` when a non-empty base URL exists (`stackedhub.apiUrl` then `VITE_API_BASE_URL`).
 
-1. `localStorage` `stackedhub.apiUrl` (Settings page), else
-2. `VITE_API_BASE_URL`
+Runtime API (launch profile): **`http://localhost:5032`**. Frontend README still mentions **`http://localhost:5000`** (QA/docs issue, RBV-004). `/health` is unauthenticated `{ status: "ok" }`.
 
-If neither is set, the app is in **demo mode**.
+| Surface | Demo (`isLiveApi` false) | Live (URL set) |
+|---|---|---|
+| Login | Bundled `demoUsers` | Real JWT login |
+| Staff/Admin Must screens (orders, availability, menu, users, reports, audit, dashboard) | `data.ts` **in-memory** copy of mock (resets on refresh) | `data.ts` → REST |
+| **Customer portal** | Mock `menuItems` / `orders` | **Still mock** for menu, cart, place-order, history. Only AI uses API. |
 
-| Mode | What the repository actually does |
-|---|---|
-| Demo | Sign-in uses bundled demo users. Feature pages seed from `src/lib/mock-data.ts` / local `useState`. |
-| Live (configured) | Sign-in, Settings health check, and portal AI recommendations can call the API. Staff/admin CRUD helpers in `src/lib/data.ts` also branch on `isLiveApi()`, but **routes do not import `data.ts`**. |
-
-`src/lib/data.ts` comments describe an in-memory demo store that resets on refresh. That store is unused by the UI.
+**Customer Must functionality still bypasses the shared live-data architecture.**
 
 ---
 
 ## 10. Known domain alignment items
 
-Pending validation / known gaps (do not treat as a silent rename list):
-
-1. `Admin` vs requirements `Administrator` — mapped, not renamed.
-2. Order statuses differ from New → Confirmed → Preparing → ReadyForPickup → Completed.
-3. No Pickup order type or Cash/Card payment-method fields on `Order`.
-4. No customer order-create type or API path in `src/lib/api-client.ts`.
-5. Loyalty, promotions, CRM `Customer`, stock/low-stock, delivery channels, and AI suggestions exist in types/UI and are **out of Must-have MVP** unless scope is changed.
-6. Customer portal and staff queue do not share one order store, so tracking and processing are not the same underlying order.
+1. Administrator ≡ `Admin` — **accepted mapping** (VAL-002). No rename.
+2. Order statuses ≠ New → Confirmed → Preparing → ReadyForPickup — **VAL-001 open**.
+3. Frontend `Order` still has no Pickup or Cash/Card fields; API place-order **does** take Cash/Card; `OrderDto` **omits** payment.
+4. Frontend `endpoints` still has **no** `POST /api/orders` (backend has it).
+5. Loyalty, promotions, CRM, delivery channels, AI — extended domain.
+6. Portal and staff queue are **not** the same order store in the UI (backend can share; portal does not call it).
 
 ---
 
@@ -230,6 +203,4 @@ Pending validation / known gaps (do not treat as a silent rename list):
 
 **Functioning implementation must not be changed merely to force terminology alignment.**
 
-Where internal names differ from requirements names, use this document’s mapping. Behavioural changes (shared data source, real order creation, server-side authorization, lifecycle compatibility) require an explicit team decision, not a rename-only refactor.
-
-QA will treat mapped names as equivalent only after the mapping in §5 is validated. Until then, tests against the running UI should use **implemented** status strings (`Placed`, `In kitchen`, `Ready`, …).
+QA treats mapped names as equivalent **only** after VAL-001 is accepted. Until then, executed tests record implemented labels (`Placed`, `In kitchen`, `Ready`, …).

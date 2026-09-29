@@ -1,186 +1,126 @@
-# BruvHub API Contract (frontend baseline)
+# BruvHub API Contract
 
 **Project:** BruvHub  
-**Source of truth for this file:** frontend integration code in this repository, primarily `src/lib/api-client.ts`, `src/lib/data.ts`, `src/lib/auth.tsx`, `src/lib/types.ts`, `src/routes/settings.tsx`, `src/routes/portal.tsx`.
+**Revision:** Post-merge. Pre-merge version documented **frontend expectations only** because no API lived in the tree. This revision records **both** `src/lib/*` and `backend/StackedHub.Api`.
 
-This is **not** a backend specification. Anything not visible in those files is marked:
-
-**To be verified against backend implementation.**
-
-No ASP.NET controllers, OpenAPI document, or database schema exist in this repository.
+Sources: `src/lib/api-client.ts`, `src/lib/data.ts`, `src/lib/use-load.ts`, `src/lib/auth.tsx`, `src/lib/types.ts`, `src/routes/settings.tsx`, `src/routes/portal.tsx`, plus `Contracts/ApiContracts.cs`, controllers, `OrderService`, `TokenService`, `Program.cs`, `JsonLabels.cs`.
 
 ---
 
-## 1. Base URL and configuration
+## 1. Runtime host and base URL
 
-Implemented in `src/lib/api-client.ts`.
+Frontend resolution (`api-client.ts`):
 
-Resolution order:
+1. `localStorage` `stackedhub.apiUrl` (Settings)
+2. Else `VITE_API_BASE_URL`
 
-1. Browser `localStorage` key `stackedhub.apiUrl` (set from Settings: `src/routes/settings.tsx`)
-2. Else `import.meta.env.VITE_API_BASE_URL` (empty string if unset)
+`isLiveApi()` ≡ non-empty base URL.
 
-`setApiBaseUrl` trims trailing `/`. Empty value removes the stored URL.
+**API listen URL (launch profile `http`):** `http://localhost:5032`  
+**Health:** `GET /health` → `{ status: "ok" }` (anonymous) (`Program.cs`).
 
-`isLiveApi()` is true when the resolved base URL string is non-empty.
+**QA/documentation issue:** frontend `README.md` still tells testers `VITE_API_BASE_URL=http://localhost:5000`. Settings placeholder is `5032`. Using 5000 will fail connectivity (RBV-004). This documentation pass does **not** edit README.
 
-Settings “Test connection” calls `GET` by default (`fetch` with no method) at `{base}{endpoints.health}` (`/health`). Saving the URL also clears `stackedhub.user` and `stackedhub.jwt` and navigates to `/`.
-
-**To be verified against backend implementation:** which host/port the API actually uses. README mentions `http://localhost:5000`; Settings placeholder is `http://localhost:5032`.
-
----
-
-## 2. Bearer token and JSON requests
-
-`apiRequest` (`src/lib/api-client.ts`):
-
-- Sends `Content-Type: application/json` on every call.
-- If `tokenStore.get()` is set, also sends `Authorization: Bearer <token>`.
-- Token storage key: `stackedhub.jwt`.
-- Live login (`src/lib/auth.tsx`) stores `res.token`.
-- Demo login stores `demo.{role}.token` (not a real JWT).
-- `fetch` URL is `{base}{path}`.
-- HTTP 204: returns `undefined` (typed as `T`).
-- Other success: `response.json()` cast to `T` — **no runtime schema validation.**
-
-Settings health check does **not** use `apiRequest` and does **not** attach the Bearer token.
-
-**To be verified against backend implementation:** token format, expiry, refresh, and whether `/health` requires auth.
+Settings Test connection: unauthenticated `fetch` to `{base}/health`. Save clears JWT/user and returns to `/`.
 
 ---
 
-## 3. Error handling (frontend)
+## 2. Auth: JWT and JSON
 
-`ApiError` carries `message` and `status` (`0` for missing base URL or network failure).
+- `apiRequest` sends `Content-Type: application/json` and `Authorization: Bearer <token>` when stored (`stackedhub.jwt`).
+- Live login: `POST /api/auth/login` `{ email, password }` → `AuthResponse` `{ token, user }` (`AuthUserDto`).
+- Register (API only): `POST /api/auth/register` — **no frontend call**.
+- Passwords: BCrypt (`AuthController`). Inactive users: **403**. Bad credentials: **401** `{ error }`.
+- JWT: HMAC-SHA256, ~12 hours, role claim `Admin` \| `Staff` \| `Customer`.
+- Demo login: fake token; password ignored (DEF-009).
+- No refresh token. `AppShell` does not clear session on 401.
 
-| Condition | Frontend behaviour |
-|---|---|
-| No base URL | `ApiError("API address is not set (demo mode).", 0)` |
-| Network failure | `ApiError("Can't reach the API at {base}. Is it running?", 0)` |
-| HTTP 401 | `ApiError("Your session has expired or the details are wrong. Please sign in again.", 401)` |
-| HTTP 403 | `ApiError("Your account doesn't have access to this.", 403)` |
-| Other non-OK | Message from JSON `error` or `title` if present, else body text / `statusText` |
-
-`AppShell` does **not** clear the session on 401. That is client behaviour, not an API rule.
-
-**To be verified against backend implementation:** actual error payload shape (`error` vs `title` vs ProblemDetails).
+API JSON: camelCase; `JsonStringEnumConverter` + `OrderStatusJsonConverter` / `OrderChannelJsonConverter`.
 
 ---
 
-## 4. Endpoints referenced by the frontend
+## 3. Frontend error handling
 
-All paths are from `endpoints` in `src/lib/api-client.ts`. Methods are listed only where this repo sets them (or uses default `GET` via `fetch`/`apiRequest` with no `method`).
-
-### 4.1 Called from UI routes
-
-| Path | Method (frontend) | Caller | Request body (frontend) | Response type assumed by frontend |
-|---|---|---|---|---|
-| `/health` | default GET | `settings.tsx` (`fetch`) | none | Not parsed; only `res.ok` / status |
-| `/api/auth/login` | `POST` | `auth.tsx` `signIn` | `{ email, password }` | `{ token: string; user: AuthUser }` |
-| `/api/ai/recommendations` | `POST` | `portal.tsx` | `{ prompt }` | `Array<{ name: string; reason: string }>` |
-
-`AuthUser` is the frontend type (`id`, `name`, `email`, `role`, optional `loyaltyPoints`). **To be verified against backend implementation.**
-
-Login does **not** send `role` in the live request body; the sign-in UI still collects a role for demo mode.
-
-### 4.2 Called only from unused `src/lib/data.ts`
-
-Routes do not import `data.ts`. These are **intended** frontend calls, not proven UI integrations.
-
-| Path | Method | Function | Body sent | Assumed response |
-|---|---|---|---|---|
-| `/api/staff/orders` | default GET | `getOrderQueue` | none | `Order[]` |
-| `/api/staff/orders/{id}/status` | `PATCH` | `updateOrderStatus` | `{ status }` where `status` is frontend `OrderStatus` | `Order` |
-| `/api/staff/menu/{id}/availability` | `PATCH` | `setAvailability` | `{ available: boolean }` | `MenuItem` |
-| `/api/menu` | default GET | `getMenu` | none | `MenuItem[]` |
-| `/api/admin/menu` | `POST` | `saveMenuItem` (no id) | `MenuInput` (`MenuItem` without `id`) | `MenuItem` |
-| `/api/admin/menu/{id}` | `PUT` | `saveMenuItem` (with id) | `MenuInput` | `MenuItem` |
-| `/api/admin/users` | default GET | `getUsers` | none | `AuthUser[]` — then frontend sets `active: true` on every user |
-| `/api/admin/users/{id}` | `PATCH` | `setUserActive` | `{ isActive: boolean }` | unused body |
-| `/api/admin/reports` | default GET | `getReport` | none | `Report` (`data.ts` interface) |
-| `/api/admin/audit` | default GET | `getAuditLog` | none | `AuditLogEntry[]` |
-
-**To be verified against backend implementation:** HTTP methods, path templates, request/response DTOs, pagination, and whether `getUsers` returns an `active` / `isActive` field (frontend currently overwrites live users to `active: true`).
-
-There is **no** menu DELETE helper in `data.ts`.
-
-### 4.3 Declared but not called anywhere in `src/`
-
-| Path constant | Path |
-|---|---|
-| `register` | `/api/auth/register` |
-| `forgotPassword` | `/api/auth/forgot-password` |
-| `customers` | `/api/customers` |
-| `promotions` | `/api/promotions` |
-
-**To be verified against backend implementation.** No request/response types can be documented from this repo.
-
-### 4.4 Not present in `endpoints`
-
-No Customer order-create, order-by-id, checkout, payment-method, or pickup path is defined.
+Unchanged: `ApiError` for missing base (0), network (0), 401, 403, other body `error` or `title`. Backend uses `{ error: "..." }` for many domain failures; invalid status → **409**.
 
 ---
 
-## 5. Frontend domain types used as implied DTOs
+## 4. Endpoints
 
-These are TypeScript interfaces the client would JSON-parse into. They are **not** proven backend contracts.
+### 4.1 Called from UI (including `data.ts` via routes)
 
-### Order status values the frontend will send/expect
+| Path | Method | Frontend caller | Backend |
+|---|---|---|---|
+| `/health` | GET | `settings.tsx` | `MapGet("/health")` |
+| `/api/auth/login` | POST | `auth.tsx` | `AuthController.Login` |
+| `/api/ai/recommendations` | POST `{ prompt }` | `portal.tsx` only (extended) | `AiController` |
+| `/api/staff/orders` | GET | `getOrderQueue` → orders, dashboard | `StaffController` |
+| `/api/staff/orders/{id}/status` | PATCH `{ status }` | `updateOrderStatus` | Staff status (also `PATCH /api/orders/{id}/status`) |
+| `/api/staff/menu/{id}/availability` | PATCH `{ available }` | `setAvailability` | Staff |
+| `/api/menu` | GET | `getMenu` → menu, availability, dashboard | Public `MenuController` |
+| `/api/admin/menu` | POST | `saveMenuItem` create | Admin |
+| `/api/admin/menu/{id}` | PUT | `saveMenuItem` update | Admin — **no DELETE** |
+| `/api/admin/users` | GET | `getUsers` | Admin. **Bug:** frontend then sets every `active: true` (DEF-014) despite `AuthUserDto.Active` |
+| `/api/admin/users/{id}` | PATCH `{ isActive }` | `setUserActive` | Accepts `isActive` or `active` |
+| `/api/admin/reports` | GET | `getReport` | Admin (`ReportDto`). Duplicate: `GET /api/reports` |
+| `/api/admin/audit` | GET | `getAuditLog` | Admin. Duplicate: `GET /api/audit-logs` (tests often hit this) |
 
-From `src/lib/types.ts` / `updateOrderStatus`:
+`useLoad` loads these on Staff/Admin pages. **Portal does not.**
 
-`Placed` | `In kitchen` | `Ready` | `Completed` | `Cancelled`
+### 4.2 Backend present — **not** in frontend `endpoints` / portal
 
-Requirements lifecycle (`New`, `Confirmed`, `Preparing`, `ReadyForPickup`) is **not** used in API calls from this repo.
+| Path | Role | Notes |
+|---|---|---|
+| `POST /api/orders` | Customer | `PlacePickupAsync`; Cash/Card required; initial **`Placed`**. **Must gap in UI.** |
+| `GET /api/orders` | Customer: own; Staff/Admin: queue | Tracking/queue alternative to staff path |
+| `GET /api/orders/{id}` | Owner / staff | |
+| `POST /api/orders/{id}/cancel` | Customer | Only while `Placed` |
+| `POST /api/auth/register` | Anonymous | Creates Customer + JWT |
+| `GET /api/auth/me` | Authorized | |
+| `POST /api/auth/forgot-password` | Anonymous | **Stub** (always 200; no mail) |
 
-**To be verified against backend implementation.** If the API uses requirements names, live `PATCH` status updates from `data.ts` would be incompatible until mapped.
+### 4.3 Declared on frontend, unused by Must UI
 
-### `Order` (implied)
-
-`id`, `reference`, `customerId`, `customerName`, `channel`, `items[]`, `total`, `status`, `placedAt`
-
-`channel` union: `In-store` | `Website` | `Mobile app` | `Uber Eats` | `Mr D` | `WhatsApp`
-
-### `MenuItem` / `MenuInput` (implied)
-
-`name`, `description`, `category`, `price`, `stock`, `lowStockThreshold`, `spicy`, `available` (+ `id` on `MenuItem`)
-
-### `Report` (implied, `data.ts` only)
-
-`orderCount`, `completedSales`, `hourlyOrders[]`, `revenueByDay[]`, `bestSellers[]`, `salesByChannel[]`
-
-### `AuditLogEntry` (implied)
-
-`id`, `actor`, `role`, `action`, `target`, `at`
-
----
-
-## 6. Demo fallback behaviour
-
-When `isLiveApi()` is false:
-
-- `apiRequest` is not used for login; demo users in `auth.tsx` are applied.
-- Feature routes read `src/lib/mock-data.ts` and keep mutations in component state (lost on refresh).
-- `data.ts` would use an in-memory copy of mock data **if imported**; it currently is not.
-- Portal AI uses a local `demoSuggest` delay instead of `/api/ai/recommendations`.
-
-Configuring a base URL does **not** switch orders/menu/reports/audit/customers/promotions to the API, because those pages do not call `data.ts` or `apiRequest`.
+`register`, `forgotPassword`, `customers`, `promotions` — APIs exist; **customers.tsx / promotions.tsx still mock**. Register UI missing (DEF-001).
 
 ---
 
-## 7. Integration QA checks
+## 5. Status and DTO alignment
 
-Use these as checks against **this frontend**, then against a running backend when available.
+Frontend and API order statuses: `Placed` \| `In kitchen` \| `Ready` \| `Completed` \| `Cancelled`.
 
-1. Empty API URL → demo sign-in; Settings badge / `isLiveApi()` false.
-2. Set URL → live login `POST /api/auth/login`; invalid credentials surface `ApiError` (401 path).
-3. After live login, `Authorization: Bearer` is present on subsequent `apiRequest` calls.
-4. `/health` reachable from Settings without assuming JSON body.
-5. Confirm backend `user.role` is `Admin` | `Staff` | `Customer` (not `Administrator`) or add a mapping — **to be verified against backend implementation.**
-6. Confirm backend order `status` strings match frontend `OrderStatus` or document mapping — **to be verified against backend implementation.**
-7. Do not mark staff/admin CRUD as integrated until a route calls `data.ts` (or equivalent) and the backend is tested.
-8. Register, forgot-password, customers, promotions, and Customer order-create have **no frontend call** to test yet.
-9. Portal AI `POST /api/ai/recommendations` is extended-domain, not Must-have MVP.
+Requirements names are **not** on the wire. VAL-001 remains open.
+
+`OrderDto`: id, reference, customerId, customerName, channel, items, total, status, placedAt. **No `paymentMethod`.** Entity still stores Cash/Card.
+
+Channels match frontend labels via `OrderChannelJsonConverter`.
+
+`ReportDto` matches `data.ts` `Report` field names (camelCase).
+
+---
+
+## 6. Demo fallback
+
+When `isLiveApi()` is false, `data.ts` mutates an in-memory clone of `mock-data` (lost on refresh). Staff/Admin UI uses that store.
+
+Portal **always** uses static `mock-data` imports for menu/orders/promotions, even when live.
+
+---
+
+## 7. Integration QA checks (updated)
+
+1. Empty URL → demo; Staff/Admin still use `data.ts` demo store, not raw route `useState` for those pages.
+2. Live URL **`http://localhost:5032`** (not README 5000) → `/health` 200.
+3. Live login with seed `Stacked123!`; wrong password → 401 (UAT-CUS-003) — **Not Run**.
+4. After login, Bearer on `data.ts` calls.
+5. `user.role` is `Admin` not `Administrator`.
+6. Status strings `"In kitchen"` on PATCH.
+7. Staff/Admin CRUD **is** wired through `data.ts` — still **UAT Not Run**.
+8. Customer place-order / register **have no frontend call**.
+9. Confirm portal menu still mock while `/availability` is live (DEF-007).
+10. `GET /api/admin/users` then UI: deactivated users must not all show Active (DEF-014).
+
+Backend automated coverage: `ApiFlowTests`, `OrderLifecycleTests` (see test-strategy). That is **not** UAT Pass.
 
 ---
 
@@ -188,9 +128,11 @@ Use these as checks against **this frontend**, then against a running backend wh
 
 | Item | Status |
 |---|---|
-| Frontend contract | **Documented** from this repository |
-| Backend compatibility | **To be verified against backend implementation.** Backend is not in this repo |
-| Order lifecycle compatibility | **Requires reconciliation** — frontend statuses ≠ requirements lifecycle; API payload uses frontend names if `data.ts` is wired |
-| Authentication integration | **Requires runtime testing** — live login client exists; demo login does not validate passwords; register unused |
-| Data-layer wiring | **Partial** — `api-client` + `data.ts` vs mock-driven routes |
-| Must-have order create / pickup / payment | **Not defined** on `endpoints` |
+| Frontend Staff/Admin contract | Documented and **wired** via `data.ts` |
+| Backend in this repo | **Yes** — ASP.NET Core + EF |
+| Customer Must (create/track/pickup/payment UI) | **Not wired**; API create exists |
+| Order lifecycle vs requirements | **VAL-001 open** — names aligned FE↔BE, not vs requirements |
+| Authentication | API implemented; **browser UAT outstanding**; demo ignores password |
+| Host port | **5032** runtime; README **5000** discrepancy |
+| Menu DELETE | **Not implemented** on API or `data.ts` |
+| Forgot-password | **Stub** |

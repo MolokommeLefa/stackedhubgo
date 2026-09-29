@@ -1,187 +1,147 @@
 # BruvHub QA Test Strategy (Task 2)
 
 **Role:** System Architect & Quality Assurance  
-**Product:** BruvHub (repository UI still labelled StackedHub)  
-**Baseline:** frontend repository + `docs/architecture/*`  
-**Execution status:** **No tests have been run.** This document is a plan, not a results report.
+**Product:** BruvHub (UI/API still labelled StackedHub)  
+**Baseline:** post-merge repository (frontend + `backend/StackedHub.*`) + architecture docs  
+**Revision:** Pre-merge strategy assumed **no backend in repo** and unused `data.ts`. That is **historical**. Current strategy below.
+
+**UAT execution:** **No UAT case has been run.** All 24 remain **Not Run**. Backend `dotnet test` existence does **not** mark UAT Passed.
 
 ---
 
 ## 1. Purpose
 
-Define how Task 2 QA will verify Must-have MVP behaviour against the **current implementation**, without treating a route, type, or endpoint constant as a pass.
-
-QA records gaps and mismatches; it does not rewrite application source as part of this documentation step.
+Verify Must-have MVP against **current** implementation. A route, DTO, or passing API test is not a UAT Pass.
 
 ---
 
 ## 2. QA objectives
 
-1. Confirm whether Customer, Staff, and Administrator (`Admin`) Must MVP journeys actually work.
-2. Separate **demo UI behaviour** from **live API behaviour**.
-3. Verify role boundaries (positive and negative).
-4. Trace each Must requirement to evidence (code inspection now; execution later).
-5. Log defects/gaps with severity so the team can prioritise.
-6. Prepare for later automated tests without claiming they exist today.
+Unchanged: Must journeys, demo vs live, RBAC, traceability, defects, automation awareness.
+
+Added: treat **Customer portal vs Staff/Admin `data.ts` split** as the primary live-mode risk. Testers must record environment **and** which screens used mock vs API.
 
 ---
 
 ## 3. Scope
 
-### In scope (Must MVP — highest priority)
+Must MVP table unchanged (Customer / Staff / Administrator (`Admin`)).
 
-| Role | Capabilities |
-|---|---|
-| Customer | Register/login, browse menu, add items, Pickup order, Cash/Card capture, confirmation, track current status |
-| Staff | Login/role access, order queue, status updates, item availability |
-| Administrator (`Admin`) | Login/role access, menu management, user management, essential reports, audit logs |
+Extended domain (loyalty, promotions, CRM, AI, delivery channels) out of Must unless scope changes.
 
-Also in scope: static review of this repo, UAT against demo mode, planned live-API checks when a backend is available.
+### In this repository now
 
-### Out of scope unless formally added
+- ASP.NET Core API, domain, EF/SQLite infrastructure, JWT/BCrypt
+- Backend tests: `ApiFlowTests.cs`, `OrderLifecycleTests.cs`
+- Staff/Admin Must UI via `data.ts` + `use-load.ts`
+- Customer Must UI still largely mock
 
-Loyalty, promotions, CRM, delivery/third-party channels, inventory/recipes, AI recommendations, “Gemini insights”, full payment-gateway/PCI, production load testing.
+### Still not in repo
 
-### Not in this repository
-
-No ASP.NET API, database, or CI test pipeline. Backend behaviour is **Requires Backend Verification**.
+Frontend unit/e2e runner, CI test workflow.
 
 ---
 
-## 4. Must MVP priority order
+## 4. Must MVP priority (post-merge)
 
-1. Authentication (login; register if/when present).
-2. Customer order path: menu → cart → Pickup + payment method → persisted order in **New**.
-3. Staff queue + valid status transitions on the **same** order the Customer tracks.
-4. Availability change visible to Customer ordering.
-5. Administrator menu, users, reports, audit **with persistence**.
-6. Authorization beyond hidden navigation.
-7. Extended-domain screens last.
+1. Live Staff/Admin smoke on **`http://localhost:5032`** (queue, availability, users, reports, audit) — code is wired; **UAT Not Run**.
+2. Customer portal integration: menu + `POST /api/orders` + tracking (DEF-002–004, 007).
+3. Register UI (API exists).
+4. VAL-001 acceptance before failing UAT-STA-004 solely on requirements status **names**.
+5. Extended screens last.
 
 ---
 
 ## 5. Test levels / types
 
-| Level | How it will be used in Task 2 | Current state |
-|---|---|---|
-| **Static / repository review** | Code and architecture docs; classify Implemented / Partial / Missing | **Started** (this QA pack). Not a substitute for UAT. |
-| **Unit testing** | Status machine, totals, `isLiveApi` / `apiRequest` errors | **Not configured** — no test runner in `package.json` |
-| **Integration / API** | Login, health, staff/admin endpoints vs `docs/architecture/api-contract.md` | **Not run**; backend not in this repo |
-| **Functional** | Each Must screen’s behaviour (demo, then live) | **Not run** |
-| **Role / authorization** | Customer vs Staff vs `Admin`; unauthenticated access | **Not run**; frontend gate is client-side only (`AppShell`) |
-| **Responsive / UI** | ~360px and ≥1024px on Must screens | **Not run** |
-| **UAT** | Numbered cases in `uat-test-cases.md` | All **Not Run** |
-| **Regression** | Re-run Must UAT after changes | **Not started** |
+| Level | Current state |
+|---|---|
+| Static review | This pack + post-merge re-audit |
+| Unit | **Backend:** `OrderLifecycleTests`. **Frontend:** none in `package.json` |
+| Integration / API | **Backend:** `ApiFlowTests` (in-memory SQLite factory). **Browser↔API UAT:** Not Run |
+| Functional / role / responsive | Not Run |
+| UAT | 24 cases, all **Not Run** |
+| Regression | Re-run Must UAT after portal wiring; `dotnet test` on API changes |
 
-A feature is not Passed because `src/routes/*.tsx` or `endpoints.*` exists.
+A feature is not Passed because `data.ts` or a controller exists.
 
 ---
 
 ## 6. Test environments
 
-| Environment | Definition | What QA can do now |
+| Environment | Definition | Notes |
 |---|---|---|
-| **Demo** | No API base URL (`isLiveApi()` false). Sign-in via `src/lib/auth.tsx` demo users; pages seed `src/lib/mock-data.ts` / `useState`. | Manual UAT of UI. Persistence and live auth are out of this environment. |
-| **Live API** | `stackedhub.apiUrl` or `VITE_API_BASE_URL` set. | Only login, `/health`, and AI are called from UI today. Other MVP screens still mock until routes use `src/lib/data.ts`. **Requires Backend Verification.** |
+| **Demo** | No API URL | Staff/Admin: `data.ts` memory store. Portal: `mock-data`. Demo login: any password. |
+| **Live API** | Base URL set | Use **`http://localhost:5032`**. README **5000** is wrong for current launchSettings. Staff/Admin: REST. **Portal menu/cart/place/history still mock.** |
 
-Testers must record which environment was used. Do not assume Settings “Connected to API” means orders/menu are live (`docs/architecture/api-contract.md`).
-
----
-
-## 7. Entry criteria
-
-- Application can be started (`npm run dev`) **or** source is available for static review.
-- Role/status mapping known (`docs/architecture/domain-contract.md`).
-- UAT cases and defect process exist (this pack).
-- For live tests: API URL, test accounts, and backend owner available.
-
-Features may enter QA independently (e.g. static review of register before UAT).
+Do not assume Settings “Connected to API” means the Customer Must path is live.
 
 ---
 
-## 8. Exit criteria (Must feature)
+## 7–11. Entry / exit / severity / lifecycle / evidence
 
-A Must item is QA-complete only when:
+Unchanged in principle. Exit still requires **executed** UAT. Severity and DEF/VAL/RBV classes: `defect-register.md`.
 
-- Relevant UAT (and API checks if live) have been **executed** and recorded.
-- Behaviour matches the agreed requirement **or** an accepted defect/waiver exists.
-- **Critical** defects for that item are closed.
-- **High** defects are closed or formally accepted.
-- Traceability row is updated from Not Tested / Partial / Missing as appropriate.
-
-**Task 2 documentation complete ≠ product QA-complete.**
+Evidence for API automation: `dotnet test` output. Evidence for UAT: still required separately.
 
 ---
 
-## 9. Severity
+## 12. Automated testing (updated)
 
-| Severity | Meaning |
+### Frontend
+
+`package.json`: `dev`, `build`, `build:dev`, `preview`, `lint`, `format`. No `test` script. No Vitest/Playwright/CI.
+
+### Backend (`backend/StackedHub.Tests`)
+
+Run (from backend solution, as documented by Role 2): `dotnet test StackedHub.sln`.
+
+#### `OrderLifecycleTests.cs`
+
+- Theory: Placed→InKitchen allowed; Placed→Completed forbidden; InKitchen→Ready; Ready→Completed; Completed→Cancelled forbidden.
+- Customer cancel only while `Placed`.
+
+Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does not cover HTTP 409 or UI.
+
+#### `ApiFlowTests.cs` (11 facts) — approximate Must mapping
+
+| Test | Helps |
 |---|---|
-| **Critical** | Must MVP journey cannot complete (e.g. no real order create); severe data/security failure; app unusable |
-| **High** | Major Must requirement fails; no reasonable workaround |
-| **Medium** | Partial failure, weak validation, or significant usability issue |
-| **Low** | Cosmetic, wording, branding, or low-impact consistency |
+| `Menu_is_public_and_matches_frontend_catalogue` | FR-010/012 seed |
+| `Demo_customer_can_login_and_place_pickup_order` | Login + API place Cash, status `Placed` |
+| `Unavailable_item_cannot_be_ordered` | FR-026 API |
+| `Staff_can_move_order_through_kitchen` | One step to In kitchen + queue contains order |
+| `Customer_cannot_open_staff_or_customer_crm_routes` | API 403 |
+| `Admin_can_read_frontend_contract_routes` | Admin smoke (includes non-Must CRM/inventory) |
+| `Admin_can_patch_customer_note_and_see_active_users` | Partial users list |
+| `Customer_checkout_can_set_channel` | Channel, not Pickup UI |
+| Assistant / AI tests | **Not Must** |
 
----
-
-## 10. Defect lifecycle
-
-`Open` → `Assigned` → `In Progress` → `Ready for Retest` → `Closed`  
-Failed retest: `Reopened`.
-
-Classification (see `defect-register.md`):
-
-| Class | Use for |
-|---|---|
-| **DEF** | Confirmed implementation defect/gap (evidence in this repo) |
-| **VAL** | Architecture/requirements mismatch needing team validation — **not** a confirmed software bug |
-| **RBV** | Needs backend or runtime proof |
-
----
-
-## 11. Evidence expected
-
-| Activity | Evidence |
-|---|---|
-| Static review | File path + short description |
-| UAT | Status Not Run / Pass / Fail; notes; screenshot when executed |
-| Live API | Request/response (sanitised), status codes |
-| Later automation | Test runner output — **none today** |
-| Defects | ID, severity, evidence path, requirement impact |
-
----
-
-## 12. Current limitation — no automated test framework
-
-`package.json` scripts: `dev`, `build`, `build:dev`, `preview`, `lint`, `format`.
-
-There is **no** `test` script, **no** Vitest/Jest/Playwright/Cypress/Testing Library dependency, **no** `*.test.*` / `*.spec.*` files, and **no** CI test workflow in this repository.
-
-QA therefore starts with **static review + planned UAT**. Unit/e2e automation is a later deliverable, not a current capability.
+**Must still untested by these files:** register; full chain to Completed + Customer UI tracking; invalid status **HTTP**; Staff vs `/api/admin/*`; payment on DTO; menu CRUD; user deactivate then login; **all UAT**.
 
 ---
 
 ## 13. Risks and dependencies
 
-| Risk | Impact | Dependency |
+| Risk | Impact | Notes |
 |---|---|---|
-| Routes ignore `src/lib/data.ts` | Live UAT of orders/menu/users/reports/audit cannot pass even with an API | Frontend wiring decision (ADR-002) |
-| Status names differ from requirements | Lifecycle UAT blocked or false Fail | VAL mapping (`domain-contract.md` §5) |
-| No order-create / Pickup / payment in client | Customer Must path cannot pass | Frontend + backend contract |
-| Client-only `AppShell` RBAC | Negative auth tests on UI ≠ server security | Backend authorization (RBV) |
-| Backend not in this repo | Integration untested | Backend teammate / `StackedHub.Api` |
-| Demo login ignores password | Auth UAT in demo is not credential testing | Live environment |
-| Nav 404s (`/users`, `/availability`) | Staff/Admin Must screens unreachable from nav | Frontend routes |
+| Portal bypasses `data.ts` | E2E and DEF-002–004/007 | Highest Must risk |
+| README :5000 vs API :5032 | False live-connect failures | RBV-004 |
+| VAL-001 | UAT-STA-004/E2E name mismatch | Keep open |
+| `getUsers` `active: true` | Wrong Active labels | DEF-014 |
+| `OrderDto` omits payment | Cannot assert Cash/Card on tracking | DEF-015 |
+| No menu DELETE | FR-013 incomplete | DEF-016 |
+| Forgot-password stub | Looks implemented | RBV-005 |
+| Demo password ignored | Demo UAT ≠ auth | DEF-009 |
+| No frontend/CI tests | UI regressions | DEF-013 partial |
+| CORS AllowAnyOrigin | Deploy risk | Flag only |
 
 ---
 
-## 14. QA deliverables (Task 2)
+## 14. QA deliverables
 
-| Deliverable | File | Status |
-|---|---|---|
-| Test strategy | `docs/qa/test-strategy.md` | This document |
-| Traceability | `docs/qa/requirements-traceability.md` | Planned + static status; **not executed** |
-| UAT cases | `docs/qa/uat-test-cases.md` | Written; all **Not Run** |
-| Defect register | `docs/qa/defect-register.md` | Static findings logged; no runtime UAT yet |
-| Architecture baseline | `docs/architecture/*.md` | Complete (separate work) |
-| Automated tests | — | **Not started** |
+| Deliverable | Status |
+|---|---|
+| This strategy / traceability / UAT / defects / architecture | Updated to post-merge; UAT **Not Run** |
+| Backend automated tests | Present; not a substitute for UAT |
+| Frontend automated tests / CI | Still absent |
