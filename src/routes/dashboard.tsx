@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
+import { useAuth } from "@/lib/auth";
 import { getMenu, getOrderQueue, getReport } from "@/lib/data";
 import { currency, formatTime } from "@/lib/mock-data";
 import type { MenuItem, Order } from "@/lib/types";
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [report, setReport] = useState<Report | null>(null);
@@ -28,10 +30,16 @@ function DashboardPage() {
   const today = new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" });
 
   const load = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const [nextOrders, nextMenu, nextReport] = await Promise.all([getOrderQueue(), getMenu(), getReport()]);
+      const isAdmin = user.role === "Admin";
+      const [nextOrders, nextMenu, nextReport] = await Promise.all([
+        getOrderQueue(),
+        getMenu(),
+        isAdmin ? getReport() : Promise.resolve(null),
+      ]);
       setOrders(nextOrders);
       setMenu(nextMenu);
       setReport(nextReport);
@@ -40,7 +48,7 @@ function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     void load();
