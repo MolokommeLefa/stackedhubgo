@@ -13,9 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // Label converters must come before the generic enum converter, or "In kitchen" / "Uber Eats" are rejected.
     options.JsonSerializerOptions.Converters.Add(new OrderStatusJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new OrderChannelJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
