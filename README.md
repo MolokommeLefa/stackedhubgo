@@ -162,6 +162,8 @@ npm install
 - `npm run format` — run Prettier formatting
 
 ---
+## Demo video
+[link to be provided]
 
 ## Lovable sync
 
