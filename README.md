@@ -163,7 +163,12 @@ npm install
 
 ---
 ## Demo video
-[link to be provided]
+
+### frontend overview:
+https://www.loom.com/share/7856bf48f37f4c8990357e75d4166b6d
+
+### Full system Overview:
+https://youtu.be/6pr168hcEcE
 
 ## Lovable sync
 
