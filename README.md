@@ -163,7 +163,8 @@ npm install
 
 ---
 ## Demo video
-[link to be provided]
+https://www.loom.com/share/7856bf48f37f4c8990357e75d4166b6d
+
 
 ## Lovable sync
 
