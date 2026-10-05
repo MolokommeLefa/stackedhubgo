@@ -93,14 +93,15 @@ function SettingsPage() {
           </div>
           <h2 className="mt-6 text-2xl font-bold">Connect the API</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Paste the address where the StackedHub API is running. Leave it empty to use demo data.
+            The hosted Azure API is filled in below. Test the connection, then save to sign in with live data. Clear it
+            to use demo data instead.
           </p>
           <label className="mt-6 block text-xs font-medium text-muted-foreground">
             API base URL
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="http://127.0.0.1:5032"
+              placeholder={HOSTED_API_URL}
               className={fieldClass}
             />
           </label>
@@ -125,10 +126,21 @@ function SettingsPage() {
               Save & sign in again
             </button>
           </div>
-          <div className="mt-6 rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
-            <p className="font-semibold text-foreground">Running it on your computer</p>
+          <button
+            type="button"
+            onClick={() => {
+              setUrl(HOSTED_API_URL);
+              setStatus(null);
+            }}
+            className="mt-3 min-h-11 text-xs font-semibold text-primary"
+          >
+            Use hosted API address
+          </button>
+          <div className="mt-4 rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
+            <p className="font-semibold text-foreground">Hosted API</p>
             <p className="mt-1">
-              From the Backend-database branch run <code>dotnet run --project backend/StackedHub.Api --urls http://127.0.0.1:5032</code>.
+              The StackedHub API runs on Azure at{" "}
+              <code className="break-all">stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net</code>.
               Demo logins: thandi@stackedfoods.co.za (Admin), jason@stackedfoods.co.za (Staff),
               priya.nair@example.co.za (Customer), password <code>Stacked123!</code>.
             </p>
