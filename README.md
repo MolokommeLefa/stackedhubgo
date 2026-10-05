@@ -10,6 +10,11 @@ It can run in:
 - **Demo mode** (no backend required)
 - **Live API mode** (connected to the backend API)
 
+
+### to access the application, click the link below:
+https://stackedhubgo.lovable.dev
+
+
 ---
 
 ## 2) System requirements
