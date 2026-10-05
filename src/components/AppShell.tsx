@@ -155,7 +155,7 @@ export function AppShell({
           </div>
         </aside>
 
-        <main id="main-content" className="min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
+        <main key={pathname} id="main-content" className="page-enter min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}

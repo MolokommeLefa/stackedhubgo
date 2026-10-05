@@ -13,9 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    // Specific converters must be registered before JsonStringEnumConverter.
-    // The generic converter matches every enum first and otherwise rejects frontend
-    // wire values such as "In kitchen" (member name is InKitchen).
+    // Label converters must come before the generic enum converter, or "In kitchen" / "Uber Eats" are rejected.
     options.JsonSerializerOptions.Converters.Add(new OrderStatusJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new OrderChannelJsonConverter());
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
