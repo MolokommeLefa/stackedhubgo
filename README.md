@@ -12,7 +12,7 @@ It can run in:
 
 
 ### to access the application, click the link below:
-https://stackedhubgo.lovable.dev
+https://stackedhubgo.lovable.app
 
 
 ---
