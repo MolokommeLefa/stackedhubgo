@@ -5,6 +5,9 @@ import { fieldClass, primaryBtnClass } from "@/components/AuthCard";
 import { endpoints, getApiBaseUrl, setApiBaseUrl, tokenStore } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 
+/** Hosted Azure Web API (deployed by .github/workflows/deploy-api.yml). */
+export const HOSTED_API_URL = "https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net";
+
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
@@ -22,7 +25,8 @@ function SettingsPage() {
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
-  useEffect(() => setUrl(getApiBaseUrl()), []);
+  // Pre-fill the hosted Azure API unless a custom address is already saved.
+  useEffect(() => setUrl(getApiBaseUrl() || HOSTED_API_URL), []);
 
   const test = async () => {
     const clean = url.trim().replace(/\/+$/, "");
