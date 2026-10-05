@@ -14,6 +14,8 @@ It can run in:
 ### to access the application, click the link below:
 https://stackedhubgo.lovable.app
 
+### Live API
+https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net
 
 ---
 
