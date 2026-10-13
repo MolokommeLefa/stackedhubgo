@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "vitest run",
+    "check:duplicates": "node scripts/check-duplicate-declarations.mjs",
     "format": "prettier --write ."
   },
   "overrides": {
