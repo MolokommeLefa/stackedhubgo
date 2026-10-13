@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as AvailabilityRouteImport } from './routes/availability'
 import { Route as CustomersRouteImport } from './routes/customers'
@@ -16,6 +17,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MenuRouteImport } from './routes/menu'
+import { Route as OrderRouteImport } from './routes/order'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PromotionsRouteImport } from './routes/promotions'
@@ -24,6 +26,11 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UsersRouteImport } from './routes/users'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuditLogsRoute = AuditLogsRouteImport.update({
   id: '/audit-logs',
   path: '/audit-logs',
@@ -57,6 +64,11 @@ const LoginRoute = LoginRouteImport.update({
 const MenuRoute = MenuRouteImport.update({
   id: '/menu',
   path: '/menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrderRoute = OrderRouteImport.update({
+  id: '/order',
+  path: '/order',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersRoute = OrdersRouteImport.update({
@@ -96,6 +108,7 @@ const UsersRoute = UsersRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
@@ -103,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -112,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
@@ -119,6 +134,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -129,6 +145,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
   '/customers': typeof CustomersRoute
@@ -136,6 +153,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -147,6 +165,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/audit-logs'
     | '/availability'
     | '/customers'
@@ -154,6 +173,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -163,6 +183,7 @@ export interface FileRouteTypes {
     | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/audit-logs'
     | '/availability'
     | '/customers'
@@ -170,6 +191,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -179,6 +201,7 @@ export interface FileRouteTypes {
     | '/users'
   id:
     | '__root__'
+    | '/'
     | '/audit-logs'
     | '/availability'
     | '/customers'
@@ -186,6 +209,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -196,6 +220,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuditLogsRoute: typeof AuditLogsRoute
   AvailabilityRoute: typeof AvailabilityRoute
   CustomersRoute: typeof CustomersRoute
@@ -203,6 +228,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MenuRoute: typeof MenuRoute
+  OrderRoute: typeof OrderRoute
   OrdersRoute: typeof OrdersRoute
   PortalRoute: typeof PortalRoute
   PromotionsRoute: typeof PromotionsRoute
@@ -214,6 +240,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/audit-logs': {
       id: '/audit-logs'
       path: '/audit-logs'
@@ -261,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/menu'
       fullPath: '/menu'
       preLoaderRoute: typeof MenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/order': {
+      id: '/order'
+      path: '/order'
+      fullPath: '/order'
+      preLoaderRoute: typeof OrderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders': {
@@ -316,6 +356,7 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuditLogsRoute: AuditLogsRoute,
   AvailabilityRoute: AvailabilityRoute,
   CustomersRoute: CustomersRoute,
@@ -323,6 +364,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MenuRoute: MenuRoute,
+  OrderRoute: OrderRoute,
   OrdersRoute: OrdersRoute,
   PortalRoute: PortalRoute,
   PromotionsRoute: PromotionsRoute,
