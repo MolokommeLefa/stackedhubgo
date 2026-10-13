@@ -27,9 +27,9 @@ export interface Order {
   total: number;
   status: OrderStatus;
   placedAt: string;
-  specialInstructions?: string;
-  paymentMethod?: "Cash" | "Card";
-  fulfilment?: "Collection" | "Delivery";
+  specialInstructions?: string | undefined;
+  paymentMethod?: "Cash" | "Card" | undefined;
+  fulfilment?: "Collection" | "Delivery" | undefined;
   updatedAt?: string;
 }
 
