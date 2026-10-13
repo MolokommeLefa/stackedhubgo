@@ -57,7 +57,7 @@ export interface CartLine {
   unitPrice: number;
   quantity: number;
   options: string[];
-  note?: string;
+  note?: string | undefined;
 }
 
 export function cartTotals(lines: CartLine[], fulfilment: "Collection" | "Delivery" = "Collection") {
