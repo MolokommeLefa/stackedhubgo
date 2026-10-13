@@ -136,6 +136,21 @@
   tbody tr { transition: background-color 0.15s ease; }
   tbody tr:hover { background-color: var(--color-secondary); }
 }
+@keyframes cart-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@utility cart-bump {
+  animation: cart-bump 0.25s ease-out;
+}
+@keyframes new-order-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 35%, transparent); }
+}
+@utility new-order-glow {
+  animation: new-order-glow 1.2s ease-in-out 3;
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

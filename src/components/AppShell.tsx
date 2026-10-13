@@ -75,7 +75,7 @@ export function AppShell({
 
   useEffect(() => {
     if (!ready) return;
-    if (!user) void navigate({ to: "/" });
+    if (!user) void navigate({ to: "/login" });
     else if (!allow.includes(user.role)) void navigate({ to: user.role === "Customer" ? "/portal" : "/dashboard" });
   }, [ready, user, allow, navigate]);
 
@@ -146,7 +146,7 @@ export function AppShell({
               aria-label="Sign out"
               onClick={() => {
                 signOut();
-                void navigate({ to: "/" });
+                void navigate({ to: "/login" });
               }}
               className="min-h-11 min-w-11 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
@@ -174,7 +174,7 @@ export function AppShell({
                 type="button"
                 onClick={() => {
                   signOut();
-                  void navigate({ to: "/" });
+                  void navigate({ to: "/login" });
                 }}
                 className="min-h-11 rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground lg:hidden"
               >

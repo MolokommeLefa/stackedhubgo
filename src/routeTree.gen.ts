@@ -15,7 +15,9 @@ import { Route as AvailabilityRouteImport } from './routes/availability'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MenuRouteImport } from './routes/menu'
+import { Route as OrderRouteImport } from './routes/order'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PromotionsRouteImport } from './routes/promotions'
@@ -54,9 +56,19 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MenuRoute = MenuRouteImport.update({
   id: '/menu',
   path: '/menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrderRoute = OrderRouteImport.update({
+  id: '/order',
+  path: '/order',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersRoute = OrdersRouteImport.update({
@@ -102,7 +114,9 @@ export interface FileRoutesByFullPath {
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -118,7 +132,9 @@ export interface FileRoutesByTo {
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -135,7 +151,9 @@ export interface FileRoutesById {
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
+  '/order': typeof OrderRoute
   '/orders': typeof OrdersRoute
   '/portal': typeof PortalRoute
   '/promotions': typeof PromotionsRoute
@@ -153,7 +171,9 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
+    | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -169,7 +189,9 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
+    | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -185,7 +207,9 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
+    | '/login'
     | '/menu'
+    | '/order'
     | '/orders'
     | '/portal'
     | '/promotions'
@@ -202,7 +226,9 @@ export interface RootRouteChildren {
   CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LoginRoute: typeof LoginRoute
   MenuRoute: typeof MenuRoute
+  OrderRoute: typeof OrderRoute
   OrdersRoute: typeof OrdersRoute
   PortalRoute: typeof PortalRoute
   PromotionsRoute: typeof PromotionsRoute
@@ -256,11 +282,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/menu': {
       id: '/menu'
       path: '/menu'
       fullPath: '/menu'
       preLoaderRoute: typeof MenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/order': {
+      id: '/order'
+      path: '/order'
+      fullPath: '/order'
+      preLoaderRoute: typeof OrderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders': {
@@ -322,7 +362,9 @@ const rootRouteChildren: RootRouteChildren = {
   CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  LoginRoute: LoginRoute,
   MenuRoute: MenuRoute,
+  OrderRoute: OrderRoute,
   OrdersRoute: OrdersRoute,
   PortalRoute: PortalRoute,
   PromotionsRoute: PromotionsRoute,
