@@ -27,6 +27,10 @@ export interface Order {
   total: number;
   status: OrderStatus;
   placedAt: string;
+  specialInstructions?: string | undefined;
+  paymentMethod?: "Cash" | "Card" | undefined;
+  fulfilment?: "Collection" | "Delivery" | undefined;
+  updatedAt?: string;
 }
 
 export interface MenuItem {

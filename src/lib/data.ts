@@ -27,6 +27,11 @@ export interface PlaceOrderInput {
   customerName: string;
   items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
   channel?: Order["channel"];
+  paymentMethod?: "Cash" | "Card";
+  fulfilment?: "Collection" | "Delivery";
+  specialInstructions?: string;
+  /** Extra charges such as delivery, added on top of item totals. */
+  fees?: number;
 }
 
 async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
@@ -111,16 +116,18 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
   order.status = status;
+  order.updatedAt = new Date().toISOString();
   return { ...order };
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
-  const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + (input.fees ?? 0);
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
       body: json({
-        customerId: input.customerId,
+        paymentMethod: input.paymentMethod ?? "Cash",
+        specialInstructions: [input.fulfilment, input.specialInstructions].filter(Boolean).join(" — ") || null,
         items: input.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
         channel: input.channel ?? "Website",
       }),
@@ -136,11 +143,22 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     total,
     status: "Placed",
     placedAt: new Date().toISOString(),
+    paymentMethod: input.paymentMethod,
+    fulfilment: input.fulfilment,
+    specialInstructions: input.specialInstructions,
   };
   demo().orders.unshift(created);
   return created;
 }
 
+export async function getOrder(id: string): Promise<Order> {
+  if (isLiveApi()) return apiRequest<Order>(`${endpoints.orders}/${id}`);
+  const order = demo().orders.find((o) => o.id === id);
+  if (!order) throw new ApiError("We couldn't find that order.", 404);
+  return { ...order };
+}
+
+/** Public menu for the customer ordering pages. */
 export async function getMenu(): Promise<MenuItem[]> {
   if (isLiveApi()) return apiRequest<MenuItem[]>(endpoints.menu);
   return [...demo().menu];

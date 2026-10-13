@@ -79,7 +79,7 @@ function ForgotPasswordPage() {
           </button>
         </form>
       )}
-      <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+      <Link to="/login" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
         Back to sign in
       </Link>
     </AuthCard>
