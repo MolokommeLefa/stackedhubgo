@@ -91,7 +91,7 @@ function RegisterPage() {
       </form>
       <p className="mt-4 text-sm text-muted-foreground">
         {live ? "This will create a customer on the API." : "Demo mode stores this account in this browser only."}{" "}
-        <Link to="/" className="font-semibold text-primary">
+        <Link to="/login" className="font-semibold text-primary">
           Sign in
         </Link>
       </p>

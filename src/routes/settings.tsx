@@ -77,7 +77,7 @@ function SettingsPage() {
               type="button"
               onClick={() => {
                 signOut();
-                void navigate({ to: "/" });
+                void navigate({ to: "/login" });
               }}
               className="mt-4 min-h-11 rounded-xl bg-secondary px-4 text-sm font-semibold"
             >
@@ -145,7 +145,7 @@ function SettingsPage() {
               priya.nair@example.co.za (Customer), password <code>Stacked123!</code>.
             </p>
           </div>
-          <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+          <Link to="/login" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
             ← Back to sign in
           </Link>
         </section>

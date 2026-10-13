@@ -6,7 +6,7 @@ import { isLiveApi } from "@/lib/api-client";
 import { validateEmail, validatePassword } from "@/lib/validation";
 import type { Role } from "@/lib/types";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Sign in — StackedHub" },
