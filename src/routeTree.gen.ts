@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditLogsRouteImport } from './routes/audit-logs'
 import { Route as AvailabilityRouteImport } from './routes/availability'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -39,6 +40,11 @@ const AuditLogsRoute = AuditLogsRouteImport.update({
 const AvailabilityRoute = AvailabilityRouteImport.update({
   id: '/availability',
   path: '/availability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersRoute = CustomersRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
+  '/checkout': typeof CheckoutRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
+  '/checkout': typeof CheckoutRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/audit-logs': typeof AuditLogsRoute
   '/availability': typeof AvailabilityRoute
+  '/checkout': typeof CheckoutRoute
   '/customers': typeof CustomersRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit-logs'
     | '/availability'
+    | '/checkout'
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit-logs'
     | '/availability'
+    | '/checkout'
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/audit-logs'
     | '/availability'
+    | '/checkout'
     | '/customers'
     | '/dashboard'
     | '/forgot-password'
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditLogsRoute: typeof AuditLogsRoute
   AvailabilityRoute: typeof AvailabilityRoute
+  CheckoutRoute: typeof CheckoutRoute
   CustomersRoute: typeof CustomersRoute
   DashboardRoute: typeof DashboardRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -259,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/availability'
       fullPath: '/availability'
       preLoaderRoute: typeof AvailabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers': {
@@ -359,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditLogsRoute: AuditLogsRoute,
   AvailabilityRoute: AvailabilityRoute,
+  CheckoutRoute: CheckoutRoute,
   CustomersRoute: CustomersRoute,
   DashboardRoute: DashboardRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
