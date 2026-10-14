@@ -6,7 +6,7 @@
 
 Administrator implementation value: `Admin`. Requirements lifecycle names stay in **Expected result**; implemented UI/API uses `Placed` / `In kitchen` / `Ready` / `Completed` (VAL-001 **open**). Record actual labels after a real run.
 
-**Live API URL for this repo:** `http://localhost:5032`. Frontend README still mentions `http://localhost:5000` — using 5000 is a tester setup fail, not an API-down defect.
+**Live API URL for this repo:** `http://localhost:5032`. Frontend README now documents this same port — using any other port is a tester setup fail, not an API-down defect.
 
 **Live vs mock:** Staff/Admin Must screens use `data.ts` (API if URL set). **Day 3:** Customer Portal live-placed and tracked **#4829**. Checkout still has **no** explicit Pickup or Cash/Card controls (DEF-003/004). CRM/promotions may still be mock.
 

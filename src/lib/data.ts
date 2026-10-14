@@ -196,8 +196,7 @@ export async function saveMenuItem(input: MenuInput, id?: string): Promise<MenuI
 
 export async function getUsers(): Promise<ManagedUser[]> {
   if (isLiveApi()) {
-    const users = await apiRequest<AuthUser[]>(endpoints.adminUsers);
-    return users.map((u) => ({ ...u, active: true }));
+    return apiRequest<ManagedUser[]>(endpoints.adminUsers);
   }
   return demo().users.map((u) => ({ ...u }));
 }
