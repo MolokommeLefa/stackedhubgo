@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -38,12 +38,22 @@
   --color-mist: var(--mist);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-hero-overlay: var(--hero-overlay);
+  --color-status-new: var(--status-new);
+  --color-status-preparing: var(--status-preparing);
+  --color-status-ready: var(--status-ready);
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", ui-sans-serif, sans-serif;
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 0.375rem;
+  --hero-foreground: oklch(0.99 0 0);
+  --hero-overlay: oklch(0.17 0.015 260);
+  --status-new: oklch(0.54 0.22 262);
+  --status-preparing: oklch(0.56 0.12 65);
+  --status-ready: oklch(0.43 0.12 156);
   --brand: oklch(0.54 0.22 262);
   --brand-accent: oklch(0.66 0.17 255);
   --ink: oklch(0.208 0.042 265.755);
@@ -62,7 +72,7 @@
   --secondary: oklch(0.955 0.008 260);
   --secondary-foreground: var(--ink);
   --muted: oklch(0.955 0.008 260);
-  --muted-foreground: oklch(0.58 0.03 262);
+  --muted-foreground: oklch(0.48 0.018 262);
   --accent: var(--brand-accent);
   --accent-foreground: var(--ink);
   --destructive: oklch(0.6 0.22 27);
@@ -126,15 +136,17 @@
     animation: page-enter 0.4s ease-out both;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
-  main section:hover {
-    box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--color-foreground) 18%, transparent);
-  }
   button, a {
     transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
   }
   button:not(:disabled):active { transform: scale(0.96); }
   tbody tr { transition: background-color 0.15s ease; }
   tbody tr:hover { background-color: var(--color-secondary); }
+  * { letter-spacing: 0 !important; }
+  button, input, select, textarea { font: inherit; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  th { font-weight: 600; padding: 12px 10px; }
+  td { padding-left: 10px; padding-right: 10px; }
 }
 @keyframes cart-bump {
   0% { transform: scale(1); }
