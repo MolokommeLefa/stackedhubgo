@@ -55,7 +55,8 @@ function ForgotPasswordPage() {
     >
       {done ? (
         <p className="mt-6 rounded-xl bg-success/15 px-4 py-3 text-sm" role="status">
-          If that email is registered, a reset link would be sent. Check with your admin if you still cannot sign in.
+          If that email is registered, a reset link would be sent. Check with your admin if you
+          still cannot sign in.
         </p>
       ) : (
         <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
@@ -70,7 +71,10 @@ function ForgotPasswordPage() {
             />
           </label>
           {error && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+            <p
+              className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
               {error}
             </p>
           )}
@@ -79,7 +83,11 @@ function ForgotPasswordPage() {
           </button>
         </form>
       )}
-      <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
+      <Link
+        to="/login"
+        search={{}}
+        className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+      >
         Back to sign in
       </Link>
     </AuthCard>

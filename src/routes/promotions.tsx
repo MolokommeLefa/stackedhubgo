@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell, LoadState, Panel } from "@/components/AppShell";
+import { wsBtnPrimary, wsField } from "@/components/workspace";
 import { getPromotions, savePromotion, setPromotionActive } from "@/lib/data";
 import { formatDate } from "@/lib/mock-data";
 import type { Promotion } from "@/lib/types";
@@ -9,7 +10,10 @@ export const Route = createFileRoute("/promotions")({
   head: () => ({
     meta: [
       { title: "Promotions — StackedHub" },
-      { name: "description", content: "Create, schedule and switch restaurant promotions and loyalty offers." },
+      {
+        name: "description",
+        content: "Create, schedule and switch restaurant promotions and loyalty offers.",
+      },
     ],
   }),
   component: PromotionsPage,
@@ -61,63 +65,34 @@ function PromotionsPage() {
   };
 
   return (
-    <AppShell title="Promotions" subtitle="Offers" allow={["Admin"]}>
+    <AppShell title="Promotions" subtitle="Customer growth" allow={["Admin"]}>
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
       {!loading && !error && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Panel title="Live offers">
-            {list.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No promotions yet — launch one on the right.</p>
-            ) : (
-              <div className="space-y-3">
-                {list.map((p) => (
-                  <div key={p.id} className="glass-soft rounded-2xl p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold">{p.title}</p>
-                      <button
-                        type="button"
-                        aria-pressed={p.active}
-                        onClick={() => {
-                          void setPromotionActive(p.id, !p.active);
-                          setList((l) => l.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x)));
-                        }}
-                        className={`min-h-11 shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${p.active ? "bg-success/20" : "bg-secondary text-muted-foreground"}`}
-                      >
-                        {p.active ? "Active" : "Paused"}
-                      </button>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {p.discountPercent > 0 ? `${p.discountPercent}% off · ` : ""}
-                      {p.startsAt && formatDate(p.startsAt)} – {p.endsAt && formatDate(p.endsAt)}
-                    </p>
-                    <p className="mt-1 text-xs">{p.redemptions} redemptions</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Launch promotion">
+          <Panel title="Create promotion">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Offers use existing menu pricing. Set a discount and schedule.
+            </p>
             <form onSubmit={add} className="space-y-3">
-              <label className="block text-xs font-medium text-muted-foreground">
-                Title
+              <label className="block text-xs font-semibold text-muted-foreground">
+                Promotion name
                 <input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="glass-soft mt-1 min-h-11 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  placeholder="e.g. Weekend Double Deal"
+                  className={`${wsField} mt-1`}
                 />
               </label>
-              <label className="block text-xs font-medium text-muted-foreground">
-                Description
+              <label className="block text-xs font-semibold text-muted-foreground">
+                Offer details
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="glass-soft mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  className={`${wsField} mt-1 py-3`}
                   rows={3}
                 />
               </label>
-              <label className="block text-xs font-medium text-muted-foreground">
+              <label className="block text-xs font-semibold text-muted-foreground">
                 Discount %
                 <input
                   type="number"
@@ -125,26 +100,26 @@ function PromotionsPage() {
                   max={100}
                   value={form.discountPercent}
                   onChange={(e) => setForm({ ...form, discountPercent: Number(e.target.value) })}
-                  className="glass-soft mt-1 min-h-11 w-full rounded-xl px-4 py-2.5 text-sm text-foreground outline-none"
+                  className={`${wsField} mt-1`}
                 />
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Starts
+                <label className="text-xs font-semibold text-muted-foreground">
+                  Start date
                   <input
                     type="date"
                     value={form.startsAt}
                     onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
-                    className="glass-soft mt-1 min-h-11 w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                    className={`${wsField} mt-1`}
                   />
                 </label>
-                <label className="text-xs font-medium text-muted-foreground">
-                  Ends
+                <label className="text-xs font-semibold text-muted-foreground">
+                  End date
                   <input
                     type="date"
                     value={form.endsAt}
                     onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
-                    className="glass-soft mt-1 min-h-11 w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                    className={`${wsField} mt-1`}
                   />
                 </label>
               </div>
@@ -153,13 +128,54 @@ function PromotionsPage() {
                   {formError}
                 </p>
               )}
-              <button
-                disabled={saving}
-                className="bg-gradient-brand min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {saving ? "Launching…" : "Launch promotion"}
+              <button disabled={saving} className={`${wsBtnPrimary} w-full`}>
+                {saving ? "Launching…" : "Create promotion"}
               </button>
             </form>
+          </Panel>
+
+          <Panel title="Active & scheduled">
+            {list.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No promotions yet — launch one on the left.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {list.map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
+                    <div>
+                      <p className="font-semibold">{p.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {p.discountPercent > 0 ? `${p.discountPercent}% off · ` : ""}
+                        {p.startsAt && formatDate(p.startsAt)} – {p.endsAt && formatDate(p.endsAt)}
+                        {" · "}
+                        {p.redemptions} redemptions
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-pressed={p.active}
+                      onClick={() => {
+                        void setPromotionActive(p.id, !p.active);
+                        setList((l) =>
+                          l.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x)),
+                        );
+                      }}
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${
+                        p.active ? "bg-success/20" : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${p.active ? "bg-success" : "bg-muted-foreground"}`}
+                        aria-hidden
+                      />
+                      {p.active ? "Active" : "Paused"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
       )}

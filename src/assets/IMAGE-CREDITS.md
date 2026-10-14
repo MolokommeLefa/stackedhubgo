@@ -1,0 +1,30 @@
+# Menu image credits
+
+Local files only. `MenuPhoto` falls back to the category image if a file fails to load.
+
+## New in this pass (generated)
+
+| Filename | Menu item | Origin | Prompt / source | Licence |
+|---|---|---|---|---|
+| `food-peri-peri-chicken.jpg` | Peri-Peri Chicken Stack (`m1`) | Generated in Cursor with GenerateImage on 14 Oct 2026 | Photorealistic food photography, three-quarter angle, of a peri-peri chicken burger on toasted sesame brioche. Flame-grilled golden-brown chicken breast, creamy chilli mayo, crisp lettuce and tomato, on crumpled brown bakery paper. Dark walnut wood table, warm restaurant lighting, shallow depth of field. No text, no labels, no people, no watermark. Appetizing South African takeaway style, natural colours, high detail. | Generated asset for this project; not a stock photo |
+| `food-bunny-chow.jpg` | Bunny Chow (`m3`) | Generated in Cursor with GenerateImage on 14 Oct 2026 | Photorealistic food photography, three-quarter angle, of a Durban bunny chow: a hollowed quarter loaf of white bread filled with rich slow-cooked lamb curry, glossy brown gravy, visible chunks of lamb and carrot, topped with fresh carrot sambal and a little chopped coriander. Served on a matte black plate on a dark walnut wood table. Warm restaurant lighting, shallow depth of field. No text, no labels, no people, no watermark. Natural colours, high detail. | Generated asset for this project; not a stock photo |
+
+These replace crops of `hero-spread.jpg`, which showed both dishes on one platter and reused the same file for both cards.
+
+## Existing generated mockups (earlier in this project)
+
+| Filename | Menu item | Origin | Prompt | Licence |
+|---|---|---|---|---|
+| `food-boerewors-roll.jpg` | Boerewors Roll (`m4`) | Generated in Cursor with GenerateImage | Photorealistic food photography of a South African boerewors sausage roll on a dark walnut wood table. A grilled coiled boerewors sausage in a soft white bread roll, topped with chunky red chakalaka relish. Isolated product shot, generous dark space around the food, warm studio lighting, shallow depth of field, no text, no logos, no hands, no plates with patterns. Matches a premium burger restaurant menu photo style. | Generated asset for this project |
+| `food-onion-rings.jpg` | Onion Rings (`m6`) | Generated in Cursor with GenerateImage | Photorealistic food photography of golden beer-battered onion rings stacked in a small pile on a dark walnut wood table. Crispy textured batter, a small ramekin of garlic aioli beside them. Isolated product shot, generous dark space around the food, warm studio lighting, shallow depth of field, no text, no logos, no hands. Premium restaurant menu photo style. | Generated asset for this project |
+| `food-iced-rooibos.jpg` | Iced Rooibos (`m8`) | Generated in Cursor with GenerateImage | Photorealistic food photography of a tall glass of iced amber rooibos tea on a dark walnut wood table. The drink is reddish-amber, with ice cubes, a citrus slice, and a drizzle of honey visible. Isolated drink shot, generous dark space around the glass, warm studio lighting, shallow depth of field, no text, no logos, no hands. Premium restaurant menu photo style. | Generated asset for this project |
+| `food-koeksisters.jpg` | Koeksister Bites (`m10`) | Generated in Cursor with GenerateImage | Photorealistic food photography of three glossy syrup-soaked South African koeksister pastry twists on a small ceramic plate on a dark walnut wood table. Golden fried dough braids shining with syrup. Isolated dessert shot, generous dark space around the plate, warm studio lighting, shallow depth of field, no text, no logos, no hands. Premium restaurant menu photo style. | Generated asset for this project |
+
+## Existing project photos (not generated in these sessions)
+
+| Filename | Used for | Origin |
+|---|---|---|
+| `food-mains.jpg` | Double Smash Burger; mains fallback | Already in the extracted project; source/licence not verified here |
+| `food-sides.jpg` | Chakalaka Fries; sides fallback | Already in the extracted project; source/licence not verified here |
+| `food-drinks-desserts.jpg` | Homemade Lemonade, Malva Pudding; drinks/desserts fallback | Already in the extracted project; source/licence not verified here |
+| `hero-spread.jpg` | Landing/spread photography; no longer used as the Peri-Peri or Bunny Chow card | Already in the extracted project; source/licence not verified here |

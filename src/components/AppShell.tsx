@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   BarChart3,
   ClipboardList,
@@ -16,9 +16,18 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
+import { ADDRESS_LINES, OPENING_HOURS } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
 import { isLiveApi } from "@/lib/api-client";
 import type { Role } from "@/lib/types";
+
+function hoursToday() {
+  const day = new Date().getDay();
+  if (day === 0) return OPENING_HOURS[3];
+  if (day === 6) return OPENING_HOURS[2];
+  if (day === 5) return OPENING_HOURS[1];
+  return OPENING_HOURS[0];
+}
 
 interface NavItem {
   label: string;
@@ -27,13 +36,27 @@ interface NavItem {
   roles: Role[];
 }
 
+function uniqueNavItems(items: NavItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.to)) return false;
+    seen.add(item.to);
+    return true;
+  });
+}
+
 const groups: { title: string; items: NavItem[] }[] = [
   {
-    title: "General",
+    title: "Operations",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: LayoutGrid, roles: ["Admin", "Staff"] },
       { label: "Order Queue", to: "/orders", icon: ClipboardList, roles: ["Admin", "Staff"] },
-      { label: "Item Availability", to: "/availability", icon: ToggleRight, roles: ["Staff", "Admin"] },
+      {
+        label: "Item Availability",
+        to: "/availability",
+        icon: ToggleRight,
+        roles: ["Staff", "Admin"],
+      },
     ],
   },
   {
@@ -50,7 +73,7 @@ const groups: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Customers", to: "/customers", icon: UserRound, roles: ["Admin"] },
       { label: "Promotions", to: "/promotions", icon: Megaphone, roles: ["Admin"] },
-      { label: "Customer Portal", to: "/portal", icon: Sparkles, roles: ["Admin", "Customer"] },
+      { label: "Customer Portal", to: "/portal", icon: Sparkles, roles: ["Customer"] },
       { label: "Settings", to: "/settings", icon: Settings, roles: ["Admin", "Staff", "Customer"] },
     ],
   },
@@ -72,11 +95,18 @@ export function AppShell({
   const { user, ready, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const returnPath = useRef(pathname);
 
   useEffect(() => {
     if (!ready) return;
-    if (!user) void navigate({ to: "/" });
-    else if (!allow.includes(user.role)) void navigate({ to: user.role === "Customer" ? "/portal" : "/dashboard" });
+    if (!user) {
+      const dest = returnPath.current;
+      void navigate({
+        to: "/login",
+        search: dest && dest !== "/login" ? { redirect: dest } : {},
+      });
+    } else if (!allow.includes(user.role))
+      void navigate({ to: user.role === "Customer" ? "/portal" : "/dashboard" });
   }, [ready, user, allow, navigate]);
 
   if (!ready || !user || !allow.includes(user.role)) {
@@ -92,19 +122,27 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] gap-6 p-4 lg:p-6">
-        <aside className="hidden w-60 shrink-0 flex-col self-start rounded-3xl bg-card p-5 lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100vh-3rem)]">
-          <Link to="/dashboard" className="flex items-center gap-2.5 px-2" aria-label="StackedHub dashboard">
-            <BrandMark className="size-9" />
+        <aside className="hidden w-60 shrink-0 flex-col self-start rounded-3xl bg-brand p-5 text-cream lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100vh-3rem)]">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2.5 px-2"
+            aria-label="StackedHub dashboard"
+          >
+            <BrandMark className="size-9" onDark />
             <span className="text-lg font-bold tracking-tight">StackedHub</span>
           </Link>
+          <p className="mt-4 px-3 text-xs leading-relaxed text-cream/60">
+            {ADDRESS_LINES[1]}
+            <span className="mt-0.5 block text-cream/45">{hoursToday().hours}</span>
+          </p>
 
           <nav className="mt-8 flex-1 space-y-6">
             {groups.map((group) => {
-              const items = group.items.filter((i) => i.roles.includes(user.role));
+              const items = uniqueNavItems(group.items.filter((i) => i.roles.includes(user.role)));
               if (!items.length) return null;
               return (
                 <div key={group.title}>
-                  <p className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  <p className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-cream/50 uppercase">
                     {group.title}
                   </p>
                   <div className="space-y-1">
@@ -118,11 +156,14 @@ export function AppShell({
                           aria-current={active ? "page" : undefined}
                           className={
                             active
-                              ? "flex min-h-11 items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-foreground"
-                              : "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                              ? "flex min-h-11 items-center gap-3 rounded-xl bg-cream/12 px-3 py-2.5 text-sm font-semibold text-cream"
+                              : "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-cream/70 transition-colors hover:bg-cream/10 hover:text-cream"
                           }
                         >
-                          <Icon className={active ? "size-[18px] text-primary" : "size-[18px]"} aria-hidden />
+                          <Icon
+                            className={active ? "size-[18px] text-primary" : "size-[18px]"}
+                            aria-hidden
+                          />
                           {item.label}
                         </Link>
                       );
@@ -133,33 +174,43 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border p-3">
-            <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-cream/15 p-3">
+            <div className="grid size-9 place-items-center rounded-full bg-cream/15 text-sm font-bold text-cream">
               {user.name.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.role}</p>
+              <p className="text-xs text-cream/60">{user.role}</p>
             </div>
             <button
               type="button"
               aria-label="Sign out"
               onClick={() => {
                 signOut();
-                void navigate({ to: "/" });
+                void navigate({ to: "/login", search: {} });
               }}
-              className="min-h-11 min-w-11 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="min-h-11 min-w-11 rounded-lg p-1.5 text-cream/70 hover:bg-cream/10 hover:text-cream"
             >
               <LogOut className="size-4" />
             </button>
           </div>
         </aside>
 
-        <main key={pathname} id="main-content" className="page-enter min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
+        <main
+          key={pathname}
+          id="main-content"
+          className="page-enter min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/50 lg:p-6"
+        >
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-              <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
+              {subtitle && (
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                  {subtitle}
+                </p>
+              )}
+              <h1 className="font-display text-3xl font-semibold tracking-tight lg:text-4xl">
+                {title}
+              </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {actions}
@@ -167,14 +218,18 @@ export function AppShell({
                 to="/settings"
                 className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground"
               >
-                <span className={live ? "size-2 rounded-full bg-success" : "size-2 rounded-full bg-warning"} />
+                <span
+                  className={
+                    live ? "size-2 rounded-full bg-success" : "size-2 rounded-full bg-warning"
+                  }
+                />
                 {live ? "Connected to API" : "Demo data"}
               </Link>
               <button
                 type="button"
                 onClick={() => {
                   signOut();
-                  void navigate({ to: "/" });
+                  void navigate({ to: "/login", search: {} });
                 }}
                 className="min-h-11 rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground lg:hidden"
               >
@@ -184,23 +239,22 @@ export function AppShell({
           </header>
 
           <nav className="flex gap-2 overflow-x-auto lg:hidden">
-            {groups
-              .flatMap((g) => g.items)
-              .filter((i) => i.roles.includes(user.role))
-              .map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  aria-current={pathname === item.to ? "page" : undefined}
-                  className={
-                    pathname === item.to
-                      ? "inline-flex min-h-11 shrink-0 items-center rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
-                      : "inline-flex min-h-11 shrink-0 items-center rounded-full bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                  }
-                >
-                  {item.label}
-                </Link>
-              ))}
+            {uniqueNavItems(
+              groups.flatMap((g) => g.items).filter((i) => i.roles.includes(user.role)),
+            ).map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={pathname === item.to ? "page" : undefined}
+                className={
+                  pathname === item.to
+                    ? "inline-flex min-h-11 shrink-0 items-center rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                    : "inline-flex min-h-11 shrink-0 items-center rounded-full bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                }
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           {children}
@@ -222,10 +276,10 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className={`rounded-3xl bg-card p-6 ${className ?? ""}`}>
+    <section className={`surface-card rounded-3xl p-6 ${className ?? ""}`}>
       {(title || action) && (
         <div className="mb-5 flex items-center justify-between gap-3">
-          {title && <h2 className="text-lg font-bold">{title}</h2>}
+          {title && <h2 className="font-display text-2xl font-semibold">{title}</h2>}
           {action}
         </div>
       )}
@@ -242,8 +296,21 @@ export function StatusPill({ status }: { status: string }) {
     Completed: "bg-secondary text-muted-foreground",
     Cancelled: "bg-destructive/10 text-destructive",
   };
+  const dot: Record<string, string> = {
+    Placed: "bg-primary",
+    "In kitchen": "bg-warning",
+    Ready: "bg-success",
+    Completed: "bg-muted-foreground",
+    Cancelled: "bg-destructive",
+  };
   return (
-    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone[status] ?? "bg-secondary text-muted-foreground"}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${tone[status] ?? "bg-secondary text-muted-foreground"}`}
+    >
+      <span
+        className={`size-1.5 rounded-full ${dot[status] ?? "bg-muted-foreground"}`}
+        aria-hidden
+      />
       {status}
     </span>
   );
@@ -267,9 +334,14 @@ export function LoadState({
   }
   if (error) {
     const message =
-      error instanceof Error ? error.message : "The request failed. Check your connection and try again.";
+      error instanceof Error
+        ? error.message
+        : "The request failed. Check your connection and try again.";
     return (
-      <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
+      <div
+        className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        role="alert"
+      >
         <p>{message}</p>
         {onRetry && (
           <button

@@ -13,17 +13,20 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
+import { CartProvider } from "../lib/cart";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="page-enter max-w-md rounded-3xl bg-card p-8 text-center">
+      <div className="surface-card page-enter max-w-md rounded-3xl p-8 text-center">
         <div className="mx-auto grid size-14 animate-pulse place-items-center rounded-2xl bg-primary/10 text-2xl">
           🚧
         </div>
         <h1 className="mt-5 text-2xl font-bold text-foreground">Still in development</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          This page is being built and will be available soon. Check back later or head back to the dashboard.
+          This page is being built and will be available soon. Check back later or head back to the
+          dashboard.
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Link
@@ -33,7 +36,8 @@ function NotFoundComponent() {
             Go to dashboard
           </Link>
           <Link
-            to="/"
+            to="/login"
+            search={{}}
             className="inline-flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-foreground"
           >
             Sign in page
@@ -87,18 +91,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "StackedHub — Restaurant Management" },
+      { title: "Stacked Foods — Stacked high. Tastes higher." },
       {
         name: "description",
         content:
-          "StackedHub brings Stacked Foods orders, menu, inventory, customers and reporting into one workspace.",
+          "Stacked Foods smash burgers and gas-fired pizzas, with StackedHub for orders, menu, staff and reporting.",
       },
       { name: "author", content: "Stacked Foods" },
-      { property: "og:title", content: "StackedHub — Restaurant Management" },
+      { property: "og:title", content: "Stacked Foods — Stacked high. Tastes higher." },
       {
         property: "og:description",
         content:
-          "StackedHub brings Stacked Foods orders, menu, inventory, customers and reporting into one workspace.",
+          "Stacked Foods smash burgers and gas-fired pizzas, with StackedHub for orders, menu, staff and reporting.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -112,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -132,15 +136,15 @@ function RootShell({ children }: { children: ReactNode }) {
       >
         Skip to main content
       </a>
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
+      <html lang="en">
+        <head>
+          <HeadContent />
+        </head>
+        <body>
+          {children}
+          <Scripts />
+        </body>
+      </html>
     </>
   );
 }
@@ -152,7 +156,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <CartProvider>
+          <Outlet />
+          <Toaster position="top-center" richColors />
+        </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

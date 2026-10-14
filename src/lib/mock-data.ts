@@ -1,10 +1,4 @@
-import type {
-  AuditLogEntry,
-  Customer,
-  MenuItem,
-  Order,
-  Promotion,
-} from "./types";
+import type { AuditLogEntry, Customer, MenuItem, Order, Promotion } from "./types";
 
 export const menuItems: MenuItem[] = [
   {
@@ -182,89 +176,103 @@ export const customers: Customer[] = [
   },
 ];
 
-export const orders: Order[] = [
-  {
-    id: "o1",
-    reference: "#4821",
-    customerId: "c1",
-    customerName: "Priya Nair",
-    channel: "Website",
-    items: [
-      { menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 2, unitPrice: 129 },
-      { menuItemId: "m5", name: "Chakalaka Fries", quantity: 1, unitPrice: 55 },
-    ],
-    total: 313,
-    status: "In kitchen",
-    placedAt: "2026-09-23T11:42:00Z",
-  },
-  {
-    id: "o2",
-    reference: "#4820",
-    customerId: "c2",
-    customerName: "Marcus Bell",
-    channel: "Mobile app",
-    items: [
-      { menuItemId: "m2", name: "Double Smash Burger", quantity: 1, unitPrice: 145 },
-      { menuItemId: "m7", name: "Homemade Lemonade", quantity: 1, unitPrice: 32 },
-    ],
-    total: 177,
-    status: "Ready",
-    placedAt: "2026-09-23T11:28:00Z",
-  },
-  {
-    id: "o3",
-    reference: "#4819",
-    customerId: "c3",
-    customerName: "Elena Costa",
-    channel: "WhatsApp",
-    items: [
-      { menuItemId: "m3", name: "Bunny Chow", quantity: 1, unitPrice: 119 },
-      { menuItemId: "m9", name: "Malva Pudding", quantity: 2, unitPrice: 49 },
-    ],
-    total: 217,
-    status: "Placed",
-    placedAt: "2026-09-23T11:15:00Z",
-  },
-  {
-    id: "o4",
-    reference: "#4818",
-    customerId: "c4",
-    customerName: "Sipho Dlamini",
-    channel: "Uber Eats",
-    items: [
-      { menuItemId: "m4", name: "Boerewors Roll", quantity: 4, unitPrice: 89 },
-      { menuItemId: "m6", name: "Onion Rings", quantity: 2, unitPrice: 45 },
-    ],
-    total: 446,
-    status: "Completed",
-    placedAt: "2026-09-23T10:51:00Z",
-  },
-  {
-    id: "o5",
-    reference: "#4817",
-    customerId: "c5",
-    customerName: "Aisha Patel",
-    channel: "Mr D",
-    items: [
-      { menuItemId: "m5", name: "Chakalaka Fries", quantity: 2, unitPrice: 55 },
-      { menuItemId: "m8", name: "Iced Rooibos", quantity: 2, unitPrice: 28 },
-    ],
-    total: 166,
-    status: "Completed",
-    placedAt: "2026-09-23T10:20:00Z",
-  },
-  {
-    id: "o6",
-    reference: "#4816",
-    customerId: "c1",
-    customerName: "Priya Nair",
-    channel: "In-store",
-    items: [{ menuItemId: "m2", name: "Double Smash Burger", quantity: 1, unitPrice: 145 }],
-    total: 145,
-    status: "Cancelled",
-    placedAt: "2026-09-23T09:48:00Z",
-  },
-];
+const ago = (now: number, minutes: number) => new Date(now - minutes * 60_000).toISOString();
+
+/** Active tickets sit in the last few minutes so the queue looks live. */
+export function createSeedOrders(now = Date.now()): Order[] {
+  return [
+    {
+      id: "o1",
+      reference: "#4821",
+      customerId: "c1",
+      customerName: "Priya Nair",
+      channel: "Website",
+      items: [
+        { menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 2, unitPrice: 129 },
+        { menuItemId: "m5", name: "Chakalaka Fries", quantity: 1, unitPrice: 55 },
+      ],
+      total: 313,
+      status: "In kitchen",
+      fulfilment: "Collection",
+      placedAt: ago(now, 8),
+    },
+    {
+      id: "o2",
+      reference: "#4820",
+      customerId: "c2",
+      customerName: "Marcus Bell",
+      channel: "Mobile app",
+      items: [
+        { menuItemId: "m2", name: "Double Smash Burger", quantity: 1, unitPrice: 145 },
+        { menuItemId: "m7", name: "Homemade Lemonade", quantity: 1, unitPrice: 32 },
+      ],
+      total: 177,
+      status: "Ready",
+      fulfilment: "Collection",
+      placedAt: ago(now, 14),
+    },
+    {
+      id: "o3",
+      reference: "#4819",
+      customerId: "c3",
+      customerName: "Elena Costa",
+      channel: "WhatsApp",
+      items: [
+        { menuItemId: "m3", name: "Bunny Chow", quantity: 1, unitPrice: 119 },
+        { menuItemId: "m9", name: "Malva Pudding", quantity: 2, unitPrice: 49 },
+      ],
+      total: 217,
+      status: "Placed",
+      fulfilment: "Collection",
+      placedAt: ago(now, 5),
+    },
+    {
+      id: "o4",
+      reference: "#4818",
+      customerId: "c4",
+      customerName: "Sipho Dlamini",
+      channel: "Uber Eats",
+      items: [
+        { menuItemId: "m4", name: "Boerewors Roll", quantity: 4, unitPrice: 89 },
+        { menuItemId: "m6", name: "Onion Rings", quantity: 2, unitPrice: 45 },
+      ],
+      total: 446,
+      status: "Completed",
+      fulfilment: "Delivery",
+      placedAt: ago(now, 45),
+    },
+    {
+      id: "o5",
+      reference: "#4817",
+      customerId: "c5",
+      customerName: "Aisha Patel",
+      channel: "Mr D",
+      items: [
+        { menuItemId: "m5", name: "Chakalaka Fries", quantity: 2, unitPrice: 55 },
+        { menuItemId: "m8", name: "Iced Rooibos", quantity: 2, unitPrice: 28 },
+      ],
+      total: 166,
+      status: "Completed",
+      fulfilment: "Delivery",
+      placedAt: ago(now, 70),
+    },
+    {
+      id: "o6",
+      reference: "#4816",
+      customerId: "c1",
+      customerName: "Priya Nair",
+      channel: "In-store",
+      items: [{ menuItemId: "m2", name: "Double Smash Burger", quantity: 1, unitPrice: 145 }],
+      total: 145,
+      status: "Cancelled",
+      fulfilment: "Collection",
+      placedAt: ago(now, 95),
+    },
+  ];
+}
+
+/** Snapshot for tests and static imports. Prefer createSeedOrders() for a live demo seed. */
+export const orders: Order[] = createSeedOrders(Date.parse("2026-10-14T12:00:00Z"));
 
 export const promotions: Promotion[] = [
   {
@@ -282,8 +290,8 @@ export const promotions: Promotion[] = [
     title: "Loyalty Double Points",
     description: "Members earn double points on app orders over R150.",
     discountPercent: 0,
-    startsAt: "2026-09-15",
-    endsAt: "2026-09-30",
+    startsAt: "2026-10-01",
+    endsAt: "2026-10-31",
     active: true,
     redemptions: 96,
   },
@@ -299,48 +307,52 @@ export const promotions: Promotion[] = [
   },
 ];
 
-export const auditLog: AuditLogEntry[] = [
-  {
-    id: "a1",
-    actor: "Thandi Mokoena",
-    role: "Admin",
-    action: "Updated promotion",
-    target: "Two-for-Tuesday Stacks",
-    at: "2026-09-23T11:05:00Z",
-  },
-  {
-    id: "a2",
-    actor: "Jason Reid",
-    role: "Staff",
-    action: "Changed order status to Ready",
-    target: "#4820",
-    at: "2026-09-23T11:31:00Z",
-  },
-  {
-    id: "a3",
-    actor: "Thandi Mokoena",
-    role: "Admin",
-    action: "Adjusted stock level",
-    target: "Chakalaka Fries",
-    at: "2026-09-23T10:44:00Z",
-  },
-  {
-    id: "a4",
-    actor: "Nomsa Khumalo",
-    role: "Staff",
-    action: "Created menu item",
-    target: "Koeksister Bites",
-    at: "2026-09-22T16:12:00Z",
-  },
-  {
-    id: "a5",
-    actor: "Thandi Mokoena",
-    role: "Admin",
-    action: "Deactivated staff account",
-    target: "temp.cashier@stackedfoods.co.za",
-    at: "2026-09-22T09:02:00Z",
-  },
-];
+export function createSeedAudit(now = Date.now()): AuditLogEntry[] {
+  return [
+    {
+      id: "a1",
+      actor: "Thandi Mokoena",
+      role: "Admin",
+      action: "Updated promotion",
+      target: "Two-for-Tuesday Stacks",
+      at: ago(now, 20),
+    },
+    {
+      id: "a2",
+      actor: "Jason Reid",
+      role: "Staff",
+      action: "Changed order status to Ready",
+      target: "#4820",
+      at: ago(now, 14),
+    },
+    {
+      id: "a3",
+      actor: "Thandi Mokoena",
+      role: "Admin",
+      action: "Adjusted stock level",
+      target: "Chakalaka Fries",
+      at: ago(now, 70),
+    },
+    {
+      id: "a4",
+      actor: "Nomsa Khumalo",
+      role: "Staff",
+      action: "Created menu item",
+      target: "Koeksister Bites",
+      at: ago(now, 22 * 60),
+    },
+    {
+      id: "a5",
+      actor: "Thandi Mokoena",
+      role: "Admin",
+      action: "Deactivated staff account",
+      target: "temp.cashier@stackedfoods.co.za",
+      at: ago(now, 28 * 60),
+    },
+  ];
+}
+
+export const auditLog: AuditLogEntry[] = createSeedAudit(Date.parse("2026-10-14T12:00:00Z"));
 
 export const hourlyOrders = [
   { hour: "10:00", orders: 12 },
@@ -380,3 +392,20 @@ export const formatTime = (iso: string) =>
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+
+export function formatTimeAgo(iso: string, now = Date.now()): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "Just now";
+  const mins = Math.max(0, Math.round((now - then) / 60_000));
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 12) return `${hours}h ago`;
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  if (then >= startOfToday.getTime()) return "Today";
+  const yesterday = new Date(startOfToday);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (then >= yesterday.getTime()) return "Yesterday";
+  return `${Math.floor(hours / 24)}d ago`;
+}

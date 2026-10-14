@@ -36,40 +36,42 @@
   --color-brand-accent: var(--brand-accent);
   --color-ink: var(--ink);
   --color-mist: var(--mist);
+  --color-cream: var(--cream);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", ui-sans-serif, sans-serif;
+  --font-display: "Fraunces", "Plus Jakarta Sans", ui-serif, Georgia, serif;
 }
 
 :root {
   --radius: 0.875rem;
-  --brand: oklch(0.54 0.22 262);
-  --brand-accent: oklch(0.66 0.17 255);
-  --ink: oklch(0.208 0.042 265.755);
-  --mist: oklch(0.962 0.018 272.3);
-  --success: oklch(0.72 0.16 156);
+  --brand: oklch(0.24 0.07 18);
+  --brand-accent: oklch(0.63 0.185 35);
+  --ink: oklch(0.22 0.03 30);
+  --mist: oklch(0.955 0.018 80);
+  --cream: oklch(0.975 0.016 88);
+  --success: oklch(0.68 0.15 155);
   --warning: oklch(0.79 0.15 76);
 
-  --background: oklch(0.968 0.004 260);
+  --background: var(--cream);
   --foreground: var(--ink);
-  --card: oklch(1 0 0);
+  --card: oklch(0.995 0.004 88);
   --card-foreground: var(--ink);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.995 0.004 88);
   --popover-foreground: var(--ink);
-  --primary: var(--brand);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.008 260);
+  --primary: var(--brand-accent);
+  --primary-foreground: oklch(0.995 0.005 88);
+  --secondary: oklch(0.95 0.02 80);
   --secondary-foreground: var(--ink);
-  --muted: oklch(0.955 0.008 260);
-  --muted-foreground: oklch(0.58 0.03 262);
-  --accent: var(--brand-accent);
+  --muted: oklch(0.95 0.02 80);
+  --muted-foreground: oklch(0.48 0.03 40);
+  --accent: oklch(0.93 0.03 70);
   --accent-foreground: var(--ink);
-  --destructive: oklch(0.6 0.22 27);
+  --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.925 0.006 260);
-  --input: oklch(0.925 0.006 260);
-  --ring: var(--brand);
+  --border: oklch(0.9 0.02 75);
+  --input: oklch(0.9 0.02 75);
+  --ring: var(--brand-accent);
 }
 
 @utility glass {
@@ -88,11 +90,17 @@
 }
 
 @utility bg-gradient-brand {
-  background-color: var(--brand);
+  background-color: var(--brand-accent);
 }
 
 @utility app-backdrop {
   background-color: var(--background);
+}
+
+@utility surface-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px -18px color-mix(in oklab, var(--brand) 35%, transparent);
 }
 
 @layer base {
@@ -111,31 +119,84 @@
   h3 {
     font-family: var(--font-display);
   }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
-/* Simple interactions */
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @utility page-enter {
   animation: page-enter 0.35s ease-out both;
 }
+
 @layer base {
-  main section, main > div > div.rounded-3xl {
-    animation: page-enter 0.4s ease-out both;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  button,
+  a {
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      transform 0.1s ease,
+      opacity 0.15s ease;
   }
-  main section:hover {
-    box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--color-foreground) 18%, transparent);
+  button:not(:disabled):active {
+    transform: scale(0.98);
   }
-  button, a {
-    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  tbody tr {
+    transition: background-color 0.15s ease;
   }
-  button:not(:disabled):active { transform: scale(0.96); }
-  tbody tr { transition: background-color 0.15s ease; }
-  tbody tr:hover { background-color: var(--color-secondary); }
+  tbody tr:hover {
+    background-color: var(--color-secondary);
+  }
+}
+
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@utility cart-bump {
+  animation: cart-bump 0.25s ease-out;
+}
+@keyframes new-order-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 35%, transparent);
+  }
+}
+@utility new-order-glow {
+  animation: new-order-glow 1.2s ease-in-out 3;
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
