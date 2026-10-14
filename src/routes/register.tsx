@@ -10,6 +10,10 @@ export const Route = createFileRoute("/register")({
     meta: [
       { title: "Create account — StackedHub" },
       { name: "description", content: "Register a StackedHub customer account." },
+      { property: "og:title", content: "Create account — StackedHub" },
+      { property: "og:description", content: "Register a StackedHub customer account." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: RegisterPage,

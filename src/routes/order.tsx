@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { CustomerShell } from "@/components/CustomerShell";
 import { LoadState } from "@/components/AppShell";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
 import { getMenu } from "@/lib/data";
-import { allergensFor, categoryImage, optionsFor, tagsFor } from "@/lib/menu-extras";
+import { allergensFor, imageFor, optionsFor, tagsFor } from "@/lib/menu-extras";
 import { currency } from "@/lib/mock-data";
 import type { MenuItem } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
@@ -57,7 +58,7 @@ function OrderPage() {
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Menu categories">
             {categories.map((c) => (
-              <button
+              <Button
                 key={c}
                 role="tab"
                 aria-selected={category === c}
@@ -69,7 +70,7 @@ function OrderPage() {
                 }
               >
                 {c}
-              </button>
+              </Button>
             ))}
           </div>
           <label className="flex min-h-11 items-center gap-2 rounded-xl bg-card px-3 sm:w-72">
@@ -87,7 +88,7 @@ function OrderPage() {
           {menu.loading && [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-72 animate-pulse rounded-3xl bg-card" />)}
           {shown.map((item) => (
             <article key={item.id} className={`flex flex-col overflow-hidden rounded-3xl bg-card ${item.available ? "" : "opacity-60"}`}>
-              <img src={categoryImage[item.category]} alt={item.name} loading="lazy" width={944} height={704} className="aspect-[4/3] w-full object-cover" />
+              <img src={imageFor(item)} alt={item.name} loading="lazy" width={944} height={704} className="aspect-[4/3] w-full object-cover" />
               <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-semibold">{item.name}</h2>
@@ -100,13 +101,13 @@ function OrderPage() {
                   ))}
                   {!item.available && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">Sold out</span>}
                 </div>
-                <button
+                <Button
                   disabled={!item.available}
                   onClick={() => setSelected(item)}
                   className="mt-4 min-h-11 rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
                 >
                   {item.available ? "Add to cart" : "Unavailable today"}
-                </button>
+                </Button>
               </div>
             </article>
           ))}
@@ -116,7 +117,7 @@ function OrderPage() {
           <div className="mt-6 rounded-3xl bg-card p-8 text-center">
             <p className="font-semibold">Nothing matched “{query || category}”.</p>
             <p className="mt-1 text-sm text-muted-foreground">Try another word or category.</p>
-            <button onClick={clearFilters} className="mt-4 min-h-11 rounded-xl bg-secondary px-4 text-sm font-semibold">Clear filters</button>
+            <Button onClick={clearFilters} className="mt-4 min-h-11 rounded-xl bg-secondary px-4 text-sm font-semibold">Clear filters</Button>
           </div>
         )}
       </div>
@@ -156,7 +157,8 @@ function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: () => v
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
+        <img src={imageFor(item)} alt={item.name} width={768} height={768} className="aspect-[2/1] w-full rounded-md object-cover" />
         <DialogHeader>
           <DialogTitle>{item.name}</DialogTitle>
           <DialogDescription>{item.description}</DialogDescription>
@@ -186,11 +188,11 @@ function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: () => v
         </label>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button aria-label="Decrease quantity" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="grid size-11 place-items-center rounded-xl bg-secondary"><Minus className="size-4" /></button>
+            <Button aria-label="Decrease quantity" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="grid size-11 place-items-center rounded-xl bg-secondary"><Minus className="size-4" /></Button>
             <span className="w-6 text-center font-semibold" aria-live="polite">{quantity}</span>
-            <button aria-label="Increase quantity" onClick={() => setQuantity((q) => Math.min(20, q + 1))} className="grid size-11 place-items-center rounded-xl bg-secondary"><Plus className="size-4" /></button>
+            <Button aria-label="Increase quantity" onClick={() => setQuantity((q) => Math.min(20, q + 1))} className="grid size-11 place-items-center rounded-xl bg-secondary"><Plus className="size-4" /></Button>
           </div>
-          <button
+          <Button
             onClick={() => {
               add({
                 menuItemId: item.id,
@@ -206,7 +208,7 @@ function ItemDialog({ item, onClose }: { item: MenuItem | null; onClose: () => v
             className="min-h-11 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
           >
             Add · {currency(unit * quantity)}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

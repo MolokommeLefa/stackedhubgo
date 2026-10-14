@@ -10,6 +10,10 @@ export const Route = createFileRoute("/customers")({
     meta: [
       { title: "Customers — StackedHub" },
       { name: "description", content: "Customer profiles, loyalty tiers, order history and notes in one CRM view." },
+      { property: "og:title", content: "Customers — StackedHub" },
+      { property: "og:description", content: "Customer profiles, loyalty tiers, order history and notes in one CRM view." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CustomersPage,

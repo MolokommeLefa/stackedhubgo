@@ -10,6 +10,10 @@ export const Route = createFileRoute("/promotions")({
     meta: [
       { title: "Promotions — StackedHub" },
       { name: "description", content: "Create, schedule and switch restaurant promotions and loyalty offers." },
+      { property: "og:title", content: "Promotions — StackedHub" },
+      { property: "og:description", content: "Create, schedule and switch restaurant promotions and loyalty offers." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PromotionsPage,

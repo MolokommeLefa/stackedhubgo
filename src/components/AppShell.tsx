@@ -1,6 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
+  Menu,
+  PanelLeftClose,
   BarChart3,
   ClipboardList,
   LayoutGrid,
@@ -15,6 +17,7 @@ import {
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth";
 import { isLiveApi } from "@/lib/api-client";
@@ -71,6 +74,7 @@ export function AppShell({
 }) {
   const { user, ready, signOut } = useAuth();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
@@ -91,11 +95,11 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-[1440px] gap-6 p-4 lg:p-6">
-        <aside className="hidden w-60 shrink-0 flex-col self-start rounded-3xl bg-card p-5 lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100vh-3rem)]">
+      <div className="mx-auto flex max-w-[1600px]">
+        <aside className={`hidden shrink-0 flex-col self-start border-r border-border bg-card p-4 lg:sticky lg:top-0 lg:flex lg:min-h-screen ${collapsed ? "w-20" : "w-60"}`}>
           <Link to="/dashboard" className="flex items-center gap-2.5 px-2" aria-label="StackedHub dashboard">
             <BrandMark className="size-9" />
-            <span className="text-lg font-bold tracking-tight">StackedHub</span>
+            {!collapsed && <span className="text-lg font-bold">StackedHub</span>}
           </Link>
 
           <nav className="mt-8 flex-1 space-y-6">
@@ -104,7 +108,7 @@ export function AppShell({
               if (!items.length) return null;
               return (
                 <div key={group.title}>
-                  <p className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  <p className={`mb-2 px-3 text-[11px] font-semibold text-muted-foreground uppercase ${collapsed ? "sr-only" : ""}`}>
                     {group.title}
                   </p>
                   <div className="space-y-1">
@@ -115,15 +119,16 @@ export function AppShell({
                         <Link
                           key={item.to}
                           to={item.to}
+                          title={item.label}
                           aria-current={active ? "page" : undefined}
                           className={
                             active
-                              ? "flex min-h-11 items-center gap-3 rounded-xl bg-primary/10 px-3 py-2.5 text-sm font-semibold text-foreground"
+                              ? "flex min-h-11 items-center gap-3 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground"
                               : "flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           }
                         >
-                          <Icon className={active ? "size-[18px] text-primary" : "size-[18px]"} aria-hidden />
-                          {item.label}
+                          <Icon className={active ? "size-[18px] text-primary-foreground" : "size-[18px]"} aria-hidden />
+                          {!collapsed && item.label}
                         </Link>
                       );
                     })}
@@ -133,15 +138,15 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border p-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
             <div className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">
               {user.name.charAt(0)}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className={`min-w-0 flex-1 ${collapsed ? "hidden" : ""}`}>
               <p className="truncate text-sm font-semibold">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.role}</p>
             </div>
-            <button
+            <Button
               type="button"
               aria-label="Sign out"
               onClick={() => {
@@ -151,12 +156,13 @@ export function AppShell({
               className="min-h-11 min-w-11 rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <LogOut className="size-4" />
-            </button>
+            </Button>
           </div>
         </aside>
 
-        <main key={pathname} id="main-content" className="page-enter min-w-0 flex-1 space-y-6 rounded-3xl lg:bg-secondary/60 lg:p-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
+        <main key={pathname} id="main-content" className="page-enter min-w-0 flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
+            <Button variant="outline" size="icon" className="hidden lg:inline-flex" aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} title={collapsed ? "Expand navigation" : "Collapse navigation"} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <Menu /> : <PanelLeftClose />}</Button>
             <div>
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
               <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
@@ -170,7 +176,7 @@ export function AppShell({
                 <span className={live ? "size-2 rounded-full bg-success" : "size-2 rounded-full bg-warning"} />
                 {live ? "Connected to API" : "Demo data"}
               </Link>
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   signOut();
@@ -179,7 +185,7 @@ export function AppShell({
                 className="min-h-11 rounded-full bg-card px-3 py-2 text-xs font-medium text-muted-foreground lg:hidden"
               >
                 Sign out
-              </button>
+              </Button>
             </div>
           </header>
 
@@ -222,9 +228,9 @@ export function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className={`rounded-3xl bg-card p-6 ${className ?? ""}`}>
+    <section className={`border-t border-border pt-6 ${className ?? ""}`}>
       {(title || action) && (
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           {title && <h2 className="text-lg font-bold">{title}</h2>}
           {action}
         </div>
@@ -236,9 +242,9 @@ export function Panel({
 
 export function StatusPill({ status }: { status: string }) {
   const tone: Record<string, string> = {
-    Placed: "bg-primary/10 text-primary",
-    "In kitchen": "bg-warning/20 text-foreground",
-    Ready: "bg-success/20 text-foreground",
+    Placed: "bg-status-new/10 text-status-new",
+    "In kitchen": "bg-status-preparing/10 text-status-preparing",
+    Ready: "bg-status-ready/10 text-status-ready",
     Completed: "bg-secondary text-muted-foreground",
     Cancelled: "bg-destructive/10 text-destructive",
   };
@@ -272,13 +278,13 @@ export function LoadState({
       <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
         <p>{message}</p>
         {onRetry && (
-          <button
+          <Button
             type="button"
             onClick={onRetry}
             className="mt-3 min-h-11 rounded-xl bg-card px-4 text-xs font-semibold text-foreground"
           >
             Retry
-          </button>
+          </Button>
         )}
       </div>
     );

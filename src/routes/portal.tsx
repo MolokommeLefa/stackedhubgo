@@ -12,6 +12,10 @@ export const Route = createFileRoute("/portal")({
     meta: [
       { title: "Customer Portal — StackedHub" },
       { name: "description", content: "Order food, track orders, earn loyalty points and get AI meal suggestions." },
+      { property: "og:title", content: "Customer Portal — StackedHub" },
+      { property: "og:description", content: "Order food, track orders, earn loyalty points and get AI meal suggestions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PortalPage,

@@ -9,6 +9,10 @@ export const Route = createFileRoute("/forgot-password")({
     meta: [
       { title: "Reset password — StackedHub" },
       { name: "description", content: "Request a StackedHub password reset." },
+      { property: "og:title", content: "Reset password — StackedHub" },
+      { property: "og:description", content: "Request a StackedHub password reset." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ForgotPasswordPage,

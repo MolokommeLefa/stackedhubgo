@@ -2,6 +2,16 @@
 import mains from "@/assets/food-mains.jpg";
 import sides from "@/assets/food-sides.jpg";
 import drinksDesserts from "@/assets/food-drinks-desserts.jpg";
+import peri from "@/assets/peri-peri.jpg";
+import smash from "@/assets/smash-burger.jpg";
+import bunny from "@/assets/bunny-chow.jpg";
+import boerewors from "@/assets/boerewors.jpg";
+import fries from "@/assets/chakalaka-fries.jpg";
+import rings from "@/assets/onion-rings.jpg";
+import lemonade from "@/assets/lemonade.jpg";
+import rooibos from "@/assets/rooibos.jpg";
+import malva from "@/assets/malva.jpg";
+import koeksisters from "@/assets/koeksisters.jpg";
 import type { MenuItem } from "./types";
 
 export const categoryImage: Record<MenuItem["category"], string> = {
@@ -47,4 +57,11 @@ export function tagsFor(item: MenuItem) {
 
 export function allergensFor(item: MenuItem) {
   return allergens[item.category] ?? [];
+}
+
+const foodPhotos: [string, string][] = [["peri", peri], ["smash", smash], ["bunny", bunny], ["boerewors", boerewors], ["chakalaka", fries], ["onion", rings], ["lemonade", lemonade], ["rooibos", rooibos], ["malva", malva], ["koeksister", koeksisters]];
+
+/** Illustrative menu photography; unknown dishes retain the category image. */
+export function imageFor(item: Pick<MenuItem, "name" | "category">) {
+  return foodPhotos.find(([word]) => item.name.toLowerCase().includes(word))?.[1] ?? categoryImage[item.category];
 }

@@ -13,6 +13,10 @@ export const Route = createFileRoute("/settings")({
     meta: [
       { title: "Settings — StackedHub" },
       { name: "description", content: "Profile and API connection for StackedHub." },
+      { property: "og:title", content: "Settings — StackedHub" },
+      { property: "og:description", content: "Profile and API connection for StackedHub." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SettingsPage,
