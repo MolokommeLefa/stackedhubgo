@@ -103,23 +103,24 @@ function LandingPage() {
             </p>
           </div>
         </article>
-        <article className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-brand text-cream">
+
+        <article className="surface-card overflow-hidden rounded-3xl">
           <img
             src={pizza}
-            alt="Freshly baked gas-fired pizza with melted cheese and fresh toppings"
-            width={1536}
-            height={1024}
-            className="absolute inset-0 size-full object-cover"
+            alt="Gas-fired pizza topped with fresh ingredients"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-brand/95 via-brand/35 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-6">
+          <div className="p-5">
             <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
-            <p className="mt-2 text-sm text-cream/90">
+            <p className="mt-2 text-sm text-muted-foreground">
               Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
               flavour.
             </p>
           </div>
         </article>
+
         <article className="surface-card overflow-hidden rounded-3xl">
           <img
             src={sides}
