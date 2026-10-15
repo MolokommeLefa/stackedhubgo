@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
