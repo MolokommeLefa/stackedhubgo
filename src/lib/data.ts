@@ -41,14 +41,14 @@ export interface PlaceOrderInput {
   customerId: string;
   customerName: string;
   items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
-  channel?: Order["channel"];
-  paymentMethod?: "Cash" | "Card";
-  fulfilment?: "Collection" | "Delivery";
-  specialInstructions?: string;
+  channel?: Order["channel"] | undefined;
+  paymentMethod?: "Cash" | "Card" | undefined;
+  fulfilment?: "Collection" | "Delivery" | undefined;
+  specialInstructions?: string | undefined;
   /** Street and suburb. Required in the UI only for Delivery; packed into specialInstructions. */
-  deliveryAddress?: string;
+  deliveryAddress?: string | undefined;
   /** Extra charges such as delivery, added on top of item totals. */
-  fees?: number;
+  fees?: number | undefined;
 }
 
 async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {

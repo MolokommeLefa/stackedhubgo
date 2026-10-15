@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
@@ -130,6 +131,10 @@ function PortalPage() {
       setOrders((prev) => [order, ...prev]);
       setCart({});
       setPlaced(`Order ${order.reference} is in. We'll update the status as the kitchen works.`);
+      toast.success("Order placed", {
+        description: `${order.reference} · ${order.items.reduce((n, i) => n + i.quantity, 0)} items · we'll update the status as the kitchen works`,
+        duration: 7000,
+      });
     } catch (err) {
       setError(err);
     } finally {

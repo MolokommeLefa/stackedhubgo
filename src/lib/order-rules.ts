@@ -76,10 +76,10 @@ export function cartTotals(
 
 /** Pack a delivery address into the existing specialInstructions string. */
 export function composeOrderNotes(input: {
-  fulfilment?: "Collection" | "Delivery";
-  deliveryAddress?: string;
-  specialInstructions?: string;
-  includeFulfilment?: boolean;
+  fulfilment?: "Collection" | "Delivery" | undefined;
+  deliveryAddress?: string | undefined;
+  specialInstructions?: string | undefined;
+  includeFulfilment?: boolean | undefined;
 }): string | undefined {
   const parts: string[] = [];
   if (input.includeFulfilment && input.fulfilment) parts.push(input.fulfilment);
