@@ -138,7 +138,7 @@ function PortalPage() {
   };
 
   return (
-    <AppShell title="Customer portal" subtitle="Order & loyalty" allow={["Admin", "Customer"]}>
+    <AppShell title="Customer portal" subtitle="Order & loyalty" allow={["Customer"]}>
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
       {!loading && (
         <>

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, MapPin, Sparkles } from "lucide-react";
 import burger from "@/assets/food-mains.jpg";
+import pizza from "@/assets/food-pizza.jpg";
 import sides from "@/assets/food-sides.jpg";
 import { PublicShell } from "@/components/PublicShell";
 import { SLOGAN } from "@/components/site-info";
@@ -102,12 +103,22 @@ function LandingPage() {
             </p>
           </div>
         </article>
-        <article className="flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-3xl bg-brand p-6 text-cream">
-          <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
-          <p className="mt-2 text-sm text-cream/80">
-            Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
-            flavour.
-          </p>
+        <article className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-brand text-cream">
+          <img
+            src={pizza}
+            alt="Freshly baked gas-fired pizza with melted cheese and fresh toppings"
+            width={1536}
+            height={1024}
+            className="absolute inset-0 size-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-brand/95 via-brand/35 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-6">
+            <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
+            <p className="mt-2 text-sm text-cream/90">
+              Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
+              flavour.
+            </p>
+          </div>
         </article>
         <article className="surface-card overflow-hidden rounded-3xl">
           <img
