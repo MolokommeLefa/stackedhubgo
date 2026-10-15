@@ -147,7 +147,10 @@ function CheckoutPage() {
       });
       clear();
       setPlaced(order);
-      toast.success(`Order ${order.reference} placed`);
+      toast.success("Order placed", {
+        description: `${order.reference} · ${fulfilment} · ${currency(order.total)} · ready in 20–25 min`,
+        duration: 7000,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "We couldn't place your order. Try again.");
     } finally {
