@@ -16,25 +16,30 @@ const loginSearchSchema = z.object({
 
 const roles: Role[] = ["Staff", "Admin", "Customer"];
 
-const RETURN_PATHS = [
-  "/order",
-  "/checkout",
-  "/portal",
-  "/dashboard",
-  "/orders",
-  "/availability",
-  "/menu",
-  "/users",
-  "/reports",
-  "/audit-logs",
-  "/customers",
-  "/promotions",
-  "/settings",
-] as const;
+const RETURN_PATHS = {
+  Customer: ["/order", "/checkout", "/portal", "/settings"],
+  Staff: ["/dashboard", "/orders", "/availability", "/settings"],
+  Admin: [
+    "/dashboard",
+    "/orders",
+    "/availability",
+    "/menu",
+    "/users",
+    "/reports",
+    "/audit-logs",
+    "/customers",
+    "/promotions",
+    "/settings",
+  ],
+} as const satisfies Record<Role, readonly string[]>;
+type ReturnPath = (typeof RETURN_PATHS)[Role][number];
 
-function destinationAfterLogin(role: Role, redirect?: string) {
-  if (redirect && (RETURN_PATHS as readonly string[]).includes(redirect)) {
-    return redirect as (typeof RETURN_PATHS)[number];
+function destinationAfterLogin(
+  role: Role,
+  redirect?: string,
+): ReturnPath | ReturnType<typeof homeRouteForRole> {
+  if (redirect && (RETURN_PATHS[role] as readonly string[]).includes(redirect)) {
+    return redirect as ReturnPath;
   }
   return homeRouteForRole(role);
 }
