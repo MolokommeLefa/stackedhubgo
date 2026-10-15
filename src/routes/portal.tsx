@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
+import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
@@ -11,7 +12,10 @@ export const Route = createFileRoute("/portal")({
   head: () => ({
     meta: [
       { title: "Customer Portal — StackedHub" },
-      { name: "description", content: "Order food, track orders, earn loyalty points and get AI meal suggestions." },
+      {
+        name: "description",
+        content: "Order food, track orders, earn loyalty points and get AI meal suggestions.",
+      },
     ],
   }),
   component: PortalPage,
@@ -29,7 +33,9 @@ function demoSuggest(prompt: string, pool: MenuItem[]): Suggestion[] {
   else if (/light|veg|healthy/.test(p)) picks = picks.filter((m) => m.category !== "Mains");
   else if (/sweet|dessert/.test(p)) picks = picks.filter((m) => m.category === "Desserts");
   else if (/cheap|budget/.test(p)) picks = [...picks].sort((a, b) => a.price - b.price);
-  return picks.slice(0, 3).map((m) => ({ name: m.name, reason: `${m.description} (${currency(m.price)})` }));
+  return picks
+    .slice(0, 3)
+    .map((m) => ({ name: m.name, reason: `${m.description} (${currency(m.price)})` }));
 }
 
 function PortalPage() {
@@ -50,7 +56,11 @@ function PortalPage() {
     setLoading(true);
     setError(null);
     try {
-      const [nextMenu, nextOrders, nextPromos] = await Promise.all([getMenu(), getOrderQueue(), getPromotions()]);
+      const [nextMenu, nextOrders, nextPromos] = await Promise.all([
+        getMenu(),
+        getOrderQueue(),
+        getPromotions(),
+      ]);
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
@@ -133,21 +143,34 @@ function PortalPage() {
       {!loading && (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="glass rounded-3xl p-5">
-              <p className="text-xs text-muted-foreground">Loyalty points</p>
-              <p className="mt-1 text-2xl font-bold">{user?.loyaltyPoints ?? 0}</p>
+            <div className="surface-card rounded-3xl p-5">
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                Loyalty points
+              </p>
+              <p className="mt-1 font-display text-3xl font-semibold">{user?.loyaltyPoints ?? 0}</p>
             </div>
-            <div className="glass rounded-3xl p-5">
-              <p className="text-xs text-muted-foreground">Your orders</p>
-              <p className="mt-1 text-2xl font-bold">{mine.length}</p>
+            <div className="surface-card rounded-3xl p-5">
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                Your orders
+              </p>
+              <p className="mt-1 font-display text-3xl font-semibold">{mine.length}</p>
             </div>
-            <div className="glass rounded-3xl p-5">
-              <p className="text-xs text-muted-foreground">Live offers</p>
-              <p className="mt-1 text-2xl font-bold">{promos.filter((p) => p.active).length}</p>
+            <div className="surface-card rounded-3xl p-5">
+              <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                Live offers
+              </p>
+              <p className="mt-1 font-display text-3xl font-semibold">
+                {promos.filter((p) => p.active).length}
+              </p>
             </div>
           </div>
 
           <Panel title="Ask for a recommendation">
+            <p className="mb-3 text-sm text-muted-foreground">
+              {isLiveApi()
+                ? "Suggestions come from the connected API."
+                : "Demo suggestions from the current menu — not live AI."}
+            </p>
             <form onSubmit={ask} className="flex flex-wrap gap-2">
               <label className="sr-only" htmlFor="meal-prompt">
                 What are you in the mood for
@@ -157,29 +180,38 @@ function PortalPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. Something spicy under R150"
-                className="glass-soft min-h-11 min-w-56 flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
+                className="min-h-11 min-w-56 flex-1 rounded-full bg-secondary px-4 py-2.5 text-sm outline-none"
               />
-              <button disabled={asking} className="bg-gradient-brand min-h-11 rounded-xl px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+              <button
+                disabled={asking}
+                className="min-h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              >
                 {asking ? "Thinking…" : "Recommend"}
               </button>
             </form>
             {suggestions.length > 0 && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {suggestions.map((s) => (
-                  <div key={s.name} className="glass-soft rounded-2xl p-4">
-                    <p className="font-semibold">{s.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{s.reason}</p>
-                    {menu.find((m) => m.name === s.name) && (
-                      <button
-                        type="button"
-                        onClick={() => add(menu.find((m) => m.name === s.name)!.id)}
-                        className="mt-3 min-h-11 text-xs font-semibold text-primary"
-                      >
-                        + Add to order
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                {suggestions.map((s) => {
+                  const match = menu.find((m) => m.name === s.name);
+                  return (
+                    <div key={s.name} className="overflow-hidden rounded-2xl bg-secondary">
+                      {match && <MenuPhoto item={match} alt="" className="aspect-[5/4] w-full" />}
+                      <div className="p-4">
+                        <p className="font-display text-xl font-semibold">{s.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{s.reason}</p>
+                        {match && (
+                          <button
+                            type="button"
+                            onClick={() => add(match.id)}
+                            className="mt-3 min-h-11 text-xs font-semibold text-primary"
+                          >
+                            + Add to order
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Panel>
@@ -187,27 +219,40 @@ function PortalPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
             <Panel title="Menu">
               {available.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing is on the menu right now. Try again shortly.</p>
+                <p className="text-sm text-muted-foreground">
+                  Nothing is on the menu right now. Try again shortly.
+                </p>
               ) : (
-                <ul className="space-y-2">
+                <div className="grid gap-5 sm:grid-cols-2">
                   {available.map((m) => (
-                    <li key={m.id} className="glass-soft flex items-center justify-between gap-3 rounded-2xl p-4">
-                      <div>
-                        <p className="text-sm font-semibold">{m.name}</p>
-                        <p className="text-xs text-muted-foreground">{m.description}</p>
-                        <p className="mt-1 text-sm font-medium">{currency(m.price)}</p>
+                    <article key={m.id} className="min-w-0">
+                      <MenuPhoto
+                        item={m}
+                        alt={m.name}
+                        className="aspect-[5/4] w-full rounded-[1.4rem]"
+                      />
+                      <div className="mt-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-display text-lg leading-tight font-semibold">
+                            {m.name}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            {m.description}
+                          </p>
+                          <p className="mt-2 text-sm font-semibold">{currency(m.price)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Add ${m.name} to order`}
+                          onClick={() => add(m.id)}
+                          className="grid size-11 shrink-0 place-items-center rounded-full bg-primary font-bold text-primary-foreground"
+                        >
+                          +
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        aria-label={`Add ${m.name} to order`}
-                        onClick={() => add(m.id)}
-                        className="bg-gradient-brand size-11 shrink-0 rounded-lg font-bold text-primary-foreground"
-                      >
-                        +
-                      </button>
-                    </li>
+                    </article>
                   ))}
-                </ul>
+                </div>
               )}
             </Panel>
 
@@ -218,19 +263,22 @@ function PortalPage() {
                     {placed}
                   </p>
                 ) : cartItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Your basket is empty — add items from the menu.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your basket is empty — add items from the menu.
+                  </p>
                 ) : (
                   <>
-                    <ul className="space-y-2">
+                    <ul className="space-y-3">
                       {cartItems.map((m) => (
-                        <li key={m.id} className="flex items-center justify-between text-sm">
-                          <span>{m.name}</span>
+                        <li key={m.id} className="flex items-center gap-3 text-sm">
+                          <MenuPhoto item={m} alt="" className="size-12 rounded-full" />
+                          <span className="min-w-0 flex-1 font-medium">{m.name}</span>
                           <span className="flex items-center gap-2">
                             <button
                               type="button"
                               aria-label={`Remove one ${m.name}`}
                               onClick={() => remove(m.id)}
-                              className="glass-soft size-11 rounded"
+                              className="grid size-11 place-items-center rounded-full bg-secondary"
                             >
                               −
                             </button>
@@ -239,12 +287,14 @@ function PortalPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-3 text-sm font-semibold">Total {currency(total)}</p>
+                    <p className="mt-4 font-display text-xl font-semibold">
+                      Total {currency(total)}
+                    </p>
                     <button
                       type="button"
                       disabled={ordering}
                       onClick={() => void checkout()}
-                      className="bg-gradient-brand mt-4 min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                      className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                     >
                       {ordering ? "Placing order…" : "Place order"}
                     </button>
@@ -254,14 +304,16 @@ function PortalPage() {
 
               <Panel title="Recent tickets">
                 {mine.map((o) => (
-                  <div key={o.id} className="mb-2 flex items-center justify-between text-sm">
+                  <div key={o.id} className="mb-3 flex items-center justify-between gap-2 text-sm">
                     <span>
                       {o.reference} · {currency(o.total)}
                     </span>
                     <StatusPill status={o.status} />
                   </div>
                 ))}
-                {mine.length === 0 && <p className="text-sm text-muted-foreground">No orders yet.</p>}
+                {mine.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No orders yet.</p>
+                )}
               </Panel>
             </div>
           </div>

@@ -58,7 +58,12 @@ function RegisterPage() {
       <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
         <label className="block">
           <span className="text-xs font-medium text-muted-foreground">Full name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className={fieldClass} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            className={fieldClass}
+          />
         </label>
         <label className="block">
           <span className="text-xs font-medium text-muted-foreground">Email</span>
@@ -81,7 +86,10 @@ function RegisterPage() {
           />
         </label>
         {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          <p
+            className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         )}
@@ -90,8 +98,10 @@ function RegisterPage() {
         </button>
       </form>
       <p className="mt-4 text-sm text-muted-foreground">
-        {live ? "This will create a customer on the API." : "Demo mode stores this account in this browser only."}{" "}
-        <Link to="/login" className="font-semibold text-primary">
+        {live
+          ? "This will create a customer on the API."
+          : "Demo mode stores this account in this browser only."}{" "}
+        <Link to="/login" search={{}} className="font-semibold text-primary">
           Sign in
         </Link>
       </p>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppShell, LoadState, Panel } from "@/components/AppShell";
+import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
+import { Initials, SearchField } from "@/components/workspace";
 import { getCustomers, getOrderQueue, updateCustomerNote } from "@/lib/data";
 import { currency, formatDate } from "@/lib/mock-data";
 import type { Customer, Order } from "@/lib/types";
@@ -9,7 +10,10 @@ export const Route = createFileRoute("/customers")({
   head: () => ({
     meta: [
       { title: "Customers — StackedHub" },
-      { name: "description", content: "Customer profiles, loyalty tiers, order history and notes in one CRM view." },
+      {
+        name: "description",
+        content: "Customer profiles, loyalty tiers, order history and notes in one CRM view.",
+      },
     ],
   }),
   component: CustomersPage,
@@ -45,73 +49,96 @@ function CustomersPage() {
   const selected = list.find((c) => c.id === selectedId);
   const q = query.toLowerCase();
   const shown = list.filter(
-    (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.phone.includes(q),
+    (c) =>
+      c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.phone.includes(q),
   );
 
   return (
-    <AppShell title="Customers" subtitle="CRM" allow={["Admin"]}>
+    <AppShell title="Customers" subtitle="Customer relationships" allow={["Admin"]}>
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
       {!loading && !error && (
-        <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
           <Panel title="Directory">
-            <label className="sr-only" htmlFor="customer-search">
-              Search customers
-            </label>
-            <input
+            <SearchField
               id="customer-search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, email or phone…"
-              className="glass-soft mb-4 min-h-11 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+              onChange={setQuery}
+              placeholder="Name, email or phone"
+              label="Search customers"
             />
             {shown.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No customers match that search.</p>
+              <p className="mt-4 text-sm text-muted-foreground">No customers match that search.</p>
             ) : (
-              <div className="space-y-2">
+              <ul className="mt-4 space-y-1">
                 {shown.map((c) => (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => setSelectedId(c.id)}
-                    className={`flex min-h-11 w-full items-center justify-between rounded-2xl p-4 text-left transition-colors ${c.id === selectedId ? "bg-card/80 shadow-sm" : "glass-soft hover:bg-card/60"}`}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold">{c.name}</span>
-                      <span className="block text-xs text-muted-foreground">{c.email}</span>
-                    </span>
-                    <span className="text-right text-xs text-muted-foreground">
-                      {c.tier}
-                      <br />
-                      {c.orders} orders · {currency(c.spend)}
-                    </span>
-                  </button>
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(c.id)}
+                      className={`flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left ${
+                        c.id === selectedId ? "bg-secondary" : "hover:bg-secondary/60"
+                      }`}
+                    >
+                      <Initials name={c.name} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{c.name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {c.tier} · {c.orders} orders
+                        </span>
+                      </span>
+                      <span aria-hidden className="text-muted-foreground">
+                        →
+                      </span>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </Panel>
 
           {selected && (
-            <Panel title={selected.name}>
-              <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Phone</dt>
-                  <dd>{selected.phone}</dd>
+            <section className="surface-card rounded-3xl p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Initials name={selected.name} />
+                  <div>
+                    <h2 className="font-display text-3xl font-semibold">{selected.name}</h2>
+                    <p className="text-sm text-muted-foreground">{selected.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Joined</dt>
-                  <dd>{formatDate(selected.joinedAt)}</dd>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
+                  <span className="size-1.5 rounded-full bg-success" aria-hidden />
+                  {selected.tier}
+                </span>
+              </div>
+              <dl className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl bg-secondary px-4 py-3">
+                  <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    Phone
+                  </dt>
+                  <dd className="mt-1 text-sm font-semibold">{selected.phone}</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Loyalty points</dt>
-                  <dd>{selected.loyaltyPoints}</dd>
+                <div className="rounded-2xl bg-secondary px-4 py-3">
+                  <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    Joined
+                  </dt>
+                  <dd className="mt-1 text-sm font-semibold">{formatDate(selected.joinedAt)}</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Lifetime spend</dt>
-                  <dd>{currency(selected.spend)}</dd>
+                <div className="rounded-2xl bg-secondary px-4 py-3">
+                  <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    Loyalty points
+                  </dt>
+                  <dd className="mt-1 text-sm font-semibold">{selected.loyaltyPoints}</dd>
+                </div>
+                <div className="rounded-2xl bg-secondary px-4 py-3">
+                  <dt className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                    Lifetime spend
+                  </dt>
+                  <dd className="mt-1 text-sm font-semibold">{currency(selected.spend)}</dd>
                 </div>
               </dl>
-              <label className="mt-4 block text-xs font-medium text-muted-foreground">
-                Notes
+              <label className="mt-6 block text-xs font-semibold text-muted-foreground">
+                Customer note
                 <textarea
                   value={selected.note}
                   onChange={(e) => {
@@ -119,24 +146,35 @@ function CustomersPage() {
                     setList((p) => p.map((c) => (c.id === selected.id ? { ...c, note } : c)));
                     void updateCustomerNote(selected.id, note);
                   }}
-                  className="glass-soft mt-1 w-full rounded-xl p-3 text-sm outline-none"
+                  className="mt-2 w-full rounded-2xl bg-secondary p-3 text-sm outline-none"
                   rows={3}
                 />
               </label>
-              <p className="mt-4 text-xs font-semibold text-muted-foreground">Recent orders</p>
-              <ul className="mt-2 space-y-2">
+              <h3 className="mt-8 font-display text-2xl font-semibold">Recent orders</h3>
+              <ul className="mt-3 divide-y divide-border">
                 {orders
                   .filter((o) => o.customerId === selected.id)
                   .map((o) => (
-                    <li key={o.id} className="glass-soft rounded-xl px-3 py-2 text-sm">
-                      {o.reference} · {o.channel} {currency(o.total)} · {o.status}
+                    <li
+                      key={o.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-3"
+                    >
+                      <span className="text-sm">
+                        {o.reference} · {o.channel}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <StatusPill status={o.status} />
+                        <span className="text-sm font-semibold">{currency(o.total)}</span>
+                      </span>
                     </li>
                   ))}
               </ul>
               {orders.every((o) => o.customerId !== selected.id) && (
-                <p className="mt-2 text-sm text-muted-foreground">No orders for this customer yet.</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No orders for this customer yet.
+                </p>
               )}
-            </Panel>
+            </section>
           )}
         </div>
       )}

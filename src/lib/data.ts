@@ -1,11 +1,26 @@
 /**
  * Data access for the Staff and Admin MVP. Each function calls the live API
- * when an address is configured, otherwise it works on an in-memory copy of
- * the demo data (changes reset on refresh).
+ * when an address is configured, otherwise it works on the browser-session
+ * demo store (sessionStorage). Live API behaviour is unchanged.
  */
 import { ApiError, apiRequest, endpoints, isLiveApi } from "./api-client";
+import {
+  bestSellersFromOrders,
+  getDemoStore,
+  hourlyFromOrders,
+  persistDemoStore,
+} from "./demo-store";
 import * as mock from "./mock-data";
-import type { AuditLogEntry, AuthUser, Customer, MenuItem, Order, OrderStatus, Promotion } from "./types";
+import { composeOrderNotes } from "./order-rules";
+import type {
+  AuditLogEntry,
+  AuthUser,
+  Customer,
+  MenuItem,
+  Order,
+  OrderStatus,
+  Promotion,
+} from "./types";
 
 export interface ManagedUser extends AuthUser {
   active: boolean;
@@ -30,6 +45,8 @@ export interface PlaceOrderInput {
   paymentMethod?: "Cash" | "Card";
   fulfilment?: "Collection" | "Delivery";
   specialInstructions?: string;
+  /** Street and suburb. Required in the UI only for Delivery; packed into specialInstructions. */
+  deliveryAddress?: string;
   /** Extra charges such as delivery, added on top of item totals. */
   fees?: number;
 }
@@ -48,39 +65,8 @@ async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
   throw last;
 }
 
-let store: {
-  orders: Order[];
-  menu: MenuItem[];
-  users: ManagedUser[];
-  audit: AuditLogEntry[];
-  customers: Customer[];
-  promotions: Promotion[];
-} | null = null;
-
 function demo() {
-  if (!store) {
-    store = {
-      orders: mock.orders.map((o) => ({ ...o })),
-      menu: mock.menuItems.map((m) => ({ ...m })),
-      audit: [...mock.auditLog],
-      customers: mock.customers.map((c) => ({ ...c })),
-      promotions: mock.promotions.map((p) => ({ ...p })),
-      users: [
-        { id: "u1", name: "Thandi Mokoena", email: "thandi@stackedfoods.co.za", role: "Admin", active: true },
-        { id: "u2", name: "Jason Reid", email: "jason@stackedfoods.co.za", role: "Staff", active: true },
-        { id: "u3", name: "Nomsa Khumalo", email: "nomsa@stackedfoods.co.za", role: "Staff", active: true },
-        ...mock.customers.map((c) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          role: "Customer" as const,
-          loyaltyPoints: c.loyaltyPoints,
-          active: true,
-        })),
-      ],
-    };
-  }
-  return store;
+  return getDemoStore();
 }
 
 function logDemo(action: string, target: string) {
@@ -92,6 +78,7 @@ function logDemo(action: string, target: string) {
     target,
     at: new Date().toISOString(),
   });
+  persistDemoStore();
 }
 
 const json = (body: unknown) => JSON.stringify(body);
@@ -109,30 +96,48 @@ export async function getOrderQueue(): Promise<Order[]> {
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
   if (isLiveApi()) {
     return firstOk([
-      () => apiRequest<Order>(endpoints.orderStatus(id), { method: "PATCH", body: json({ status }) }),
-      () => apiRequest<Order>(endpoints.staffOrderStatus(id), { method: "PATCH", body: json({ status }) }),
+      () =>
+        apiRequest<Order>(endpoints.orderStatus(id), { method: "PATCH", body: json({ status }) }),
+      () =>
+        apiRequest<Order>(endpoints.staffOrderStatus(id), {
+          method: "PATCH",
+          body: json({ status }),
+        }),
     ]);
   }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
   order.status = status;
   order.updatedAt = new Date().toISOString();
+  persistDemoStore();
   return { ...order };
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
-  const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + (input.fees ?? 0);
+  const total =
+    input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + (input.fees ?? 0);
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
       body: json({
         paymentMethod: input.paymentMethod ?? "Cash",
-        specialInstructions: [input.fulfilment, input.specialInstructions].filter(Boolean).join(" — ") || null,
+        specialInstructions:
+          composeOrderNotes({
+            fulfilment: input.fulfilment,
+            deliveryAddress: input.deliveryAddress,
+            specialInstructions: input.specialInstructions,
+            includeFulfilment: true,
+          }) ?? null,
         items: input.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
         channel: input.channel ?? "Website",
       }),
     });
   }
+  const notes = composeOrderNotes({
+    fulfilment: input.fulfilment,
+    deliveryAddress: input.deliveryAddress,
+    specialInstructions: input.specialInstructions,
+  });
   const created: Order = {
     id: `o${Date.now()}`,
     reference: `SH-${Math.floor(100 + Math.random() * 900)}`,
@@ -145,9 +150,17 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     placedAt: new Date().toISOString(),
     paymentMethod: input.paymentMethod,
     fulfilment: input.fulfilment,
-    specialInstructions: input.specialInstructions,
+    specialInstructions: notes,
   };
-  demo().orders.unshift(created);
+  const store = demo();
+  store.orders.unshift(created);
+  const customer = store.customers.find((c) => c.id === input.customerId);
+  if (customer) {
+    customer.orders += 1;
+    customer.spend += total;
+    customer.loyaltyPoints += Math.floor(total / 10);
+  }
+  persistDemoStore();
   return created;
 }
 
@@ -167,27 +180,42 @@ export async function getMenu(): Promise<MenuItem[]> {
 export async function setAvailability(id: string, available: boolean): Promise<MenuItem> {
   if (isLiveApi()) {
     return firstOk([
-      () => apiRequest<MenuItem>(endpoints.staffAvailability(id), { method: "PATCH", body: json({ available }) }),
-      () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ available }) }),
+      () =>
+        apiRequest<MenuItem>(endpoints.staffAvailability(id), {
+          method: "PATCH",
+          body: json({ available }),
+        }),
+      () =>
+        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
+          method: "PATCH",
+          body: json({ available }),
+        }),
     ]);
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
   item.available = available;
+  persistDemoStore();
   return { ...item };
 }
 
 export async function setMenuStock(id: string, stock: number): Promise<MenuItem> {
   if (isLiveApi()) {
     return firstOk([
-      () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ stock }) }),
-      () => apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
+      () =>
+        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
+          method: "PATCH",
+          body: json({ stock }),
+        }),
+      () =>
+        apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
     ]);
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
   item.stock = stock;
   item.available = stock > 0 ? item.available : false;
+  persistDemoStore();
   return { ...item };
 }
 
@@ -204,11 +232,13 @@ export async function saveMenuItem(input: MenuInput, id?: string): Promise<MenuI
     if (idx < 0) throw new ApiError("That menu item was not found.", 404);
     menu[idx] = { ...input, id };
     logDemo("Updated menu item", input.name);
+    persistDemoStore();
     return menu[idx];
   }
   const created = { ...input, id: `m${Date.now()}` };
   menu.push(created);
   logDemo("Created menu item", input.name);
+  persistDemoStore();
   return created;
 }
 
@@ -222,7 +252,10 @@ export async function getUsers(): Promise<ManagedUser[]> {
 
 export async function setUserActive(id: string, active: boolean): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(endpoints.adminUser(id), { method: "PATCH", body: json({ isActive: active }) });
+    await apiRequest(endpoints.adminUser(id), {
+      method: "PATCH",
+      body: json({ isActive: active }),
+    });
     return;
   }
   const user = demo().users.find((u) => u.id === id);
@@ -242,7 +275,10 @@ export async function updateCustomerNote(id: string, note: string): Promise<void
     return;
   }
   const customer = demo().customers.find((c) => c.id === id);
-  if (customer) customer.note = note;
+  if (customer) {
+    customer.note = note;
+    persistDemoStore();
+  }
 }
 
 export async function getPromotions(): Promise<Promotion[]> {
@@ -250,7 +286,9 @@ export async function getPromotions(): Promise<Promotion[]> {
   return demo().promotions.map((p) => ({ ...p }));
 }
 
-export async function savePromotion(input: Omit<Promotion, "id" | "active" | "redemptions">): Promise<Promotion> {
+export async function savePromotion(
+  input: Omit<Promotion, "id" | "active" | "redemptions">,
+): Promise<Promotion> {
   if (isLiveApi()) {
     return apiRequest<Promotion>(endpoints.promotions, { method: "POST", body: json(input) });
   }
@@ -266,7 +304,10 @@ export async function setPromotionActive(id: string, active: boolean): Promise<v
     return;
   }
   const promo = demo().promotions.find((p) => p.id === id);
-  if (promo) promo.active = active;
+  if (promo) {
+    promo.active = active;
+    persistDemoStore();
+  }
 }
 
 export async function getReport(): Promise<Report> {
@@ -282,9 +323,9 @@ export async function getReport(): Promise<Report> {
   return {
     orderCount: orders.length,
     completedSales: orders.filter((o) => o.status === "Completed").reduce((s, o) => s + o.total, 0),
-    hourlyOrders: mock.hourlyOrders,
+    hourlyOrders: hourlyFromOrders(orders),
     revenueByDay: mock.revenueByDay,
-    bestSellers: mock.bestSellers,
+    bestSellers: bestSellersFromOrders(orders),
     salesByChannel: [...channels].map(([channel, total]) => ({ channel, total })),
   };
 }

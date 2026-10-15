@@ -40,7 +40,11 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
 export const DELAY_WARNING_MINUTES = 15;
 export const DELAY_CRITICAL_MINUTES = 25;
 
-export function delayLevel(placedAt: string, status: OrderStatus, now = Date.now()): "ok" | "warning" | "critical" {
+export function delayLevel(
+  placedAt: string,
+  status: OrderStatus,
+  now = Date.now(),
+): "ok" | "warning" | "critical" {
   if (status === "Completed" || status === "Cancelled" || status === "Ready") return "ok";
   const minutes = (now - new Date(placedAt).getTime()) / 60000;
   if (minutes >= DELAY_CRITICAL_MINUTES) return "critical";
@@ -60,9 +64,40 @@ export interface CartLine {
   note?: string | undefined;
 }
 
-export function cartTotals(lines: CartLine[], fulfilment: "Collection" | "Delivery" = "Collection") {
+export function cartTotals(
+  lines: CartLine[],
+  fulfilment: "Collection" | "Delivery" = "Collection",
+) {
   const count = lines.reduce((n, l) => n + l.quantity, 0);
   const subtotal = lines.reduce((n, l) => n + l.unitPrice * l.quantity, 0);
   const fee = fulfilment === "Delivery" && count > 0 ? DELIVERY_FEE : 0;
   return { count, subtotal, fee, total: subtotal + fee };
+}
+
+/** Pack a delivery address into the existing specialInstructions string. */
+export function composeOrderNotes(input: {
+  fulfilment?: "Collection" | "Delivery";
+  deliveryAddress?: string;
+  specialInstructions?: string;
+  includeFulfilment?: boolean;
+}): string | undefined {
+  const parts: string[] = [];
+  if (input.includeFulfilment && input.fulfilment) parts.push(input.fulfilment);
+  if (input.fulfilment === "Delivery" && input.deliveryAddress?.trim()) {
+    parts.push(`Deliver to: ${input.deliveryAddress.trim()}`);
+  }
+  if (input.specialInstructions?.trim()) parts.push(input.specialInstructions.trim());
+  return parts.join(" — ") || undefined;
+}
+
+export function validateDeliveryAddress(
+  fulfilment: "Collection" | "Delivery",
+  address: string,
+): string | null {
+  if (fulfilment !== "Delivery") return null;
+  const value = address.replace(/\s+/g, " ").trim();
+  if (value.length < 8 || !/[a-zA-Z]/.test(value)) {
+    return "Enter a delivery street and suburb.";
+  }
+  return null;
 }
