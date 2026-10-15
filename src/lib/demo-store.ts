@@ -66,27 +66,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isOrderLike(value: unknown): value is Order {
   if (!isRecord(value)) return false;
   return (
-    typeof value.id === "string" &&
-    typeof value.reference === "string" &&
-    typeof value.customerId === "string" &&
-    typeof value.status === "string" &&
-    typeof value.placedAt === "string" &&
-    typeof value.total === "number" &&
-    Array.isArray(value.items)
+    typeof value["id"] === "string" &&
+    typeof value["reference"] === "string" &&
+    typeof value["customerId"] === "string" &&
+    typeof value["status"] === "string" &&
+    typeof value["placedAt"] === "string" &&
+    typeof value["total"] === "number" &&
+    Array.isArray(value["items"])
   );
 }
 
 export function isValidDemoStore(value: unknown): value is DemoStore {
   if (!isRecord(value)) return false;
   return (
-    Array.isArray(value.orders) &&
-    value.orders.every(isOrderLike) &&
-    Array.isArray(value.menu) &&
-    value.menu.length > 0 &&
-    Array.isArray(value.users) &&
-    Array.isArray(value.audit) &&
-    Array.isArray(value.customers) &&
-    Array.isArray(value.promotions)
+    Array.isArray(value["orders"]) &&
+    value["orders"].every(isOrderLike) &&
+    Array.isArray(value["menu"]) &&
+    value["menu"].length > 0 &&
+    Array.isArray(value["users"]) &&
+    Array.isArray(value["audit"]) &&
+    Array.isArray(value["customers"]) &&
+    Array.isArray(value["promotions"])
   );
 }
 
@@ -104,13 +104,13 @@ function readSession(): DemoStore | null {
     const parsed: unknown = JSON.parse(raw);
     if (
       !isRecord(parsed) ||
-      parsed.version !== DEMO_STORE_VERSION ||
-      !isValidDemoStore(parsed.data)
+      parsed["version"] !== DEMO_STORE_VERSION ||
+      !isValidDemoStore(parsed["data"])
     ) {
       window.sessionStorage.removeItem(DEMO_STORE_KEY);
       return null;
     }
-    return parsed.data;
+    return parsed["data"];
   } catch {
     try {
       window.sessionStorage.removeItem(DEMO_STORE_KEY);
