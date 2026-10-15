@@ -46,14 +46,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const key = `${line.menuItemId}|${[...line.options].sort().join(",")}|${line.note ?? ""}`;
         setLines((prev) => {
           const existing = prev.find((l) => l.key === key);
-          if (existing) return prev.map((l) => (l.key === key ? { ...l, quantity: l.quantity + line.quantity } : l));
+          if (existing)
+            return prev.map((l) =>
+              l.key === key ? { ...l, quantity: l.quantity + line.quantity } : l,
+            );
           return [...prev, { ...line, key }];
         });
         setBump((b) => b + 1);
       },
       setQuantity: (key, quantity) =>
         setLines((prev) =>
-          quantity <= 0 ? prev.filter((l) => l.key !== key) : prev.map((l) => (l.key === key ? { ...l, quantity } : l)),
+          quantity <= 0
+            ? prev.filter((l) => l.key !== key)
+            : prev.map((l) => (l.key === key ? { ...l, quantity } : l)),
         ),
       remove: (key) => setLines((prev) => prev.filter((l) => l.key !== key)),
       clear: () => setLines([]),

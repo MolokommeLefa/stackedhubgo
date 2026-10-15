@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell, LoadState, Panel } from "@/components/AppShell";
+import { MenuPhoto } from "@/components/MenuPhoto";
+import { Toggle } from "@/components/workspace";
 import { getMenu, setAvailability } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
 import { useLoad } from "@/lib/use-load";
@@ -11,7 +13,10 @@ export const Route = createFileRoute("/availability")({
       { title: "Item Availability — StackedHub" },
       { name: "description", content: "Staff switch menu items on or off when they run out." },
       { property: "og:title", content: "Item Availability — StackedHub" },
-      { property: "og:description", content: "Staff switch menu items on or off when they run out." },
+      {
+        property: "og:description",
+        content: "Staff switch menu items on or off when they run out.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -38,30 +43,47 @@ function AvailabilityPage() {
   };
 
   return (
-    <AppShell title="Item Availability" subtitle="Staff" allow={["Staff", "Admin"]}>
-      <Panel title={`${items.length} menu items`}>
+    <AppShell title="Item availability" subtitle="Menu operations" allow={["Staff", "Admin"]}>
+      <Panel
+        title="Today's menu"
+        action={<p className="text-xs text-muted-foreground">Changes update the customer menu.</p>}
+      >
         <LoadState loading={loading} error={error ?? actionError} />
-        <div className="divide-y divide-border">
+        <ul className="divide-y divide-border">
           {items.map((i) => (
-            <div key={i.id} className="flex items-center justify-between gap-3 py-3">
-              <div>
-                <p className="text-sm font-semibold">{i.name}</p>
+            <li key={i.id} className="flex flex-wrap items-center gap-3 py-4">
+              <MenuPhoto item={i} alt="" className="size-14 rounded-2xl" />
+              <div className="min-w-0 flex-1 basis-40">
+                <p className="font-semibold">{i.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {i.category} · {currency(i.price)}
                 </p>
               </div>
-              <button
-                disabled={busy === i.id}
-                onClick={() => toggle(i.id, !i.available)}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-                  i.available ? "bg-success/20 text-foreground" : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {i.available ? "Available" : "Sold out"}
-              </button>
-            </div>
+              <div className="ml-auto flex shrink-0 items-center gap-3">
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                    i.available ? "text-foreground" : "text-destructive"
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${i.available ? "bg-success" : "bg-destructive"}`}
+                    aria-hidden
+                  />
+                  {i.available ? "Available" : "Unavailable"}
+                </span>
+                <Toggle
+                  checked={i.available}
+                  disabled={busy === i.id}
+                  onChange={(next) => void toggle(i.id, next)}
+                  label={i.available ? `Mark ${i.name} sold out` : `Put ${i.name} back on the menu`}
+                />
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
+        {!loading && items.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No menu items loaded.</p>
+        )}
       </Panel>
     </AppShell>
   );

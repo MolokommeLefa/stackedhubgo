@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canTransition, cartTotals, delayLevel, NEXT_STATUS, type CartLine } from "./order-rules";
+import {
+  canTransition,
+  cartTotals,
+  composeOrderNotes,
+  delayLevel,
+  NEXT_STATUS,
+  validateDeliveryAddress,
+  type CartLine,
+} from "./order-rules";
 
 const line = (unitPrice: number, quantity: number): CartLine => ({
   key: `${unitPrice}-${quantity}`,
@@ -43,5 +51,30 @@ describe("cart totals", () => {
   it("adds R25 delivery fee only for delivery", () => {
     expect(cartTotals([line(100, 1)], "Delivery").total).toBe(125);
     expect(cartTotals([], "Delivery").total).toBe(0);
+  });
+});
+
+describe("delivery address", () => {
+  it("is required only for Delivery", () => {
+    expect(validateDeliveryAddress("Collection", "")).toBeNull();
+    expect(validateDeliveryAddress("Delivery", "")).toBe("Enter a delivery street and suburb.");
+    expect(validateDeliveryAddress("Delivery", "12 Main Rd, Rosebank")).toBeNull();
+  });
+
+  it("packs the address into special instructions without changing Collection", () => {
+    expect(
+      composeOrderNotes({
+        fulfilment: "Delivery",
+        deliveryAddress: "12 Main Rd, Rosebank",
+        specialInstructions: "No onions",
+      }),
+    ).toBe("Deliver to: 12 Main Rd, Rosebank — No onions");
+    expect(
+      composeOrderNotes({
+        fulfilment: "Collection",
+        deliveryAddress: "12 Main Rd, Rosebank",
+        specialInstructions: "No onions",
+      }),
+    ).toBe("No onions");
   });
 });

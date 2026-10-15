@@ -1,19 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Clock, Flame, MapPin } from "lucide-react";
-import hero from "@/assets/hero-spread.jpg";
-import { CustomerShell } from "@/components/CustomerShell";
-import { getMenu } from "@/lib/data";
-import { categoryImage } from "@/lib/menu-extras";
-import { currency } from "@/lib/mock-data";
-import { useLoad } from "@/lib/use-load";
+import { Clock, MapPin, Sparkles } from "lucide-react";
+import burger from "@/assets/food-mains.jpg";
+import sides from "@/assets/food-sides.jpg";
+import { PublicShell } from "@/components/PublicShell";
+import { SLOGAN } from "@/components/site-info";
+import { homeRouteForRole, useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Stacked Foods — Order burgers, bunny chow & more" },
-      { name: "description", content: "Order peri-peri chicken, smash burgers, bunny chow and chakalaka fries from Stacked Foods for collection or delivery." },
-      { property: "og:title", content: "Stacked Foods — Order online" },
-      { property: "og:description", content: "Proudly South African street food. Order for collection or delivery in a few taps." },
+      { title: "Stacked Foods — Smash burgers & gas-fired pizza" },
+      {
+        name: "description",
+        content:
+          "Stacked Foods is a Johannesburg mobile food trailer serving smash burgers and gas-fired pizzas. Bold, halaal flavour wherever we go.",
+      },
+      { property: "og:title", content: "Stacked Foods — Stacked high. Tastes higher." },
+      {
+        property: "og:description",
+        content: "Smash burgers and gas-fired pizzas from a mobile food trailer. Log in to order.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -22,59 +28,139 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
-  const menu = useLoad(getMenu, []);
-  const featured = menu.data.filter((m) => m.available).slice(0, 3);
+  const { user, ready } = useAuth();
+  const orderHref = ready && user ? homeRouteForRole(user.role) : "/login";
 
   return (
-    <CustomerShell>
-      <section className="mx-auto grid max-w-6xl gap-8 px-4 pt-8 lg:grid-cols-2 lg:items-center lg:pt-14">
-        <div>
-          <p className="text-sm font-semibold text-primary">Proudly South African street food</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight lg:text-5xl">Stacked high. Made fresh. Ready fast.</h1>
-          <p className="mt-4 max-w-md text-muted-foreground">
-            Peri-peri chicken, smash burgers, bunny chow and loaded chakalaka fries — order in a few taps for collection or delivery.
+    <PublicShell>
+      <section className="relative isolate min-h-[32rem] overflow-hidden md:mx-4 md:mt-4 md:min-h-[36rem] md:rounded-[2rem] lg:min-h-[40rem]">
+        <img
+          src={burger}
+          alt="A double smash burger with melted cheddar on a toasted bun"
+          width={1600}
+          height={1200}
+          className="absolute inset-0 size-full object-cover"
+        />
+        <div className="absolute inset-0 bg-brand/75" />
+        <div className="relative z-10 mx-auto flex min-h-[32rem] max-w-6xl flex-col justify-end px-5 py-14 text-cream md:min-h-[36rem] lg:min-h-[40rem] lg:px-10 lg:py-20">
+          <p className="text-xs font-semibold tracking-[0.2em] text-cream/75 uppercase">
+            Made fresh in Johannesburg
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/order" className="inline-flex min-h-12 items-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground">
-              Order now
-            </Link>
-            <Link to="/order" className="inline-flex min-h-12 items-center rounded-xl bg-card px-6 text-sm font-semibold">
-              View menu
+          <h1 className="mt-3 max-w-xl font-display text-5xl leading-[0.95] font-semibold tracking-tight sm:text-6xl lg:text-7xl">
+            {SLOGAN.replace(". ", ".\n")
+              .split("\n")
+              .map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+          </h1>
+          <p className="mt-5 max-w-md text-base text-cream/85">
+            Bold, halaal flavour wherever we go — smash burgers and gas-fired pizzas from a mobile
+            food trailer.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {orderHref === "/login" ? (
+              <Link
+                to="/login"
+                search={{}}
+                className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+              >
+                Log in to order
+              </Link>
+            ) : (
+              <Link
+                to={orderHref}
+                className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+              >
+                {user?.role === "Customer" ? "Order now" : "Open workspace"}
+              </Link>
+            )}
+            <Link
+              to="/about"
+              className="inline-flex min-h-12 items-center rounded-full bg-cream/15 px-6 text-sm font-semibold text-cream"
+            >
+              Our story
             </Link>
           </div>
-          <ul className="mt-6 flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <li className="flex items-center gap-1.5"><Clock className="size-4" aria-hidden /> Ready in about 15 min</li>
-            <li className="flex items-center gap-1.5"><MapPin className="size-4" aria-hidden /> Collection or delivery</li>
-          </ul>
         </div>
-        <img src={hero} alt="A spread of Stacked Foods burgers, chakalaka fries, bunny chow and lemonade" width={1600} height={912} className="w-full rounded-3xl object-cover" />
       </section>
 
-      <section className="mx-auto mt-14 max-w-6xl px-4">
-        <div className="flex items-end justify-between">
-          <h2 className="text-2xl font-bold">Customer favourites</h2>
-          <Link to="/order" className="text-sm font-semibold text-primary">Full menu</Link>
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          {menu.loading &&
-            [0, 1, 2].map((i) => <div key={i} className="h-64 animate-pulse rounded-3xl bg-card" />)}
-          {featured.map((item) => (
-            <Link key={item.id} to="/order" className="overflow-hidden rounded-3xl bg-card transition-shadow hover:shadow-lg">
-              <img src={categoryImage[item.category]} alt={item.name} loading="lazy" width={944} height={704} className="aspect-[4/3] w-full object-cover" />
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="font-bold">{currency(item.price)}</p>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
-                {item.spicy && (
-                  <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-destructive"><Flame className="size-3" aria-hidden /> Spicy</p>
-                )}
-              </div>
+      <section className="mx-auto mt-14 grid max-w-6xl gap-4 px-4 sm:grid-cols-3">
+        <article className="surface-card overflow-hidden rounded-3xl">
+          <img
+            src={burger}
+            alt="Smash burger with pickles and cheddar"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="p-5">
+            <h2 className="font-display text-xl font-semibold">Smash burgers</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Freshly ground beef, unique ingredients and in-house sauces on a lightly toasted bun.
+            </p>
+          </div>
+        </article>
+        <article className="flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-3xl bg-brand p-6 text-cream">
+          <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
+          <p className="mt-2 text-sm text-cream/80">
+            Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
+            flavour.
+          </p>
+        </article>
+        <article className="surface-card overflow-hidden rounded-3xl">
+          <img
+            src={sides}
+            alt="Loaded chakalaka fries in a paper tray"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="p-5">
+            <h2 className="font-display text-xl font-semibold">Wherever we go</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              We cater pop-ups, campus events, private functions and corporate gatherings.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="mx-auto mt-10 max-w-6xl px-4">
+        <div className="surface-card flex flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <Sparkles className="size-4" aria-hidden />
+              Ready when you are
+            </p>
+            <p className="mt-2 font-display text-2xl font-semibold">
+              Log in to browse the menu and place an order.
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <li className="flex items-center gap-1.5">
+                <Clock className="size-4" aria-hidden /> Collection from the trailer
+              </li>
+              <li className="flex items-center gap-1.5">
+                <MapPin className="size-4" aria-hidden /> Weltevredenpark, Johannesburg
+              </li>
+            </ul>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/directions"
+              className="inline-flex min-h-12 items-center rounded-full bg-secondary px-5 text-sm font-semibold"
+            >
+              Opening hours
             </Link>
-          ))}
+            <Link
+              to="/contact"
+              className="inline-flex min-h-12 items-center rounded-full bg-brand px-5 text-sm font-semibold text-cream"
+            >
+              Contact us
+            </Link>
+          </div>
         </div>
       </section>
-    </CustomerShell>
+    </PublicShell>
   );
 }
