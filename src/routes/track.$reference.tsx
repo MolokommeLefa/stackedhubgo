@@ -117,7 +117,7 @@ function TrackPage() {
             Order {order.reference}
           </p>
           <h1 className="mt-1 font-display text-3xl font-semibold">
-            {order.status === "Cancelled" ? "Order cancelled" : steps[Math.max(idx, 0)].label}
+            {order.status === "Cancelled" ? "Order cancelled" : steps[Math.max(idx, 0)]?.label}
           </h1>
           {active && (
             <p className="mt-1 text-sm text-muted-foreground">
@@ -188,7 +188,7 @@ function TrackPage() {
   );
 }
 
-function FeedbackCard({ orderId, existing }: { orderId: string; existing?: number }) {
+function FeedbackCard({ orderId, existing }: { orderId: string; existing?: number | undefined }) {
   const [rating, setRating] = useState(existing ?? 0);
   const [comment, setComment] = useState("");
   if (existing)
@@ -202,7 +202,7 @@ function FeedbackCard({ orderId, existing }: { orderId: string; existing?: numbe
       className="surface-card rounded-[1.5rem] p-5"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!rating) return toast.error("Choose a star rating first.");
+        if (!rating) { toast.error("Choose a star rating first."); return; }
         saveFeedback({ orderId, rating, comment: comment.trim() });
         toast.success("Thanks for your feedback");
       }}
@@ -263,7 +263,7 @@ function IssueCard({ order, customerName }: { order: Order; customerName: string
           className="mt-3 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (details.trim().length < 5) return toast.error("Tell us a bit more (5+ characters).");
+            if (details.trim().length < 5) { toast.error("Tell us a bit more (5+ characters)."); return; }
             reportIssue({ orderId: order.id, reference: order.reference, customerName, kind, details: details.trim() });
             setOpen(false);
             setDetails("");
