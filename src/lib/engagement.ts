@@ -47,7 +47,7 @@ export interface Issue {
   status: IssueStatus;
   staffNote: string;
   at: string;
-  resolvedAt?: string;
+  resolvedAt?: string | undefined;
 }
 export interface RecentOrder {
   id: string;

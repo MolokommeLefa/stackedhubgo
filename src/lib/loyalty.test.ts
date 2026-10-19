@@ -33,7 +33,7 @@ describe("loyalty rules", () => {
   });
 
   it("shows progress to the next reward", () => {
-    expect(nextReward(25).reward?.id).toBe(REWARDS[0].id);
+    expect(nextReward(25).reward?.id).toBe(REWARDS[0]!.id);
     expect(nextReward(25).needed).toBe(25);
   });
 });
