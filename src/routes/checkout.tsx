@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerShell } from "@/components/CustomerShell";
@@ -7,7 +7,7 @@ import { MenuPhoto } from "@/components/MenuPhoto";
 import { ADDRESS_LINES } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
-import { placeOrder } from "@/lib/data";
+import { getLoyaltyWallet, placeOrder, type LoyaltyWallet } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
 import { cartTotals, validateDeliveryAddress } from "@/lib/order-rules";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -46,7 +46,30 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [placed, setPlaced] = useState<Order | null>(null);
+  const [wallet, setWallet] = useState<LoyaltyWallet | null>(null);
+  const [rewardId, setRewardId] = useState<string | null>(null);
+  const [redemptionId, setRedemptionId] = useState<string | null>(null);
   const totals = cartTotals(lines, fulfilment);
+  const selectedReward = useMemo(
+    () => wallet?.availableRewards.find((reward) => reward.id === rewardId) ?? null,
+    [wallet, rewardId],
+  );
+  const canApplyReward = Boolean(
+    selectedReward && wallet && wallet.points >= selectedReward.points,
+  );
+  const discount = canApplyReward && selectedReward ? selectedReward.value : 0;
+  const finalTotal = Math.max(0, totals.total - discount);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+    void getLoyaltyWallet(user.id).then((next) => {
+      if (mounted) setWallet(next);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
 
   if (placed) {
     const steps = [
@@ -120,6 +143,9 @@ function CheckoutPage() {
       return setError("Enter a 10-digit phone number, e.g. 082 123 4567.");
     const addressError = validateDeliveryAddress(fulfilment, address);
     if (addressError) return setError(addressError);
+    if (selectedReward && !canApplyReward) {
+      return setError("You don't have enough points for this reward.");
+    }
     setError("");
     setSubmitting(true);
     try {
@@ -144,8 +170,14 @@ function CheckoutPage() {
           .filter(Boolean)
           .join("; "),
         fees: totals.fee,
+        redemption:
+          selectedReward && redemptionId
+            ? { rewardId: selectedReward.id, redemptionId }
+            : undefined,
       });
       clear();
+      setRewardId(null);
+      setRedemptionId(null);
       setPlaced(order);
       toast.success("Order placed", {
         description: `${order.reference} · ${fulfilment} · ${currency(order.total)} · ready in 20–25 min`,
@@ -281,6 +313,45 @@ function CheckoutPage() {
               </select>
             </label>
             <label className="text-sm font-semibold sm:col-span-2">
+              Reward redemption
+              <div className="mt-2 grid gap-2">
+                {wallet?.availableRewards.map((reward) => {
+                  const enabled = (wallet.points ?? 0) >= reward.points;
+                  const active = rewardId === reward.id;
+                  return (
+                    <button
+                      key={reward.id}
+                      type="button"
+                      disabled={!enabled}
+                      onClick={() => {
+                        if (active) {
+                          setRewardId(null);
+                          setRedemptionId(null);
+                          return;
+                        }
+                        const nextId =
+                          typeof crypto !== "undefined" && "randomUUID" in crypto
+                            ? crypto.randomUUID()
+                            : `redeem-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                        setRewardId(reward.id);
+                        setRedemptionId(nextId);
+                      }}
+                      className={`flex min-h-11 items-center justify-between rounded-2xl px-3 text-sm ${
+                        active ? "bg-primary text-primary-foreground" : "bg-secondary"
+                      } disabled:opacity-50`}
+                    >
+                      <span>{reward.title}</span>
+                      <span>{reward.points} pts</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Balance: {wallet?.points ?? 0} points. Rewards are disabled if your balance is too
+                low.
+              </p>
+            </label>
+            <label className="text-sm font-semibold sm:col-span-2">
               Special instructions
               <input
                 value={notes}
@@ -314,9 +385,15 @@ function CheckoutPage() {
               <dt>Delivery</dt>
               <dd>{currency(totals.fee)}</dd>
             </div>
+            {selectedReward && (
+              <div className="flex justify-between">
+                <dt>Reward discount</dt>
+                <dd>-{currency(discount)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-t border-border pt-3 font-display text-xl font-semibold">
               <dt>Total</dt>
-              <dd>{currency(totals.total)}</dd>
+              <dd>{currency(finalTotal)}</dd>
             </div>
           </dl>
           {error && (
@@ -332,7 +409,7 @@ function CheckoutPage() {
             disabled={submitting || !lines.length}
             className="mt-5 min-h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {submitting ? "Placing order…" : `Place order · ${currency(totals.total)}`}
+            {submitting ? "Placing order…" : `Place order · ${currency(finalTotal)}`}
           </button>
           <Link
             to="/order"

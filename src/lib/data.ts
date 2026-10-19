@@ -10,6 +10,14 @@ import {
   hourlyFromOrders,
   persistDemoStore,
 } from "./demo-store";
+import {
+  addEntry,
+  balance,
+  canRedeem,
+  nextReward,
+  pointsForCompletedOrder,
+  REWARDS,
+} from "./loyalty";
 import * as mock from "./mock-data";
 import { composeOrderNotes } from "./order-rules";
 import type {
@@ -49,6 +57,23 @@ export interface PlaceOrderInput {
   deliveryAddress?: string | undefined;
   /** Extra charges such as delivery, added on top of item totals. */
   fees?: number | undefined;
+  redemption?: { rewardId: string; redemptionId: string } | undefined;
+}
+
+export interface LoyaltyWallet {
+  points: number;
+  next: ReturnType<typeof nextReward>;
+  availableRewards: typeof REWARDS;
+  history: ReturnType<typeof getCustomerLedger>;
+  rules: string[];
+}
+
+export interface RedemptionResult {
+  rewardId: string;
+  redemptionId: string;
+  applied: boolean;
+  pointsBalance: number;
+  discountValue: number;
 }
 
 async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
@@ -67,6 +92,74 @@ async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
 
 function demo() {
   return getDemoStore();
+}
+
+function getCustomerLedger(customerId: string) {
+  return demo().loyalty.ledgers[customerId] ?? [];
+}
+
+function syncCustomerPoints(customerId: string) {
+  const customer = demo().customers.find((c) => c.id === customerId);
+  if (!customer) return;
+  customer.loyaltyPoints = balance(getCustomerLedger(customerId));
+}
+
+function applyCompletedOrderEarn(
+  customerId: string,
+  orderId: string,
+  status: OrderStatus,
+  total: number,
+) {
+  const points = pointsForCompletedOrder(total, status);
+  if (points <= 0) return;
+  const store = demo();
+  const ledger = store.loyalty.ledgers[customerId] ?? [];
+  store.loyalty.ledgers[customerId] = addEntry(ledger, {
+    key: `earn:${orderId}`,
+    type: "earn",
+    points,
+    label: "Completed order",
+    at: new Date().toISOString(),
+  });
+  syncCustomerPoints(customerId);
+}
+
+function redeemInDemo(input: {
+  customerId: string;
+  rewardId: string;
+  redemptionId: string;
+}): RedemptionResult {
+  const reward = REWARDS.find((candidate) => candidate.id === input.rewardId);
+  if (!reward) throw new ApiError("That reward is no longer available.", 404);
+  const store = demo();
+  if (store.loyalty.usedRedemptionIds.includes(input.redemptionId)) {
+    return {
+      rewardId: reward.id,
+      redemptionId: input.redemptionId,
+      applied: false,
+      pointsBalance: balance(getCustomerLedger(input.customerId)),
+      discountValue: 0,
+    };
+  }
+  const ledger = getCustomerLedger(input.customerId);
+  if (!canRedeem(ledger, reward)) throw new ApiError("Not enough points for that reward.", 400);
+  store.loyalty.ledgers[input.customerId] = addEntry(ledger, {
+    key: `redeem:${input.redemptionId}`,
+    type: "redeem",
+    points: -reward.points,
+    label: reward.title,
+    at: new Date().toISOString(),
+  });
+  store.loyalty.usedRedemptionIds.push(input.redemptionId);
+  syncCustomerPoints(input.customerId);
+  persistDemoStore();
+  return {
+    rewardId: reward.id,
+    redemptionId: input.redemptionId,
+    applied: true,
+    pointsBalance: balance(getCustomerLedger(input.customerId)),
+    discountValue: reward.value,
+  };
 }
 
 function logDemo(action: string, target: string) {
@@ -109,13 +202,15 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
   order.status = status;
   order.updatedAt = new Date().toISOString();
+  applyCompletedOrderEarn(order.customerId, order.id, status, order.total);
   persistDemoStore();
   return { ...order };
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
-  const total =
-    input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + (input.fees ?? 0);
+  const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const fees = input.fees ?? 0;
+  let discount = 0;
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
@@ -130,9 +225,21 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
           }) ?? null,
         items: input.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
         channel: input.channel ?? "Website",
+        redemption: input.redemption
+          ? { rewardId: input.redemption.rewardId, redemptionId: input.redemption.redemptionId }
+          : undefined,
       }),
     });
   }
+  if (input.redemption) {
+    const redeemed = redeemInDemo({
+      customerId: input.customerId,
+      rewardId: input.redemption.rewardId,
+      redemptionId: input.redemption.redemptionId,
+    });
+    discount = redeemed.discountValue;
+  }
+  const total = Math.max(0, subtotal + fees - discount);
   const notes = composeOrderNotes({
     fulfilment: input.fulfilment,
     deliveryAddress: input.deliveryAddress,
@@ -158,10 +265,40 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   if (customer) {
     customer.orders += 1;
     customer.spend += total;
-    customer.loyaltyPoints += Math.floor(total / 10);
   }
   persistDemoStore();
   return created;
+}
+
+export async function getLoyaltyWallet(customerId: string): Promise<LoyaltyWallet> {
+  if (isLiveApi())
+    return apiRequest<LoyaltyWallet>(`${endpoints.loyaltyWallet}?customerId=${customerId}`);
+  const history = getCustomerLedger(customerId);
+  const points = balance(history);
+  return {
+    points,
+    next: nextReward(points),
+    availableRewards: REWARDS,
+    history,
+    rules: [
+      "Earn 1 point for every R10 spent.",
+      "Points are earned when an order is marked Completed.",
+      "Redeem points at checkout for available rewards.",
+    ],
+  };
+}
+
+export async function redeemReward(input: {
+  customerId: string;
+  rewardId: string;
+  redemptionId: string;
+}): Promise<RedemptionResult> {
+  if (isLiveApi())
+    return apiRequest<RedemptionResult>(endpoints.loyaltyRedeem, {
+      method: "POST",
+      body: json(input),
+    });
+  return redeemInDemo(input);
 }
 
 export async function getOrder(id: string): Promise<Order> {

@@ -27,6 +27,7 @@ import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PromotionsRouteImport } from './routes/promotions'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as TrackIndexRouteImport } from './routes/track.index'
@@ -122,6 +123,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RewardsRoute = RewardsRouteImport.update({
+  id: '/rewards',
+  path: '/rewards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/promotions': typeof PromotionsRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/rewards': typeof RewardsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
   '/track/$reference': typeof TrackReferenceRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/promotions': typeof PromotionsRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/rewards': typeof RewardsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
   '/track/$reference': typeof TrackReferenceRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/promotions': typeof PromotionsRoute
   '/register': typeof RegisterRoute
   '/reports': typeof ReportsRoute
+  '/rewards': typeof RewardsRoute
   '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
   '/track/$reference': typeof TrackReferenceRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/register'
     | '/reports'
+    | '/rewards'
     | '/settings'
     | '/users'
     | '/track/$reference'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/register'
     | '/reports'
+    | '/rewards'
     | '/settings'
     | '/users'
     | '/track/$reference'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/promotions'
     | '/register'
     | '/reports'
+    | '/rewards'
     | '/settings'
     | '/users'
     | '/track/$reference'
@@ -310,6 +322,7 @@ export interface RootRouteChildren {
   PromotionsRoute: typeof PromotionsRoute
   RegisterRoute: typeof RegisterRoute
   ReportsRoute: typeof ReportsRoute
+  RewardsRoute: typeof RewardsRoute
   SettingsRoute: typeof SettingsRoute
   UsersRoute: typeof UsersRoute
   TrackReferenceRoute: typeof TrackReferenceRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rewards': {
+      id: '/rewards'
+      path: '/rewards'
+      fullPath: '/rewards'
+      preLoaderRoute: typeof RewardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -494,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   PromotionsRoute: PromotionsRoute,
   RegisterRoute: RegisterRoute,
   ReportsRoute: ReportsRoute,
+  RewardsRoute: RewardsRoute,
   SettingsRoute: SettingsRoute,
   UsersRoute: UsersRoute,
   TrackReferenceRoute: TrackReferenceRoute,

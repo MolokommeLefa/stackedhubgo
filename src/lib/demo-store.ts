@@ -4,10 +4,16 @@
  * caches this — each SSR call gets a fresh seed copy.
  */
 import * as mock from "./mock-data";
+import type { LedgerEntry } from "./loyalty";
 import type { AuditLogEntry, AuthUser, Customer, MenuItem, Order, Promotion } from "./types";
 
 export const DEMO_STORE_KEY = "stackedhub.demoStore";
-export const DEMO_STORE_VERSION = 1;
+export const DEMO_STORE_VERSION = 2;
+
+interface DemoLoyaltyState {
+  ledgers: Record<string, LedgerEntry[]>;
+  usedRedemptionIds: string[];
+}
 
 export interface DemoStore {
   orders: Order[];
@@ -16,6 +22,7 @@ export interface DemoStore {
   audit: AuditLogEntry[];
   customers: Customer[];
   promotions: Promotion[];
+  loyalty: DemoLoyaltyState;
 }
 
 export function createSeedStore(now = Date.now()): DemoStore {
@@ -25,6 +32,25 @@ export function createSeedStore(now = Date.now()): DemoStore {
     audit: mock.createSeedAudit(now),
     customers: mock.customers.map((c) => ({ ...c })),
     promotions: mock.promotions.map((p) => ({ ...p })),
+    loyalty: {
+      ledgers: Object.fromEntries(
+        mock.customers.map((c) => [
+          c.id,
+          c.loyaltyPoints > 0
+            ? [
+                {
+                  key: `seed:${c.id}`,
+                  type: "earn" as const,
+                  points: c.loyaltyPoints,
+                  label: "Opening balance",
+                  at: c.joinedAt,
+                },
+              ]
+            : [],
+        ]),
+      ),
+      usedRedemptionIds: [],
+    },
     users: [
       {
         id: "u1",
@@ -76,6 +102,33 @@ function isOrderLike(value: unknown): value is Order {
   );
 }
 
+function isLedgerEntryLike(value: unknown): value is LedgerEntry {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value["key"] === "string" &&
+    (value["type"] === "earn" || value["type"] === "redeem") &&
+    typeof value["points"] === "number" &&
+    typeof value["label"] === "string" &&
+    typeof value["at"] === "string"
+  );
+}
+
+function isLoyaltyLike(value: unknown): value is DemoLoyaltyState {
+  if (!isRecord(value)) return false;
+  if (!isRecord(value["ledgers"])) return false;
+  if (!Object.values(value["ledgers"]).every((entries) => Array.isArray(entries))) return false;
+  if (
+    !Object.values(value["ledgers"]).every((entries) =>
+      (entries as unknown[]).every((entry) => isLedgerEntryLike(entry)),
+    )
+  )
+    return false;
+  return (
+    Array.isArray(value["usedRedemptionIds"]) &&
+    value["usedRedemptionIds"].every((id) => typeof id === "string")
+  );
+}
+
 export function isValidDemoStore(value: unknown): value is DemoStore {
   if (!isRecord(value)) return false;
   return (
@@ -86,7 +139,8 @@ export function isValidDemoStore(value: unknown): value is DemoStore {
     Array.isArray(value["users"]) &&
     Array.isArray(value["audit"]) &&
     Array.isArray(value["customers"]) &&
-    Array.isArray(value["promotions"])
+    Array.isArray(value["promotions"]) &&
+    isLoyaltyLike(value["loyalty"])
   );
 }
 
