@@ -53,6 +53,12 @@ export function CustomerShell({
                 Menu
               </Link>
               <Link
+                to="/rewards"
+                className="inline-flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-cream/80 hover:text-cream sm:px-3"
+              >
+                Rewards
+              </Link>
+              <Link
                 to="/directions"
                 className="hidden min-h-11 items-center rounded-full px-3 text-sm font-semibold text-cream/80 hover:text-cream md:inline-flex"
               >

@@ -17,7 +17,7 @@ const loginSearchSchema = z.object({
 const roles: Role[] = ["Staff", "Admin", "Customer"];
 
 const RETURN_PATHS = {
-  Customer: ["/order", "/checkout", "/portal", "/settings"],
+  Customer: ["/order", "/checkout", "/portal", "/rewards", "/settings"],
   Staff: ["/dashboard", "/orders", "/availability", "/settings"],
   Admin: [
     "/dashboard",

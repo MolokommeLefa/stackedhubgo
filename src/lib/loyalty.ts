@@ -29,11 +29,19 @@ export function pointsForTotal(total: number, multiplier = 1): number {
   return Math.floor(total / RAND_PER_POINT) * multiplier;
 }
 
+export function pointsForCompletedOrder(total: number, status: string, multiplier = 1): number {
+  return status === "Completed" ? pointsForTotal(total, multiplier) : 0;
+}
+
 export function balance(ledger: LedgerEntry[]): number {
   return ledger.reduce((sum, e) => sum + e.points, 0);
 }
 
-export function nextReward(points: number): { reward: Reward | null; progress: number; needed: number } {
+export function nextReward(points: number): {
+  reward: Reward | null;
+  progress: number;
+  needed: number;
+} {
   const reward = REWARDS.find((r) => r.points > points) ?? null;
   if (!reward) return { reward: null, progress: 1, needed: 0 };
   return { reward, progress: Math.max(0, points) / reward.points, needed: reward.points - points };
