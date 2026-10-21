@@ -3,9 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
-import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
-import { currency } from "@/lib/mock-data";
-import type { MenuItem, Order, Promotion } from "@/lib/types";
+import { cancelOrder, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder } from "@/lib/data";
+import { currency, formatSlot } from "@/lib/mock-data";
+import type { MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -45,6 +46,11 @@ function PortalPage() {
   const [error, setError] = useState<unknown>(null);
   const [asking, setAsking] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
+  const [when, setWhen] = useState<"now" | "schedule">("now");
+  const [slots, setSlots] = useState<OrderSlot[]>([]);
+  const [slot, setSlot] = useState("");
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +70,16 @@ function PortalPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (when !== "schedule") return;
+    void getOrderSlots()
+      .then((next) => {
+        setSlots(next.filter((item) => item.available));
+        setSlot((current) => current || next.find((item) => item.available)?.start || "");
+      })
+      .catch(setError);
+  }, [when]);
 
   const mine = orders.filter((o) => o.customerId === user?.id);
   const cartItems = menu.filter((m) => cart[m.id]);
@@ -110,6 +126,8 @@ function PortalPage() {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
+        paymentMethod: payment,
+        ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         items: cartItems.map((m) => ({
           menuItemId: m.id,
           name: m.name,
@@ -119,7 +137,12 @@ function PortalPage() {
       });
       setOrders((prev) => [order, ...prev]);
       setCart({});
-      setPlaced(`Order ${order.reference} is in. We'll update the status as the kitchen works.`);
+      setWhen("now");
+      setPlaced(
+        order.status === "Scheduled"
+          ? `Order ${order.reference} is booked${order.scheduledFor ? ` for ${formatSlot(order.scheduledFor)}` : ""}.`
+          : `Order ${order.reference} is in. We'll update the status as the kitchen works.`,
+      );
     } catch (err) {
       setError(err);
     } finally {
@@ -212,6 +235,13 @@ function PortalPage() {
             </Panel>
 
             <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Ordering with friends?{" "}
+                <Link to="/group" className="font-semibold text-primary">
+                  Start a group order
+                </Link>
+                .
+              </p>
               <Panel title="Your order">
                 {placed ? (
                   <p className="text-sm text-foreground" role="status">
@@ -240,13 +270,47 @@ function PortalPage() {
                       ))}
                     </ul>
                     <p className="mt-3 text-sm font-semibold">Total {currency(total)}</p>
+                    <fieldset className="mt-4 space-y-2">
+                      <legend className="text-xs font-semibold text-muted-foreground">Pay at collection</legend>
+                      {(["Cash", "Card"] as const).map((method) => (
+                        <label key={method} className="flex min-h-11 items-center gap-2 text-sm">
+                          <input type="radio" name="payment" checked={payment === method} onChange={() => setPayment(method)} />
+                          {method}
+                        </label>
+                      ))}
+                    </fieldset>
+                    <fieldset className="mt-3 space-y-2">
+                      <legend className="text-xs font-semibold text-muted-foreground">When</legend>
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input type="radio" name="when" checked={when === "now"} onChange={() => setWhen("now")} />
+                        As soon as it is ready
+                      </label>
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input type="radio" name="when" checked={when === "schedule"} onChange={() => setWhen("schedule")} />
+                        Schedule collection
+                      </label>
+                      {when === "schedule" && (
+                        <select
+                          value={slot}
+                          onChange={(e) => setSlot(e.target.value)}
+                          className="glass-soft min-h-11 w-full rounded-xl px-3 text-sm outline-none"
+                        >
+                          {slots.length === 0 && <option value="">No slots available</option>}
+                          {slots.map((item) => (
+                            <option key={item.start} value={item.start}>
+                              {formatSlot(item.start)} · {item.remaining} left
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </fieldset>
                     <button
                       type="button"
-                      disabled={ordering}
+                      disabled={ordering || (when === "schedule" && !slot)}
                       onClick={() => void checkout()}
                       className="bg-gradient-brand mt-4 min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                     >
-                      {ordering ? "Placing order…" : "Place order"}
+                      {ordering ? "Placing order…" : when === "schedule" ? "Schedule order" : "Place order"}
                     </button>
                   </>
                 )}
@@ -254,11 +318,32 @@ function PortalPage() {
 
               <Panel title="Recent tickets">
                 {mine.map((o) => (
-                  <div key={o.id} className="mb-2 flex items-center justify-between text-sm">
-                    <span>
-                      {o.reference} · {currency(o.total)}
-                    </span>
-                    <StatusPill status={o.status} />
+                  <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span>
+                        {o.reference} · {currency(o.total)}
+                      </span>
+                      <StatusPill status={o.status} />
+                    </div>
+                    {o.scheduledFor && (
+                      <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
+                    )}
+                    {(o.status === "Placed" || o.status === "Scheduled") && (
+                      <button
+                        type="button"
+                        disabled={cancelling === o.id}
+                        onClick={() => {
+                          setCancelling(o.id);
+                          void cancelOrder(o.id)
+                            .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
+                            .catch(setError)
+                            .finally(() => setCancelling(null));
+                        }}
+                        className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                      >
+                        {cancelling === o.id ? "Cancelling…" : "Cancel order"}
+                      </button>
+                    )}
                   </div>
                 ))}
                 {mine.length === 0 && <p className="text-sm text-muted-foreground">No orders yet.</p>}

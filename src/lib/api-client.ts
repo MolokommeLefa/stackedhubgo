@@ -114,6 +114,8 @@ export const endpoints = {
   forgotPassword: "/api/auth/forgot-password",
   me: "/api/auth/me",
   orders: "/api/orders",
+  orderSlots: "/api/orders/slots",
+  orderCancel: (id: string) => `/api/orders/${id}/cancel`,
   orderStatus: (id: string) => `/api/orders/${id}/status`,
   staffOrders: "/api/staff/orders",
   staffOrderStatus: (id: string) => `/api/staff/orders/${id}/status`,

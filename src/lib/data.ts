@@ -5,7 +5,17 @@
  */
 import { ApiError, apiRequest, endpoints, isLiveApi } from "./api-client";
 import * as mock from "./mock-data";
-import type { AuditLogEntry, AuthUser, Customer, MenuItem, Order, OrderStatus, Promotion } from "./types";
+import type {
+  AuditLogEntry,
+  AuthUser,
+  Customer,
+  GroupBasket,
+  MenuItem,
+  Order,
+  OrderSlot,
+  OrderStatus,
+  Promotion,
+} from "./types";
 
 export interface ManagedUser extends AuthUser {
   active: boolean;
@@ -25,8 +35,11 @@ export type MenuInput = Omit<MenuItem, "id">;
 export interface PlaceOrderInput {
   customerId: string;
   customerName: string;
-  items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
+  items: { menuItemId: string; name: string; quantity: number; unitPrice: number; specialInstructions?: string }[];
   channel?: Order["channel"];
+  paymentMethod?: "Cash" | "Card";
+  scheduledFor?: string;
+  specialInstructions?: string;
 }
 
 async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
@@ -93,10 +106,17 @@ const json = (body: unknown) => JSON.stringify(body);
 
 export async function getOrderQueue(): Promise<Order[]> {
   if (isLiveApi()) {
-    return firstOk([
+    const live = await firstOk([
       () => apiRequest<Order[]>(endpoints.orders),
       () => apiRequest<Order[]>(endpoints.staffOrders),
     ]);
+    try {
+      const scheduled = await apiRequest<Order[]>(`${endpoints.orders}?status=Scheduled`);
+      const seen = new Set(live.map((order) => order.id));
+      return [...scheduled.filter((order) => !seen.has(order.id)), ...live];
+    } catch {
+      return live;
+    }
   }
   return [...demo().orders];
 }
@@ -116,13 +136,20 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const scheduled = Boolean(input.scheduledFor);
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
       body: json({
-        customerId: input.customerId,
-        items: input.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+        items: input.items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          specialInstructions: item.specialInstructions,
+        })),
         channel: input.channel ?? "Website",
+        paymentMethod: input.paymentMethod ?? "Cash",
+        scheduledFor: input.scheduledFor,
+        specialInstructions: input.specialInstructions,
       }),
     });
   }
@@ -134,11 +161,51 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     channel: input.channel ?? "Website",
     items: input.items,
     total,
-    status: "Placed",
+    status: scheduled ? "Scheduled" : "Placed",
     placedAt: new Date().toISOString(),
+    fulfilment: scheduled ? "Scheduled" : "Immediate",
+    statusHistory: [
+      {
+        status: scheduled ? "Scheduled" : "Placed",
+        at: new Date().toISOString(),
+        note: scheduled ? "Order scheduled for collection." : "Order placed.",
+      },
+    ],
+    ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
   };
   demo().orders.unshift(created);
   return created;
+}
+
+export async function cancelOrder(id: string): Promise<Order> {
+  if (isLiveApi()) {
+    return apiRequest<Order>(endpoints.orderCancel(id), { method: "POST" });
+  }
+  const order = demo().orders.find((item) => item.id === id);
+  if (!order) throw new ApiError("That order is no longer on the board.", 404);
+  if (order.status !== "Placed" && order.status !== "Scheduled") {
+    throw new ApiError("This order can no longer be cancelled.", 409);
+  }
+  order.status = "Cancelled";
+  return { ...order };
+}
+
+export async function getOrderSlots(): Promise<OrderSlot[]> {
+  if (isLiveApi()) return apiRequest<OrderSlot[]>(endpoints.orderSlots);
+  const slots: OrderSlot[] = [];
+  const cursor = new Date();
+  cursor.setSeconds(0, 0);
+  cursor.setMinutes(Math.ceil(cursor.getMinutes() / 15) * 15 + 30);
+  while (slots.length < 12) {
+    const hour = cursor.getHours();
+    if (hour >= 10 && hour < 21) {
+      const start = cursor.toISOString();
+      const end = new Date(cursor.getTime() + 15 * 60_000).toISOString();
+      slots.push({ start, end, capacity: 8, booked: 0, remaining: 8, available: true });
+    }
+    cursor.setMinutes(cursor.getMinutes() + 15);
+  }
+  return slots;
 }
 
 export async function getMenu(): Promise<MenuItem[]> {
@@ -278,4 +345,122 @@ export async function getAuditLog(): Promise<AuditLogEntry[]> {
     ]);
   }
   return [...demo().audit];
+}
+
+let demoGroups: GroupBasket[] = [];
+
+function demoJoinCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]!).join("");
+}
+
+function groupTotal(basket: GroupBasket) {
+  basket.total = basket.items.reduce((sum, item) => sum + item.subtotal, 0);
+  return basket;
+}
+
+export async function listGroupBaskets(): Promise<GroupBasket[]> {
+  if (isLiveApi()) return apiRequest<GroupBasket[]>(endpoints.groups);
+  return demoGroups.filter((basket) => basket.status === "Open" || basket.status === "Locked").map((basket) => ({ ...basket, items: [...basket.items], participants: [...basket.participants] }));
+}
+
+export async function getGroupBasket(id: string): Promise<GroupBasket> {
+  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.group(id));
+  const basket = demoGroups.find((item) => item.id === id);
+  if (!basket) throw new ApiError("Group order not found.", 404);
+  return { ...basket, items: [...basket.items], participants: [...basket.participants] };
+}
+
+export async function createGroupBasket(host: AuthUser): Promise<GroupBasket> {
+  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.groups, { method: "POST", body: json({}) });
+  const basket: GroupBasket = {
+    id: `g${Date.now()}`,
+    joinCode: demoJoinCode(),
+    status: "Open",
+    hostCustomerId: host.id,
+    hostName: host.name,
+    createdAt: new Date().toISOString(),
+    total: 0,
+    participants: [{ customerId: host.id, name: host.name, joinedAt: new Date().toISOString(), isHost: true }],
+    items: [],
+  };
+  demoGroups.unshift(basket);
+  return { ...basket, items: [], participants: [...basket.participants] };
+}
+
+export async function joinGroupBasket(joinCode: string, user: AuthUser): Promise<GroupBasket> {
+  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.groupJoin, { method: "POST", body: json({ joinCode }) });
+  const basket = demoGroups.find((item) => item.joinCode === joinCode.trim().toUpperCase());
+  if (!basket) throw new ApiError("That group order code is not valid.", 404);
+  if (!basket.participants.some((person) => person.customerId === user.id)) {
+    basket.participants.push({ customerId: user.id, name: user.name, joinedAt: new Date().toISOString(), isHost: false });
+  }
+  return groupTotal(basket);
+}
+
+export async function addGroupItem(
+  basketId: string,
+  user: AuthUser,
+  menuItem: MenuItem,
+  quantity: number,
+  specialInstructions?: string,
+): Promise<GroupBasket> {
+  if (isLiveApi()) {
+    return apiRequest<GroupBasket>(endpoints.groupItems(basketId), {
+      method: "POST",
+      body: json({ menuItemId: menuItem.id, quantity, specialInstructions }),
+    });
+  }
+  const basket = demoGroups.find((item) => item.id === basketId);
+  if (!basket) throw new ApiError("Group order not found.", 404);
+  basket.items.push({
+    id: `gi${Date.now()}`,
+    customerId: user.id,
+    customerName: user.name,
+    menuItemId: menuItem.id,
+    name: menuItem.name,
+    quantity,
+    unitPrice: menuItem.price,
+    subtotal: menuItem.price * quantity,
+    ...(specialInstructions ? { specialInstructions } : {}),
+  });
+  return groupTotal(basket);
+}
+
+export async function removeGroupItem(basketId: string, itemId: string): Promise<GroupBasket> {
+  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.groupItem(basketId, itemId), { method: "DELETE" });
+  const basket = demoGroups.find((item) => item.id === basketId);
+  if (!basket) throw new ApiError("Group order not found.", 404);
+  basket.items = basket.items.filter((item) => item.id !== itemId);
+  return groupTotal(basket);
+}
+
+export async function checkoutGroupBasket(
+  basketId: string,
+  paymentMethod: "Cash" | "Card",
+  user: AuthUser,
+): Promise<Order> {
+  if (isLiveApi()) {
+    return apiRequest<Order>(endpoints.groupCheckout(basketId), {
+      method: "POST",
+      body: json({ paymentMethod }),
+    });
+  }
+  const basket = demoGroups.find((item) => item.id === basketId);
+  if (!basket) throw new ApiError("Group order not found.", 404);
+  const order = await placeOrder({
+    customerId: user.id,
+    customerName: user.name,
+    paymentMethod,
+    items: basket.items.map((item) => ({
+      menuItemId: item.menuItemId,
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      ...(item.specialInstructions ? { specialInstructions: item.specialInstructions } : {}),
+    })),
+  });
+  basket.status = "Converted";
+  basket.orderId = order.id;
+  return order;
 }

@@ -378,5 +378,14 @@ export const currency = (amount: number) =>
 export const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
 
+export const formatSlot = (iso: string) =>
+  new Date(iso).toLocaleString("en-ZA", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });

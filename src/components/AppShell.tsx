@@ -12,6 +12,7 @@ import {
   ToggleRight,
   UserRound,
   Users,
+  UsersRound,
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
@@ -51,6 +52,7 @@ const groups: { title: string; items: NavItem[] }[] = [
       { label: "Customers", to: "/customers", icon: UserRound, roles: ["Admin"] },
       { label: "Promotions", to: "/promotions", icon: Megaphone, roles: ["Admin"] },
       { label: "Customer Portal", to: "/portal", icon: Sparkles, roles: ["Admin", "Customer"] },
+      { label: "Group order", to: "/group", icon: UsersRound, roles: ["Admin", "Customer"] },
       { label: "Settings", to: "/settings", icon: Settings, roles: ["Admin", "Staff", "Customer"] },
     ],
   },
@@ -241,6 +243,7 @@ export function StatusPill({ status }: { status: string }) {
     Ready: "bg-success/20 text-foreground",
     Completed: "bg-secondary text-muted-foreground",
     Cancelled: "bg-destructive/10 text-destructive",
+    Scheduled: "bg-primary/10 text-primary",
   };
   return (
     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone[status] ?? "bg-secondary text-muted-foreground"}`}>
