@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ function statusDone(current: OrderStatus, step: OrderStatus) {
 }
 
 function CheckoutPage() {
+  const navigate = useNavigate();
   const { lines, setQuantity, clear } = useCart();
   const { user } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
@@ -85,6 +86,9 @@ function CheckoutPage() {
             <p className="mt-4 text-center text-xs font-semibold tracking-[0.18em] text-success uppercase">
               Order {placed.reference}
             </p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Placed {new Date(placed.placedAt).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
             <h1 className="mt-2 text-center font-display text-4xl font-semibold">
               The grill is on.
             </h1>
@@ -122,11 +126,18 @@ function CheckoutPage() {
             <p className="mt-4 text-center font-semibold">
               Total {currency(placed.total)} · Pay by {payment.toLowerCase()}
             </p>
-            <Link
-              to="/order"
+            <button
+              type="button"
+              onClick={() => void navigate({ to: "/track/$reference", params: { reference: placed.id } })}
               className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
             >
-              Done
+              Track my order
+            </button>
+            <Link
+              to="/order"
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-secondary text-sm font-semibold"
+            >
+              Back to menu
             </Link>
           </div>
         </div>
@@ -180,7 +191,7 @@ function CheckoutPage() {
       setRedemptionId(null);
       setPlaced(order);
       toast.success("Order placed", {
-        description: `${order.reference} · ${fulfilment} · ${currency(order.total)} · ready in 20–25 min`,
+        description: `${order.reference} · ${fulfilment} · ${currency(order.total)}`,
         duration: 7000,
       });
     } catch (err) {

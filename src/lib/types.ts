@@ -29,7 +29,15 @@ export interface Order {
   placedAt: string;
   specialInstructions?: string | undefined;
   paymentMethod?: "Cash" | "Card" | undefined;
+  /** Only supplied when the payment provider/API confirms the actual payment state. */
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
   fulfilment?: "Collection" | "Delivery" | undefined;
+  /** Optional server-calculated estimate and actual milestone timestamps. */
+  estimatedReadyAt?: string | undefined;
+  readyAt?: string | undefined;
+  completedAt?: string | undefined;
+  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected" | undefined;
+  statusHistory?: { status: OrderStatus; at: string }[] | undefined;
   updatedAt?: string;
 }
 

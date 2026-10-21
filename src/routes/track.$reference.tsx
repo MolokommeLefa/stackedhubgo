@@ -32,10 +32,10 @@ export const Route = createFileRoute("/track/$reference")({
 });
 
 const STEPS: { status: OrderStatus; label: string }[] = [
-  { status: "Placed", label: "Order confirmed" },
-  { status: "In kitchen", label: "Preparing" },
-  { status: "Ready", label: "Ready for collection" },
-  { status: "Completed", label: "Completed" },
+  { status: "Placed", label: "Order received" },
+  { status: "In kitchen", label: "Preparing your order" },
+  { status: "Ready", label: "Ready for handoff" },
+  { status: "Completed", label: "Order completed" },
 ];
 
 function TrackPage() {
@@ -85,14 +85,39 @@ function TrackPage() {
       </CustomerShell>
     );
 
-  const isDelivery = order.fulfilment === "Delivery";
+  // The current API stores fulfilment in the existing order notes; prefer a structured field if one is returned.
+  const isDelivery =
+    order.fulfilment === "Delivery" ||
+    (order.fulfilment == null && /^Delivery(?:\s|—|-|$)/i.test(order.specialInstructions ?? ""));
   const steps = STEPS.map((s) =>
-    s.status === "Ready" && isDelivery ? { ...s, label: "Out for delivery" } : s,
+    s.status === "Ready" && isDelivery
+      ? { ...s, label: order.deliveryStatus === "Out for delivery" ? "Out for delivery" : "Ready for dispatch" }
+      : s,
   );
   const idx = steps.findIndex((s) => s.status === order.status);
-  const timeFor = (st: OrderStatus) => history.find((h) => h.status === st)?.at;
-  const active = order.status !== "Completed" && order.status !== "Cancelled";
-  const eta = new Date(new Date(order.placedAt).getTime() + 25 * 60_000);
+  const historyForOrder = order.statusHistory?.length ? order.statusHistory : history;
+  const timeFor = (st: OrderStatus) =>
+    historyForOrder.find((h) => h.status === st)?.at ??
+    (st === "Placed" ? order.placedAt : undefined) ??
+    (st === "Ready" ? order.readyAt : undefined) ??
+    (st === "Completed" ? order.completedAt : undefined);
+  const active = order.status === "Placed" || order.status === "In kitchen";
+  const eta = order.estimatedReadyAt
+    ? new Date(order.estimatedReadyAt)
+    : new Date(new Date(order.placedAt).getTime() + 25 * 60_000);
+  const paymentLabel = order.paymentStatus
+    ? order.paymentStatus
+    : order.paymentMethod === "Cash"
+      ? "Cash on collection/delivery"
+      : "Pay by card in person";
+  const fulfilmentLabel = (() => {
+    if (order.deliveryStatus) return order.deliveryStatus;
+    if (order.status === "Cancelled") return "Cancelled";
+    if (order.status === "Completed") return isDelivery ? "Delivered" : "Collected";
+    if (order.status === "Ready") return isDelivery ? "Ready for dispatch" : "Ready for collection";
+    return isDelivery ? "Delivery pending" : "Collection pending";
+  })();
+  const etaLabel = order.estimatedReadyAt ? "Estimated ready time" : "Estimated ready time (initial estimate)";
 
   const orderAgain = async () => {
     const menu = await getMenu();
@@ -117,31 +142,51 @@ function TrackPage() {
             Order {order.reference}
           </p>
           <h1 className="mt-1 font-display text-3xl font-semibold">
-            {order.status === "Cancelled" ? "Order cancelled" : steps[Math.max(idx, 0)]?.label}
+            {order.status === "Cancelled"
+              ? "Order cancelled"
+              : order.status === "Ready"
+                ? (isDelivery ? "Ready for dispatch" : "Ready for collection")
+                : order.status === "Completed"
+                  ? (isDelivery ? "Delivered" : "Collected / completed")
+                  : steps[Math.max(idx, 0)]?.label}
           </h1>
           {active && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              Estimated ready by{" "}
-              <strong>{eta.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</strong>
-              {" "}· updates every 10 seconds
-            </p>
+            <div className="mt-3 rounded-2xl bg-secondary p-4">
+              <p className="text-xs font-medium text-muted-foreground">{etaLabel}</p>
+              <p className="mt-1 font-display text-2xl font-semibold">
+                {eta.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This is an estimate and may change as the kitchen updates your order.
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">Order status refreshes every 10 seconds while this page is open.</p>
+            </div>
           )}
-          {order.status !== "Cancelled" && (
-            <ol className="mt-6 space-y-4" aria-label="Order progress">
+          <div className="mt-6 rounded-2xl border border-border p-4">
+            <h2 className="font-semibold">Order lifecycle</h2>
+            <ol className="mt-4 space-y-4" aria-label="Order progress">
               {steps.map((s, i) => {
-                const done = i <= idx;
+                const done = i <= idx && order.status !== "Cancelled";
                 const at = timeFor(s.status);
+                const label =
+                  s.status === "Ready"
+                    ? isDelivery
+                      ? (order.deliveryStatus === "Out for delivery" ? "Out for delivery" : "Ready for dispatch")
+                      : "Ready for collection"
+                    : s.status === "Completed"
+                      ? (isDelivery ? "Delivered" : "Collected / completed")
+                      : s.label;
                 return (
                   <li key={s.status} className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-3 text-sm font-semibold">
                       <span
-                        className={`grid size-7 place-items-center rounded-full text-xs transition-colors ${
+                        className={`grid size-7 shrink-0 place-items-center rounded-full text-xs transition-colors ${
                           done ? "bg-success text-white" : "bg-secondary text-muted-foreground"
                         } ${i === idx && active ? "ring-4 ring-success/25" : ""}`}
                       >
                         {done ? "✓" : i + 1}
                       </span>
-                      <span className={done ? "" : "text-muted-foreground"}>{s.label}</span>
+                      <span className={done ? "" : "text-muted-foreground"}>{label}</span>
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {at ? new Date(at).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }) : ""}
@@ -149,8 +194,36 @@ function TrackPage() {
                   </li>
                 );
               })}
+              {order.status === "Cancelled" && (
+                <li className="text-sm font-semibold text-destructive">Order cancelled</li>
+              )}
             </ol>
-          )}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground">Payment</p>
+              <p className="mt-1 font-semibold">{paymentLabel}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {order.paymentMethod === "Card"
+                  ? "Card payment is only marked paid when the payment provider or API confirms it."
+                  : "Payment is handled according to the selected cash-payment arrangement."}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground">{isDelivery ? "Delivery status" : "Collection status"}</p>
+              <p className="mt-1 font-semibold">{fulfilmentLabel}</p>
+              {order.readyAt && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ready at {new Date(order.readyAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              )}
+              {order.completedAt && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Completed at {new Date(order.completedAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              )}
+            </div>
+          </div>
           <ul className="mt-6 divide-y divide-border rounded-2xl bg-secondary px-4 text-sm">
             {order.items.map((it) => (
               <li key={it.menuItemId + it.name} className="flex justify-between py-2">
