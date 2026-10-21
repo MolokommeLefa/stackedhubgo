@@ -6,6 +6,7 @@ import { CustomerShell } from "@/components/CustomerShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { ADDRESS_LINES } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
+import { isLiveApi } from "@/lib/api-client";
 import { useCart } from "@/lib/cart";
 import { getLoyaltyWallet, placeOrder, type LoyaltyWallet } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
@@ -42,6 +43,10 @@ function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
   const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
+  const [cardholder, setCardholder] = useState(user?.name ?? "");
+  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
+  const [cardExpiry, setCardExpiry] = useState("12/30");
+  const [cardCvv, setCardCvv] = useState("123");
   const [notes, setNotes] = useState("");
   const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -157,6 +162,15 @@ function CheckoutPage() {
     if (selectedReward && !canApplyReward) {
       return setError("You don't have enough points for this reward.");
     }
+    if (payment === "Card" && isLiveApi()) {
+      return setError("The live card provider is not connected yet. Choose Cash for this order; demo card checkout is available when using the local preview data.");
+    }
+    if (payment === "Card") {
+      const digits = cardNumber.replace(/\D/g, "");
+      if (cardholder.trim().length < 2 || digits !== "4242424242424242" || !/^\d{2}\/\d{2}$/.test(cardExpiry) || cardCvv !== "123") {
+        return setError("Demo payment declined. Use card 4242 4242 4242 4242, expiry 12/30, and CVV 123.");
+      }
+    }
     setError("");
     setSubmitting(true);
     try {
@@ -170,6 +184,7 @@ function CheckoutPage() {
           unitPrice: l.unitPrice,
         })),
         paymentMethod: payment,
+        paymentStatus: payment === "Card" ? "Paid" : undefined,
         fulfilment,
         deliveryAddress: fulfilment === "Delivery" ? address.trim() : undefined,
         specialInstructions: [
@@ -323,6 +338,35 @@ function CheckoutPage() {
                 <option>Card</option>
               </select>
             </label>
+            {payment === "Card" && (
+              <fieldset className="sm:col-span-2 rounded-2xl border border-border p-4">
+                <legend className="px-1 text-sm font-semibold">Demo card gateway</legend>
+                <div className="mb-3 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
+                  <strong className="text-foreground">Sandbox only · no real charge.</strong> Use the demo test card below. This is a placeholder for a future PayPal checkout integration.
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm font-medium sm:col-span-2">
+                    Name on card
+                    <input value={cardholder} onChange={(e) => setCardholder(e.target.value)} autoComplete="cc-name" className={field} />
+                  </label>
+                  <label className="text-sm font-medium sm:col-span-2">
+                    Card number
+                    <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={19} className={field} aria-describedby="demo-card-hint" />
+                  </label>
+                  <label className="text-sm font-medium">
+                    Expiry
+                    <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} placeholder="MM/YY" autoComplete="off" maxLength={5} className={field} />
+                  </label>
+                  <label className="text-sm font-medium">
+                    CVV
+                    <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={4} className={field} />
+                  </label>
+                </div>
+                <p id="demo-card-hint" className="mt-2 text-xs text-muted-foreground">
+                  Test details: 4242 4242 4242 4242 · 12/30 · 123. Do not enter real card details.
+                </p>
+              </fieldset>
+            )}
             <label className="text-sm font-semibold sm:col-span-2">
               Reward redemption
               <div className="mt-2 grid gap-2">
