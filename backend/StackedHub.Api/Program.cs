@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using StackedHub.Api;
+using StackedHub.Api.Options;
 using StackedHub.Api.Services;
 using StackedHub.Infrastructure;
 
@@ -25,7 +26,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "StackedHub API",
         Version = "v1",
-        Description = "Role 2 back-end for INSY7315 Phase 2. Matches src/lib/api-client.ts: JWT auth, menu, orders, inventory, customers, promotions, reports, audit logs, and Gemini meal recommendations with a grounded fallback."
+        Description = "StackedHub API. JWT auth, menu, orders (including scheduled collection), inventory, customers, promotions, reports, audit logs, and Gemini meal recommendations with a grounded fallback."
     });
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -48,8 +49,13 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddStackedHubData(builder.Configuration);
+builder.Services.Configure<KitchenOptions>(builder.Configuration.GetSection(KitchenOptions.Section));
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<OrderService>();
+if (builder.Configuration.GetValue("Kitchen:ReleaseWorkerEnabled", true))
+{
+    builder.Services.AddHostedService<ScheduledOrderReleaseWorker>();
+}
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddHttpClient<RecommendationService>(client =>
@@ -85,7 +91,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    DatabaseInitializer.Apply(db);
     DbSeeder.Seed(db);
 }
 

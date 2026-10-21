@@ -6,7 +6,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using StackedHub.Infrastructure;
 using StackedHub.Api;
 using StackedHub.Api.Contracts;
 using StackedHub.Domain;
@@ -30,28 +33,63 @@ public class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"stackedhub-{Guid.NewGuid():N}.db");
 
+    protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraConfig() => [];
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.UseSetting("UseSqlite", "true");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", SqliteConnectionString());
+        builder.UseSetting("Kitchen:ReleaseWorkerEnabled", "false");
         builder.ConfigureAppConfiguration((_, config) =>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
+            var values = new Dictionary<string, string?>
             {
                 ["UseSqlite"] = "true",
-                ["ConnectionStrings:DefaultConnection"] = $"Data Source={_dbPath}",
-                ["Gemini:ApiKey"] = ""
-            });
+                ["ConnectionStrings:DefaultConnection"] = SqliteConnectionString(),
+                ["Gemini:ApiKey"] = "",
+                ["Kitchen:ReleaseWorkerEnabled"] = "false"
+            };
+            foreach (var pair in ExtraConfig())
+            {
+                values[pair.Key] = pair.Value;
+            }
+
+            config.AddInMemoryCollection(values);
+        });
+        builder.ConfigureServices(services =>
+        {
+            var remove = services.Where(descriptor =>
+                    descriptor.ServiceType == typeof(AppDbContext)
+                    || descriptor.ServiceType == typeof(DbContextOptions<AppDbContext>)
+                    || descriptor.ServiceType == typeof(DbContextOptions))
+                .ToList();
+            foreach (var descriptor in remove)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddDbContext<AppDbContext>(options => options.UseSqlite(SqliteConnectionString()));
         });
     }
+
+    private string SqliteConnectionString() => $"Data Source={_dbPath};Cache=Shared;Pooling=False";
 
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
         foreach (var extra in new[] { _dbPath, _dbPath + "-shm", _dbPath + "-wal" })
         {
-            if (File.Exists(extra))
+            try
             {
-                File.Delete(extra);
+                if (File.Exists(extra))
+                {
+                    File.Delete(extra);
+                }
+            }
+            catch (IOException)
+            {
+                // SQLite can keep a short-lived handle after the host stops.
             }
         }
     }

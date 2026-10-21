@@ -21,6 +21,7 @@ public sealed class OrderStatusJsonConverter : JsonConverter<OrderStatus>
             "Ready" => OrderStatus.Ready,
             "Completed" => OrderStatus.Completed,
             "Cancelled" => OrderStatus.Cancelled,
+            "Scheduled" => OrderStatus.Scheduled,
             _ => throw new JsonException($"Unknown order status '{value}'.")
         };
     }

@@ -21,7 +21,16 @@ public static class Mapping
             order.Items.Select(item => new OrderItemDto(item.MenuItemId.ToString(), item.Name, item.Quantity, item.UnitPrice)).ToList(),
             order.Total,
             order.Status,
-            order.PlacedAt);
+            order.PlacedAt,
+            order.ScheduledFor,
+            order.ScheduledFor is null ? "Immediate" : "Scheduled",
+            order.ScheduledFor ?? order.PlacedAt.AddMinutes(order.PrepLeadMinutes),
+            order.PrepLeadMinutes,
+            order.ReleaseError,
+            order.StatusHistory
+                .OrderBy(x => x.At)
+                .Select(x => new OrderStatusEventDto(x.Status, x.At, x.Note))
+                .ToList());
 
     public static PromotionDto ToDto(this Promotion promotion) =>
         new(promotion.Id.ToString(), promotion.Title, promotion.Description, promotion.DiscountPercent, promotion.StartsAt, promotion.EndsAt, promotion.Active, promotion.Redemptions);

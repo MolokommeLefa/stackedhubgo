@@ -51,9 +51,15 @@ public record PlaceOrderRequest(
     PaymentMethod PaymentMethod,
     string? SpecialInstructions,
     [Required, MinLength(1)] List<CartLineRequest> Items,
-    OrderChannel? Channel = null);
+    OrderChannel? Channel = null,
+    DateTime? ScheduledFor = null,
+    string? IdempotencyKey = null);
 
 public record OrderItemDto(string MenuItemId, string Name, int Quantity, decimal UnitPrice);
+
+public record OrderStatusEventDto(OrderStatus Status, DateTime At, string? Note);
+
+public record OrderSlotDto(DateTime Start, DateTime End, int Capacity, int Booked, int Remaining, bool Available);
 
 public record OrderDto(
     string Id,
@@ -64,7 +70,13 @@ public record OrderDto(
     List<OrderItemDto> Items,
     decimal Total,
     OrderStatus Status,
-    DateTime PlacedAt);
+    DateTime PlacedAt,
+    DateTime? ScheduledFor = null,
+    string Fulfilment = "Immediate",
+    DateTime? EstimatedReadyAt = null,
+    int PrepLeadMinutes = 20,
+    string? ReleaseError = null,
+    List<OrderStatusEventDto>? StatusHistory = null);
 
 public record UpdateStatusRequest(OrderStatus? Status, OrderStatus? NextStatus);
 

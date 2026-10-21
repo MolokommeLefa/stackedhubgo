@@ -13,6 +13,9 @@ public class AppDbContext : DbContext
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderStatusEvent> OrderStatusEvents => Set<OrderStatusEvent>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
 
@@ -51,6 +54,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(32);
             entity.Property(x => x.Total).HasPrecision(10, 2);
             entity.Property(x => x.SpecialInstructions).HasMaxLength(500);
+            entity.Property(x => x.ReleaseError).HasMaxLength(500);
+            entity.HasIndex(x => x.ScheduledFor);
             entity.HasOne(x => x.Customer)
                 .WithMany(x => x.PlacedOrders)
                 .HasForeignKey(x => x.CustomerId)
@@ -58,6 +63,53 @@ public class AppDbContext : DbContext
             entity.HasOne(x => x.Staff)
                 .WithMany()
                 .HasForeignKey(x => x.StaffId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OrderStatusEvent>(entity =>
+        {
+            entity.Property(x => x.Status).HasConversion(
+                v => ChannelLabels.FromStatus(v),
+                v => ChannelLabels.ToStatus(v));
+            entity.Property(x => x.Note).HasMaxLength(400);
+            entity.HasIndex(x => x.OrderId);
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.StatusHistory)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Actor)
+                .WithMany()
+                .HasForeignKey(x => x.ActorId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.Property(x => x.Key).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.RequestHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => new { x.CustomerId, x.Key }).IsUnique();
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoyaltyTransaction>(entity =>
+        {
+            entity.Property(x => x.Type).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(200).IsRequired();
+            entity.HasIndex(x => new { x.OrderId, x.Type }).IsUnique();
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

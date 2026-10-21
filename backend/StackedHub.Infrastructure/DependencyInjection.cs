@@ -10,9 +10,11 @@ public static class DependencyInjection
     {
         var configured = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
         var useSqliteFlag = string.Equals(configuration["UseSqlite"], "true", StringComparison.OrdinalIgnoreCase);
+        var looksLikeSqlServer = configured.Contains("Server=", StringComparison.OrdinalIgnoreCase)
+            || configured.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase)
+            || configured.Contains("database.windows.net", StringComparison.OrdinalIgnoreCase);
         var useSqlite = useSqliteFlag
-            || OperatingSystem.IsLinux()
-            || configured.Contains("Data Source=", StringComparison.OrdinalIgnoreCase);
+            || (!looksLikeSqlServer && OperatingSystem.IsLinux());
 
         var connectionString = useSqlite
             ? (configured.Contains("Data Source=", StringComparison.OrdinalIgnoreCase)
