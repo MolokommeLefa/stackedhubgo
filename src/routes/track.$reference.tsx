@@ -85,13 +85,20 @@ function TrackPage() {
       </CustomerShell>
     );
 
-  const isDelivery = order.fulfilment === "Delivery";
+  // The current API stores fulfilment in the existing order notes; prefer a structured field if one is returned.
+  const isDelivery =
+    order.fulfilment === "Delivery" ||
+    (order.fulfilment == null && /^Delivery(?:\s|—|-|$)/i.test(order.specialInstructions ?? ""));
   const steps = STEPS.map((s) =>
     s.status === "Ready" && isDelivery ? { ...s, label: "Out for delivery" } : s,
   );
   const idx = steps.findIndex((s) => s.status === order.status);
   const historyForOrder = order.statusHistory?.length ? order.statusHistory : history;
-  const timeFor = (st: OrderStatus) => historyForOrder.find((h) => h.status === st)?.at;
+  const timeFor = (st: OrderStatus) =>
+    historyForOrder.find((h) => h.status === st)?.at ??
+    (st === "Placed" ? order.placedAt : undefined) ??
+    (st === "Ready" ? order.readyAt : undefined) ??
+    (st === "Completed" ? order.completedAt : undefined);
   const active = order.status !== "Completed" && order.status !== "Cancelled";
   const eta = order.estimatedReadyAt
     ? new Date(order.estimatedReadyAt)
