@@ -11,5 +11,6 @@ public class SqlServerMigrationTests
         using var db = new AppDbContextFactory().CreateDbContext([]);
         Assert.Equal("Microsoft.EntityFrameworkCore.SqlServer", db.Database.ProviderName);
         Assert.Contains(db.Database.GetMigrations(), id => id.Contains("AddOrderFoundation"));
+        Assert.Contains(db.Database.GetMigrations(), id => id.Contains("AddGroupOrdering"));
     }
 }

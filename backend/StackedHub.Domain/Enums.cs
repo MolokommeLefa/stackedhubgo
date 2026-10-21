@@ -45,3 +45,12 @@ public enum MenuCategory
     Drinks = 3,
     Desserts = 4
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum GroupBasketStatus
+{
+    Open = 1,
+    Locked = 2,
+    Converted = 3,
+    Cancelled = 4
+}

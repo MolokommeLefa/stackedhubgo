@@ -73,6 +73,14 @@ public class OrderService
 
             var subtotal = menuItem.Price * line.Quantity;
             total += subtotal;
+            int? addedById = int.TryParse(line.AddedByCustomerId, out var parsedAddedBy) ? parsedAddedBy : null;
+            string? addedByName = null;
+            if (addedById is not null)
+            {
+                var contributor = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == addedById.Value, cancellationToken);
+                addedByName = contributor?.Name;
+            }
+
             items.Add(new OrderItem
             {
                 MenuItemId = menuItem.Id,
@@ -80,7 +88,9 @@ public class OrderService
                 Quantity = line.Quantity,
                 UnitPrice = menuItem.Price,
                 Subtotal = subtotal,
-                SpecialInstructions = string.IsNullOrWhiteSpace(line.SpecialInstructions) ? null : line.SpecialInstructions.Trim()
+                SpecialInstructions = string.IsNullOrWhiteSpace(line.SpecialInstructions) ? null : line.SpecialInstructions.Trim(),
+                AddedByCustomerId = addedById,
+                AddedByName = addedByName
             });
         }
 

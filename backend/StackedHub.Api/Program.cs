@@ -52,6 +52,7 @@ builder.Services.AddStackedHubData(builder.Configuration);
 builder.Services.Configure<KitchenOptions>(builder.Configuration.GetSection(KitchenOptions.Section));
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<GroupOrderService>();
 if (builder.Configuration.GetValue("Kitchen:ReleaseWorkerEnabled", true))
 {
     builder.Services.AddHostedService<ScheduledOrderReleaseWorker>();

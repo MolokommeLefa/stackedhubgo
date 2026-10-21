@@ -59,6 +59,126 @@ namespace StackedHub.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("StackedHub.Domain.GroupBasket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("HostCustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("JoinCode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ScheduledFor")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SpecialInstructions")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HostCustomerId");
+
+                    b.HasIndex("JoinCode")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("GroupBaskets");
+                });
+
+            modelBuilder.Entity("StackedHub.Domain.GroupBasketItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GroupBasketId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MenuItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SpecialInstructions")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("GroupBasketId");
+
+                    b.HasIndex("MenuItemId");
+
+                    b.ToTable("GroupBasketItems");
+                });
+
+            modelBuilder.Entity("StackedHub.Domain.GroupBasketParticipant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GroupBasketId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("GroupBasketId", "CustomerId")
+                        .IsUnique();
+
+                    b.ToTable("GroupBasketParticipants");
+                });
+
             modelBuilder.Entity("StackedHub.Domain.IdempotencyRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -259,6 +379,13 @@ namespace StackedHub.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AddedByCustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AddedByName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
                     b.Property<int>("MenuItemId")
                         .HasColumnType("int");
 
@@ -285,6 +412,8 @@ namespace StackedHub.Infrastructure.Migrations
                         .HasColumnType("decimal(10,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AddedByCustomerId");
 
                     b.HasIndex("MenuItemId");
 
@@ -436,6 +565,70 @@ namespace StackedHub.Infrastructure.Migrations
                     b.Navigation("Admin");
                 });
 
+            modelBuilder.Entity("StackedHub.Domain.GroupBasket", b =>
+                {
+                    b.HasOne("StackedHub.Domain.User", "Host")
+                        .WithMany()
+                        .HasForeignKey("HostCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StackedHub.Domain.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Host");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("StackedHub.Domain.GroupBasketItem", b =>
+                {
+                    b.HasOne("StackedHub.Domain.User", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StackedHub.Domain.GroupBasket", "GroupBasket")
+                        .WithMany("Items")
+                        .HasForeignKey("GroupBasketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StackedHub.Domain.MenuItem", "MenuItem")
+                        .WithMany()
+                        .HasForeignKey("MenuItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("GroupBasket");
+
+                    b.Navigation("MenuItem");
+                });
+
+            modelBuilder.Entity("StackedHub.Domain.GroupBasketParticipant", b =>
+                {
+                    b.HasOne("StackedHub.Domain.User", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StackedHub.Domain.GroupBasket", "GroupBasket")
+                        .WithMany("Participants")
+                        .HasForeignKey("GroupBasketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("GroupBasket");
+                });
+
             modelBuilder.Entity("StackedHub.Domain.IdempotencyRecord", b =>
                 {
                     b.HasOne("StackedHub.Domain.User", "Customer")
@@ -493,6 +686,11 @@ namespace StackedHub.Infrastructure.Migrations
 
             modelBuilder.Entity("StackedHub.Domain.OrderItem", b =>
                 {
+                    b.HasOne("StackedHub.Domain.User", "AddedBy")
+                        .WithMany()
+                        .HasForeignKey("AddedByCustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("StackedHub.Domain.MenuItem", "MenuItem")
                         .WithMany("OrderItems")
                         .HasForeignKey("MenuItemId")
@@ -504,6 +702,8 @@ namespace StackedHub.Infrastructure.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AddedBy");
 
                     b.Navigation("MenuItem");
 
@@ -526,6 +726,13 @@ namespace StackedHub.Infrastructure.Migrations
                     b.Navigation("Actor");
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("StackedHub.Domain.GroupBasket", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("StackedHub.Domain.MenuItem", b =>

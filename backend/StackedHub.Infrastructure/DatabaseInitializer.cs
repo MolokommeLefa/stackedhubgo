@@ -23,8 +23,7 @@ public static class DatabaseInitializer
         if (HasTable(db, "Orders") && !HasAppliedMigrations(db))
         {
             SqlServerUpgrades.Apply(db);
-            StampAllMigrations(db);
-            return;
+            Stamp(db, "20261021134032_AddOrderFoundation");
         }
 
         db.Database.Migrate();
@@ -42,23 +41,19 @@ public static class DatabaseInitializer
         }
     }
 
-    private static void StampAllMigrations(AppDbContext db)
+    private static void Stamp(AppDbContext db, string migrationId)
     {
         var history = db.GetService<IHistoryRepository>();
         db.Database.ExecuteSqlRaw(history.GetCreateIfNotExistsScript());
-        var applied = history.GetAppliedMigrations().Select(x => x.MigrationId).ToHashSet();
-        foreach (var migrationId in db.Database.GetMigrations())
+        if (history.GetAppliedMigrations().Any(x => x.MigrationId == migrationId))
         {
-            if (applied.Contains(migrationId))
-            {
-                continue;
-            }
-
-            db.Database.ExecuteSqlRaw(
-                "INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ({0}, {1})",
-                migrationId,
-                "8.0.11");
+            return;
         }
+
+        db.Database.ExecuteSqlRaw(
+            "INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ({0}, {1})",
+            migrationId,
+            "8.0.11");
     }
 
     private static bool HasTable(AppDbContext db, string table) =>
