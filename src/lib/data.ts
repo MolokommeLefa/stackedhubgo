@@ -51,6 +51,7 @@ export interface PlaceOrderInput {
   items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
   channel?: Order["channel"] | undefined;
   paymentMethod?: "Cash" | "Card" | undefined;
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
   fulfilment?: "Collection" | "Delivery" | undefined;
   specialInstructions?: string | undefined;
   /** Street and suburb. Required in the UI only for Delivery; packed into specialInstructions. */
@@ -256,6 +257,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     status: "Placed",
     placedAt: new Date().toISOString(),
     paymentMethod: input.paymentMethod,
+    paymentStatus: input.paymentStatus,
     fulfilment: input.fulfilment,
     specialInstructions: notes,
   };
