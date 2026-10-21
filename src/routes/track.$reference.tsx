@@ -90,7 +90,9 @@ function TrackPage() {
     order.fulfilment === "Delivery" ||
     (order.fulfilment == null && /^Delivery(?:\s|—|-|$)/i.test(order.specialInstructions ?? ""));
   const steps = STEPS.map((s) =>
-    s.status === "Ready" && isDelivery ? { ...s, label: "Out for delivery" } : s,
+    s.status === "Ready" && isDelivery
+      ? { ...s, label: order.deliveryStatus === "Out for delivery" ? "Out for delivery" : "Ready for dispatch" }
+      : s,
   );
   const idx = steps.findIndex((s) => s.status === order.status);
   const historyForOrder = order.statusHistory?.length ? order.statusHistory : history;
