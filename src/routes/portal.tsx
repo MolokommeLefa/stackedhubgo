@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
@@ -46,6 +46,7 @@ function PortalPage() {
   const [promos, setPromos] = useState<Promotion[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [placed, setPlaced] = useState<string | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [prompt, setPrompt] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +84,7 @@ function PortalPage() {
 
   const add = (id: string) => {
     setPlaced(null);
+    setPlacedOrder(null);
     setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
   };
   const remove = (id: string) =>
@@ -130,6 +132,7 @@ function PortalPage() {
       });
       setOrders((prev) => [order, ...prev]);
       setCart({});
+      setPlacedOrder(order);
       setPlaced(`Order ${order.reference} is in. We'll update the status as the kitchen works.`);
       toast.success("Order placed", {
         description: `${order.reference} · ${order.items.reduce((n, i) => n + i.quantity, 0)} items · we'll update the status as the kitchen works`,
@@ -264,9 +267,20 @@ function PortalPage() {
             <div className="space-y-6">
               <Panel title="Your order">
                 {placed ? (
-                  <p className="text-sm text-foreground" role="status">
-                    {placed}
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-sm text-foreground" role="status">
+                      {placed}
+                    </p>
+                    {placedOrder && (
+                      <Link
+                        to="/track/$reference"
+                        params={{ reference: placedOrder.id }}
+                        className="flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      >
+                        Track your order →
+                      </Link>
+                    )}
+                  </div>
                 ) : cartItems.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Your basket is empty — add items from the menu.
@@ -309,12 +323,19 @@ function PortalPage() {
 
               <Panel title="Recent tickets">
                 {mine.map((o) => (
-                  <div key={o.id} className="mb-3 flex items-center justify-between gap-2 text-sm">
-                    <span>
-                      {o.reference} · {currency(o.total)}
+                  <Link
+                    key={o.id}
+                    to="/track/$reference"
+                    params={{ reference: o.id }}
+                    aria-label={`Track order ${o.reference}`}
+                    className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium">{o.reference}</span>
+                      <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
                     </span>
                     <StatusPill status={o.status} />
-                  </div>
+                  </Link>
                 ))}
                 {mine.length === 0 && (
                   <p className="text-sm text-muted-foreground">No orders yet.</p>
