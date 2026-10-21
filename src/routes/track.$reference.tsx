@@ -110,16 +110,13 @@ function TrackPage() {
     : order.paymentMethod === "Cash"
       ? "Cash on collection/delivery"
       : "Pay by card in person";
-  const fulfilmentLabel =
-    order.deliveryStatus ??
-    (isDelivery
-      ? order.status === "Completed"
-        ? "Delivered"
-        : order.status === "Ready"
-          ? "Ready for dispatch"
-          : order.status === "Cancelled"
-            ? "Cancelled"
-            : "Delivery pending");
+  const fulfilmentLabel = (() => {
+    if (order.deliveryStatus) return order.deliveryStatus;
+    if (order.status === "Cancelled") return "Cancelled";
+    if (order.status === "Completed") return isDelivery ? "Delivered" : "Collected";
+    if (order.status === "Ready") return isDelivery ? "Ready for dispatch" : "Ready for collection";
+    return isDelivery ? "Delivery pending" : "Collection pending";
+  })();
   const etaLabel = order.estimatedReadyAt ? "Estimated ready time" : "Estimated ready time (initial estimate)";
 
   const orderAgain = async () => {
