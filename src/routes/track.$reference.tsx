@@ -108,8 +108,8 @@ function TrackPage() {
   const paymentLabel = order.paymentStatus
     ? order.paymentStatus
     : order.paymentMethod === "Cash"
-      ? "Pay on collection/delivery"
-      : "Awaiting payment confirmation";
+      ? "Cash on collection/delivery"
+      : "Pay by card in person";
   const fulfilmentLabel =
     order.deliveryStatus ??
     (isDelivery
