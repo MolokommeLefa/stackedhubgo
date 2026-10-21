@@ -99,7 +99,7 @@ function TrackPage() {
     (st === "Placed" ? order.placedAt : undefined) ??
     (st === "Ready" ? order.readyAt : undefined) ??
     (st === "Completed" ? order.completedAt : undefined);
-  const active = order.status !== "Completed" && order.status !== "Cancelled";
+  const active = order.status === "Placed" || order.status === "In kitchen";
   const eta = order.estimatedReadyAt
     ? new Date(order.estimatedReadyAt)
     : new Date(new Date(order.placedAt).getTime() + 25 * 60_000);
@@ -143,7 +143,13 @@ function TrackPage() {
             Order {order.reference}
           </p>
           <h1 className="mt-1 font-display text-3xl font-semibold">
-            {order.status === "Cancelled" ? "Order cancelled" : steps[Math.max(idx, 0)]?.label}
+            {order.status === "Cancelled"
+              ? "Order cancelled"
+              : order.status === "Ready"
+                ? (isDelivery ? "Ready for dispatch" : "Ready for collection")
+                : order.status === "Completed"
+                  ? (isDelivery ? "Delivered" : "Collected / completed")
+                  : steps[Math.max(idx, 0)]?.label}
           </h1>
           {active && (
             <div className="mt-3 rounded-2xl bg-secondary p-4">
