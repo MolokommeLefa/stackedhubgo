@@ -22,7 +22,8 @@ public static class Mapping
             order.Total,
             order.Status,
             order.PlacedAt,
-            order.PaymentMethod);
+            order.PaymentMethod,
+            order.SpecialInstructions);
 
     public static PromotionDto ToDto(this Promotion promotion) =>
         new(promotion.Id.ToString(), promotion.Title, promotion.Description, promotion.DiscountPercent, promotion.StartsAt, promotion.EndsAt, promotion.Active, promotion.Redemptions);
