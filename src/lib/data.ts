@@ -10,6 +10,8 @@ import type {
   AuthUser,
   Customer,
   GroupBasket,
+  LoyaltyTransaction,
+  LoyaltyWallet,
   MenuItem,
   Order,
   OrderSlot,
@@ -56,6 +58,13 @@ async function firstOk<T>(calls: Array<() => Promise<T>>): Promise<T> {
   throw last;
 }
 
+const LOYALTY_EARN_RULE = "Earn 1 point for every R10 on a completed order.";
+const LOYALTY_REWARDS = [
+  { id: "drink", title: "Free homemade lemonade", description: "A complimentary drink on your next visit.", pointsCost: 50 },
+  { id: "off30", title: "R30 off next order", description: "Recorded as a voucher for your next pickup.", pointsCost: 120 },
+  { id: "off80", title: "R80 off next order", description: "Recorded as a voucher for your next pickup.", pointsCost: 250 },
+] as const;
+
 let store: {
   orders: Order[];
   menu: MenuItem[];
@@ -63,6 +72,7 @@ let store: {
   audit: AuditLogEntry[];
   customers: Customer[];
   promotions: Promotion[];
+  loyalty: Record<string, { balance: number; transactions: LoyaltyTransaction[] }>;
 } | null = null;
 
 function demo() {
@@ -86,9 +96,67 @@ function demo() {
           active: true,
         })),
       ],
+      loyalty: {},
     };
   }
   return store;
+}
+
+function loyaltyTier(points: number): Customer["tier"] {
+  return points >= 400 ? "VIP" : points >= 100 ? "Regular" : "New";
+}
+
+function demoLoyalty(user: AuthUser) {
+  const d = demo();
+  if (!d.loyalty[user.id]) {
+    const seeded = d.customers.find((c) => c.id === user.id)?.loyaltyPoints ?? user.loyaltyPoints ?? 0;
+    d.loyalty[user.id] = {
+      balance: seeded,
+      transactions:
+        user.id === "c1"
+          ? [
+              { id: "lt1", points: 14, type: "Earn", reason: "Order completed", at: "2026-10-18T10:12:00Z" },
+              { id: "lt2", points: -50, type: "Redeem", reason: "Free homemade lemonade", at: "2026-10-10T09:40:00Z" },
+            ]
+          : [],
+    };
+  }
+  return d.loyalty[user.id]!;
+}
+
+function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): LoyaltyWallet {
+  const rewards = LOYALTY_REWARDS.map((reward) => ({
+    id: reward.id,
+    title: reward.title,
+    description: reward.description,
+    pointsCost: reward.pointsCost,
+    affordable: account.balance >= reward.pointsCost,
+  }));
+  const nextTier =
+    account.balance < 100
+      ? { label: "Regular", current: account.balance, target: 100, remaining: 100 - account.balance }
+      : account.balance < 400
+        ? { label: "VIP", current: account.balance, target: 400, remaining: 400 - account.balance }
+        : undefined;
+  const nextRewardDef = LOYALTY_REWARDS.find((reward) => account.balance < reward.pointsCost);
+  return {
+    balance: account.balance,
+    tier: loyaltyTier(account.balance),
+    earnRule: LOYALTY_EARN_RULE,
+    ...(nextTier ? { nextTier } : {}),
+    ...(nextRewardDef
+      ? {
+          nextReward: {
+            label: nextRewardDef.title,
+            current: account.balance,
+            target: nextRewardDef.pointsCost,
+            remaining: nextRewardDef.pointsCost - account.balance,
+          },
+        }
+      : {}),
+    rewards,
+    transactions: account.transactions,
+  };
 }
 
 function logDemo(action: string, target: string) {
@@ -433,6 +501,43 @@ export async function removeGroupItem(basketId: string, itemId: string): Promise
   if (!basket) throw new ApiError("Group order not found.", 404);
   basket.items = basket.items.filter((item) => item.id !== itemId);
   return groupTotal(basket);
+}
+
+export async function getLoyaltyWallet(user: AuthUser): Promise<LoyaltyWallet> {
+  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
+  return buildWallet(demoLoyalty(user));
+}
+
+export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<LoyaltyWallet> {
+  if (isLiveApi()) {
+    return apiRequest<LoyaltyWallet>(endpoints.loyaltyRedeem, {
+      method: "POST",
+      body: json({ rewardId }),
+    });
+  }
+  const reward = LOYALTY_REWARDS.find((item) => item.id === rewardId);
+  if (!reward) throw new ApiError("That reward is not available.", 400);
+  const account = demoLoyalty(user);
+  if (account.balance < reward.pointsCost) {
+    throw new ApiError(`You need ${reward.pointsCost - account.balance} more points to redeem ${reward.title}.`, 400);
+  }
+  account.balance -= reward.pointsCost;
+  account.transactions = [
+    {
+      id: `lt${Date.now()}`,
+      points: -reward.pointsCost,
+      type: "Redeem",
+      reason: reward.title,
+      at: new Date().toISOString(),
+    },
+    ...account.transactions,
+  ];
+  const customer = demo().customers.find((item) => item.id === user.id);
+  if (customer) {
+    customer.loyaltyPoints = account.balance;
+    customer.tier = loyaltyTier(account.balance);
+  }
+  return buildWallet(account);
 }
 
 export async function checkoutGroupBasket(

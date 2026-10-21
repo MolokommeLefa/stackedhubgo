@@ -112,6 +112,40 @@ export interface Customer {
   note: string;
 }
 
+export interface LoyaltyReward {
+  id: string;
+  title: string;
+  description: string;
+  pointsCost: number;
+  affordable: boolean;
+}
+
+export interface LoyaltyProgress {
+  label: string;
+  current: number;
+  target: number;
+  remaining: number;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  points: number;
+  type: "Earn" | "Redeem";
+  reason: string;
+  at: string;
+  orderId?: string;
+}
+
+export interface LoyaltyWallet {
+  balance: number;
+  tier: string;
+  earnRule: string;
+  nextTier?: LoyaltyProgress | null;
+  nextReward?: LoyaltyProgress | null;
+  rewards: LoyaltyReward[];
+  transactions: LoyaltyTransaction[];
+}
+
 export interface Promotion {
   id: string;
   title: string;

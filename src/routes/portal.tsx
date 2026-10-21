@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
-import { cancelOrder, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder } from "@/lib/data";
+import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
-import type { MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
+import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/portal")({
@@ -23,6 +23,15 @@ interface Suggestion {
   reason: string;
 }
 
+function LoyaltyBar({ current, target }: { current: number; target: number }) {
+  const pct = target <= 0 ? 0 : Math.min(100, Math.round((current / target) * 100));
+  return (
+    <div className="glass-soft mt-2 h-2 overflow-hidden rounded-full">
+      <div className="bg-gradient-brand h-full rounded-full" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 function demoSuggest(prompt: string, pool: MenuItem[]): Suggestion[] {
   const p = prompt.toLowerCase();
   let picks = pool.filter((m) => m.available);
@@ -34,7 +43,7 @@ function demoSuggest(prompt: string, pool: MenuItem[]): Suggestion[] {
 }
 
 function PortalPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [promos, setPromos] = useState<Promotion[]>([]);
@@ -51,6 +60,8 @@ function PortalPage() {
   const [slots, setSlots] = useState<OrderSlot[]>([]);
   const [slot, setSlot] = useState("");
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<LoyaltyWallet | null>(null);
+  const [redeeming, setRedeeming] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,12 +71,19 @@ function PortalPage() {
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
+      if (user?.role === "Customer") {
+        const nextWallet = await getLoyaltyWallet(user);
+        setWallet(nextWallet);
+        updateUser({ loyaltyPoints: nextWallet.balance });
+      } else {
+        setWallet(null);
+      }
     } catch (err) {
       setError(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateUser, user]);
 
   useEffect(() => {
     void load();
@@ -150,6 +168,21 @@ function PortalPage() {
     }
   };
 
+  const redeem = async (rewardId: string) => {
+    if (!user) return;
+    setRedeeming(rewardId);
+    setError(null);
+    try {
+      const next = await redeemLoyaltyReward(rewardId, user);
+      setWallet(next);
+      updateUser({ loyaltyPoints: next.balance });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setRedeeming(null);
+    }
+  };
+
   return (
     <AppShell title="Customer portal" subtitle="Order & loyalty" allow={["Admin", "Customer"]}>
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
@@ -158,7 +191,8 @@ function PortalPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="glass rounded-3xl p-5">
               <p className="text-xs text-muted-foreground">Loyalty points</p>
-              <p className="mt-1 text-2xl font-bold">{user?.loyaltyPoints ?? 0}</p>
+              <p className="mt-1 text-2xl font-bold">{wallet?.balance ?? user?.loyaltyPoints ?? 0}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{wallet?.tier ?? "New"} member</p>
             </div>
             <div className="glass rounded-3xl p-5">
               <p className="text-xs text-muted-foreground">Your orders</p>
@@ -169,6 +203,76 @@ function PortalPage() {
               <p className="mt-1 text-2xl font-bold">{promos.filter((p) => p.active).length}</p>
             </div>
           </div>
+
+          {wallet && (
+            <Panel title="Loyalty wallet">
+              <p className="text-sm text-muted-foreground">{wallet.earnRule}</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {wallet.nextTier && (
+                  <div className="glass-soft rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Next tier</p>
+                    <p className="mt-1 text-sm font-semibold">
+                      {wallet.nextTier.remaining} points to {wallet.nextTier.label}
+                    </p>
+                    <LoyaltyBar current={wallet.nextTier.current} target={wallet.nextTier.target} />
+                  </div>
+                )}
+                {wallet.nextReward && (
+                  <div className="glass-soft rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Next reward</p>
+                    <p className="mt-1 text-sm font-semibold">
+                      {wallet.nextReward.remaining} points to {wallet.nextReward.label}
+                    </p>
+                    <LoyaltyBar current={wallet.nextReward.current} target={wallet.nextReward.target} />
+                  </div>
+                )}
+                {!wallet.nextTier && !wallet.nextReward && (
+                  <p className="text-sm text-muted-foreground">VIP unlocked — you can redeem any listed reward.</p>
+                )}
+              </div>
+              <ul className="mt-4 space-y-2">
+                {wallet.rewards.map((reward) => (
+                  <li key={reward.id} className="glass-soft flex items-center justify-between gap-3 rounded-2xl p-4">
+                    <div>
+                      <p className="text-sm font-semibold">{reward.title}</p>
+                      <p className="text-xs text-muted-foreground">{reward.description}</p>
+                      <p className="mt-1 text-xs font-medium">{reward.pointsCost} points</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!reward.affordable || redeeming === reward.id}
+                      onClick={() => void redeem(reward.id)}
+                      className="bg-gradient-brand min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {redeeming === reward.id ? "Redeeming…" : reward.affordable ? "Redeem" : "Need more"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-muted-foreground">Recent activity</p>
+                {wallet.transactions.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">No points activity yet — complete an order to start earning.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {wallet.transactions.slice(0, 6).map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span>
+                          {item.reason}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {new Date(item.at).toLocaleDateString()}
+                          </span>
+                        </span>
+                        <span className={item.points < 0 ? "text-destructive" : "text-primary"}>
+                          {item.points > 0 ? `+${item.points}` : item.points}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Panel>
+          )}
 
           <Panel title="Ask for a recommendation">
             <form onSubmit={ask} className="flex flex-wrap gap-2">

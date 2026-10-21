@@ -145,4 +145,6 @@ export const endpoints = {
   groupCancel: (id: string) => `/api/groups/${id}/cancel`,
   groupLeave: (id: string) => `/api/groups/${id}/leave`,
   groupCheckout: (id: string) => `/api/groups/${id}/checkout`,
+  loyalty: "/api/loyalty",
+  loyaltyRedeem: "/api/loyalty/redeem",
 } as const;

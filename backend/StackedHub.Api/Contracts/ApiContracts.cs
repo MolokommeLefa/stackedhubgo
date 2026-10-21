@@ -197,3 +197,20 @@ public record GroupBasketDto(
     string? OrderId,
     List<GroupParticipantDto> Participants,
     List<GroupBasketItemDto> Items);
+
+public record LoyaltyRewardDto(string Id, string Title, string Description, int PointsCost, bool Affordable);
+
+public record LoyaltyProgressDto(string Label, int Current, int Target, int Remaining);
+
+public record LoyaltyTransactionDto(string Id, int Points, string Type, string Reason, DateTime At, string? OrderId);
+
+public record LoyaltyWalletDto(
+    int Balance,
+    string Tier,
+    string EarnRule,
+    LoyaltyProgressDto? NextTier,
+    LoyaltyProgressDto? NextReward,
+    List<LoyaltyRewardDto> Rewards,
+    List<LoyaltyTransactionDto> Transactions);
+
+public record RedeemLoyaltyRequest([Required] string RewardId);

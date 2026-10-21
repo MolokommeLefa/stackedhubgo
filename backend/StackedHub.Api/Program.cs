@@ -53,6 +53,7 @@ builder.Services.Configure<KitchenOptions>(builder.Configuration.GetSection(Kitc
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<GroupOrderService>();
+builder.Services.AddScoped<LoyaltyService>();
 if (builder.Configuration.GetValue("Kitchen:ReleaseWorkerEnabled", true))
 {
     builder.Services.AddHostedService<ScheduledOrderReleaseWorker>();
