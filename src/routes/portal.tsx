@@ -245,6 +245,18 @@ function PortalPage() {
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
       {!loading && (
         <>
+          {groupInvite && (
+            <section className="surface-card mb-5 flex flex-col gap-3 rounded-3xl border border-primary/20 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Group order invitation</p>
+                <h2 className="mt-1 font-display text-xl font-semibold">Add the shared basket?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{groupInvite.reduce((sum, item) => sum + item.quantity, 0)} items from your group invite are ready to add.</p>
+              </div>
+              <button type="button" onClick={joinGroupBasket} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">
+                <UsersRound className="size-4" aria-hidden /> Add to my basket
+              </button>
+            </section>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="surface-card rounded-3xl p-5">
               <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
@@ -319,7 +331,7 @@ function PortalPage() {
             )}
           </Panel>
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <Panel title="Menu">
               {available.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -360,7 +372,11 @@ function PortalPage() {
             </Panel>
 
             <div className="space-y-6">
-              <Panel title="Your order">
+              <Panel title={"Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
+                <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
+                  <ShoppingBasket className="size-5" aria-hidden />
+                </button>
+              }>
                 {placed ? (
                   <div className="space-y-3">
                     <p className="text-sm text-foreground" role="status">
@@ -376,6 +392,10 @@ function PortalPage() {
                       </Link>
                     )}
                   </div>
+                ) : !basketOpen ? (
+                  <button type="button" onClick={() => setBasketOpen(true)} className="w-full rounded-2xl bg-secondary p-4 text-left text-sm">
+                    {itemCount === 0 ? "Your basket is empty — add items from the menu." : "View " + itemCount + " items · " + currency(total)}
+                  </button>
                 ) : cartItems.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Your basket is empty — add items from the menu.
@@ -401,21 +421,80 @@ function PortalPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-4 font-display text-xl font-semibold">
-                      Total {currency(total)}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={ordering}
-                      onClick={() => void checkout()}
-                      className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                    >
-                      {ordering ? "Placing order…" : "Place order"}
+                    <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency(subtotal)}</span></div>
+                      {fulfilment === "Delivery" && <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{currency(deliveryFee)}</span></div>}
+                      <div className="flex justify-between text-base font-semibold"><span>Total</span><span>{currency(total)}</span></div>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      <div>
+                        <p className="mb-2 text-sm font-semibold">Fulfilment</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" aria-pressed={fulfilment === "Collection"} onClick={() => setFulfilment("Collection")} className={fulfilment === "Collection" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}>Collection</button>
+                          <button type="button" aria-pressed={fulfilment === "Delivery"} onClick={() => setFulfilment("Delivery")} className={fulfilment === "Delivery" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}><Truck className="mr-1 inline size-4" aria-hidden /> Delivery</button>
+                        </div>
+                      </div>
+                      {fulfilment === "Delivery" && (
+                        <label className="block text-sm font-medium">Delivery address
+                          <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Street, suburb, city" className="mt-2 w-full rounded-2xl bg-secondary px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary" />
+                          <span className="mt-1 block text-xs text-muted-foreground">Delivery fee: R25. Driver tracking is currently a demo map preview.</span>
+                        </label>
+                      )}
+                      <div>
+                        <p className="mb-2 text-sm font-semibold">Timing</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" aria-pressed={scheduleMode === "asap"} onClick={() => setScheduleMode("asap")} className={scheduleMode === "asap" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}>ASAP</button>
+                          <button type="button" aria-pressed={scheduleMode === "scheduled"} onClick={() => setScheduleMode("scheduled")} className={scheduleMode === "scheduled" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}><CalendarClock className="mr-1 inline size-4" aria-hidden /> Schedule</button>
+                        </div>
+                        {scheduleMode === "scheduled" && <label className="mt-3 block text-sm font-medium">Preferred date and time
+                          <input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} min={toLocalDateTimeValue(new Date(Date.now() + 45 * 60 * 1000))} max={toLocalDateTimeValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))} className="mt-2 min-h-11 w-full rounded-xl bg-secondary px-3 py-2 text-sm" />
+                          <span className="mt-1 block text-xs text-muted-foreground">At least 45 minutes ahead, within 7 days.</span>
+                        </label>}
+                      </div>
+                      <div>
+                        <p className="mb-2 text-sm font-semibold">Payment</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" aria-pressed={paymentMethod === "Cash"} onClick={() => setPaymentMethod("Cash")} className={paymentMethod === "Cash" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}>Cash</button>
+                          <button type="button" aria-pressed={paymentMethod === "Card"} onClick={() => setPaymentMethod("Card")} className={paymentMethod === "Card" ? "min-h-10 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground" : "min-h-10 rounded-full bg-secondary px-3 text-sm"}>Demo card</button>
+                        </div>
+                        {paymentMethod === "Card" && (
+                          <div className="mt-3 space-y-2 rounded-2xl border border-border p-3">
+                            <p className="text-xs text-muted-foreground">Demo only · no real charge. PayPal is not connected. Use the test details below; live API checkout blocks this option.</p>
+                            <label className="block text-xs font-medium">Card number<input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} autoComplete="off" inputMode="numeric" maxLength={19} className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="block text-xs font-medium">Expiry<input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} autoComplete="off" maxLength={5} className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
+                              <label className="block text-xs font-medium">CVV<input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} autoComplete="off" inputMode="numeric" maxLength={4} className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
+                            </div>
+                            <p className="text-xs text-muted-foreground">4242 4242 4242 4242 · 12/30 · 123</p>
+                          </div>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => void shareGroupBasket()} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold">
+                        <Copy className="size-4" aria-hidden /> Share group basket
+                      </button>
+                    </div>
+                    <button type="button" disabled={ordering} onClick={() => void checkout()} className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                      {ordering ? "Placing order…" : "Confirm order"}
                     </button>
+                    <p className="mt-2 text-xs text-muted-foreground">Review items, delivery, timing and payment here. You won't be redirected to a separate checkout screen.</p>
                   </>
                 )}
               </Panel>
 
+              {placedOrder?.fulfilment === "Delivery" && (
+                <Panel title="Delivery status">
+                  <div className="rounded-2xl bg-secondary p-3">
+                    <p className="text-sm font-semibold">{placedOrder.deliveryStatus ?? placedOrder.status}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Illustrative route preview · live driver GPS is not connected yet.</p>
+                    <svg viewBox="0 0 320 112" role="img" aria-label="Illustrative route from restaurant to delivery destination" className="mt-3 h-28 w-full rounded-xl bg-[#e8eee6]">
+                      <path d="M18 88 C70 88 70 24 130 38 S210 86 300 18" stroke="#fff" strokeWidth="16" fill="none" strokeLinecap="round" />
+                      <path d="M18 88 C70 88 70 24 130 38 S210 86 300 18" stroke="#267a61" strokeWidth="4" fill="none" strokeDasharray="6 5" strokeLinecap="round" />
+                      <circle cx="18" cy="88" r="7" fill="#267a61" stroke="#fff" strokeWidth="3" /><circle cx="300" cy="18" r="8" fill="#e6a23c" stroke="#fff" strokeWidth="3" />
+                    </svg>
+                    <Link to="/track/$reference" params={{ reference: placedOrder.id }} className="mt-3 flex min-h-10 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Open full tracking →</Link>
+                  </div>
+                </Panel>
+              )}
               <Panel title="Recent tickets">
                 {mine.map((o) => (
                   <Link
