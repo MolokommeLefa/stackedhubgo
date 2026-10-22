@@ -1,137 +1,178 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { AuthCard, fieldClass, primaryBtnClass } from "@/components/AuthCard";
-import { demoEmailForRole, homeRouteForRole, useAuth } from "@/lib/auth";
-import { isLiveApi } from "@/lib/api-client";
-import { validateEmail, validatePassword } from "@/lib/validation";
-import type { Role } from "@/lib/types";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Clock, MapPin, Sparkles } from "lucide-react";
+import burger from "@/assets/food-mains.jpg";
+import pizza from "@/assets/food-pizza.jpg";
+import sides from "@/assets/food-sides.jpg";
+import { PublicShell } from "@/components/PublicShell";
+import { SLOGAN } from "@/components/site-info";
+import { homeRouteForRole, useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign in — StackedHub" },
-      { name: "description", content: "Sign in to StackedHub to run Stacked Foods orders, menu, users and reports." },
-      { property: "og:title", content: "Sign in — StackedHub" },
-      { property: "og:description", content: "Sign in to StackedHub to run Stacked Foods orders, menu, users and reports." },
+      { title: "Stacked Foods — Smash burgers & gas-fired pizza" },
+      {
+        name: "description",
+        content:
+          "Stacked Foods is a Johannesburg mobile food trailer serving smash burgers and gas-fired pizzas. Bold, halaal flavour wherever we go.",
+      },
+      { property: "og:title", content: "Stacked Foods — Stacked high. Tastes higher." },
+      {
+        property: "og:description",
+        content: "Smash burgers and gas-fired pizzas from a mobile food trailer. Log in to order.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: SignInPage,
+  component: LandingPage,
 });
 
-const roles: Role[] = ["Staff", "Admin", "Customer"];
-
-function SignInPage() {
-  const { user, ready, signIn } = useAuth();
-  const navigate = useNavigate();
-  const [live, setLive] = useState(false);
-  const [role, setRole] = useState<Role>("Staff");
-  const [email, setEmail] = useState(demoEmailForRole("Staff"));
-  const [password, setPassword] = useState("Stacked123!");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => setLive(isLiveApi()), []);
-  useEffect(() => {
-    if (ready && user) void navigate({ to: homeRouteForRole(user.role) });
-  }, [ready, user, navigate]);
-
-  const pickRole = (r: Role) => {
-    setRole(r);
-    setEmail(demoEmailForRole(r));
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const emailError = validateEmail(email);
-    const passwordError = live ? validatePassword(password) : null;
-    if (emailError || passwordError) {
-      setError(emailError ?? passwordError);
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    try {
-      const next = await signIn({ email, password, role });
-      void navigate({ to: homeRouteForRole(next.role) });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed. Check your email and password.");
-    } finally {
-      setBusy(false);
-    }
-  };
+function LandingPage() {
+  const { user, ready } = useAuth();
+  const orderHref = ready && user ? homeRouteForRole(user.role) : "/login";
 
   return (
-    <AuthCard title="Welcome back" subtitle="Sign in to manage Stacked Foods.">
-      <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-secondary p-1" role="group" aria-label="Choose a role">
-          {roles.map((r) => (
-            <button
-              type="button"
-              key={r}
-              aria-pressed={role === r}
-              onClick={() => pickRole(r)}
-              className={
-                role === r
-                  ? "min-h-11 rounded-lg bg-card py-2 text-sm font-semibold shadow-sm"
-                  : "min-h-11 rounded-lg py-2 text-sm font-medium text-muted-foreground"
-              }
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-        <label className="block">
-          <span className="text-xs font-medium text-muted-foreground">Email</span>
-          <input
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium text-muted-foreground">Password</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-            {error}
+    <PublicShell>
+      <section className="relative isolate min-h-[32rem] overflow-hidden md:mx-4 md:mt-4 md:min-h-[36rem] md:rounded-[2rem] lg:min-h-[40rem]">
+        <img
+          src={burger}
+          alt="A double smash burger with melted cheddar on a toasted bun"
+          width={1600}
+          height={1200}
+          className="absolute inset-0 size-full object-cover"
+        />
+        <div className="absolute inset-0 bg-brand/75" />
+        <div className="relative z-10 mx-auto flex min-h-[32rem] max-w-6xl flex-col justify-end px-5 py-14 text-cream md:min-h-[36rem] lg:min-h-[40rem] lg:px-10 lg:py-20">
+          <p className="text-xs font-semibold tracking-[0.2em] text-cream/75 uppercase">
+            Made fresh in Johannesburg
           </p>
-        )}
-        <button disabled={busy} className={primaryBtnClass}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+          <h1 className="mt-3 max-w-xl font-display text-5xl leading-[0.95] font-semibold tracking-tight sm:text-6xl lg:text-7xl">
+            {SLOGAN.replace(". ", ".\n")
+              .split("\n")
+              .map((line) => (
+                <span key={line} className="block">
+                  {line}
+                </span>
+              ))}
+          </h1>
+          <p className="mt-5 max-w-md text-base text-cream/85">
+            Bold, halaal flavour wherever we go — smash burgers and gas-fired pizzas from a mobile
+            food trailer.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {orderHref === "/login" ? (
+              <Link
+                to="/login"
+                search={{}}
+                className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+              >
+                Log in to order
+              </Link>
+            ) : (
+              <Link
+                to={orderHref}
+                className="inline-flex min-h-12 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
+              >
+                {user?.role === "Customer" ? "Order now" : "Open workspace"}
+              </Link>
+            )}
+            <Link
+              to="/about"
+              className="inline-flex min-h-12 items-center rounded-full bg-cream/15 px-6 text-sm font-semibold text-cream"
+            >
+              Our story
+            </Link>
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <Link to="/forgot-password" className="min-h-11 font-semibold text-primary underline-offset-2 hover:underline">
-          Forgot password
-        </Link>
-        <Link to="/register" className="min-h-11 font-semibold text-primary underline-offset-2 hover:underline">
-          Create an account
-        </Link>
-      </div>
+      <section className="mx-auto mt-14 grid max-w-6xl gap-4 px-4 sm:grid-cols-3">
+        <article className="surface-card overflow-hidden rounded-3xl">
+          <img
+            src={burger}
+            alt="Smash burger with pickles and cheddar"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="p-5">
+            <h2 className="font-display text-xl font-semibold">Smash burgers</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Freshly ground beef, unique ingredients and in-house sauces on a lightly toasted bun.
+            </p>
+          </div>
+        </article>
 
-      <div className="mt-6 flex items-center justify-between rounded-xl bg-secondary px-4 py-3 text-xs">
-        <span className="flex items-center gap-2 text-muted-foreground">
-          <span className={live ? "size-2 rounded-full bg-success" : "size-2 rounded-full bg-warning"} />
-          {live ? "Using the live API" : "Demo mode — any password works"}
-        </span>
-        <Link to="/settings" className="font-semibold text-primary">
-          Connect API
-        </Link>
-      </div>
-    </AuthCard>
+        <article className="surface-card overflow-hidden rounded-3xl">
+          <img
+            src={pizza}
+            alt="Gas-fired pizza topped with fresh ingredients"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="p-5">
+            <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
+              flavour.
+            </p>
+          </div>
+        </article>
+
+        <article className="surface-card overflow-hidden rounded-3xl">
+          <img
+            src={sides}
+            alt="Loaded chakalaka fries in a paper tray"
+            width={944}
+            height={704}
+            className="aspect-[4/3] w-full object-cover"
+          />
+          <div className="p-5">
+            <h2 className="font-display text-xl font-semibold">Wherever we go</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              We cater pop-ups, campus events, private functions and corporate gatherings.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="mx-auto mt-10 max-w-6xl px-4">
+        <div className="surface-card flex flex-col gap-6 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand">
+              <Sparkles className="size-4" aria-hidden />
+              Ready when you are
+            </p>
+            <p className="mt-2 font-display text-2xl font-semibold">
+              Log in to browse the menu and place an order.
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <li className="flex items-center gap-1.5">
+                <Clock className="size-4" aria-hidden /> Collection from the trailer
+              </li>
+              <li className="flex items-center gap-1.5">
+                <MapPin className="size-4" aria-hidden /> Weltevredenpark, Johannesburg
+              </li>
+            </ul>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/directions"
+              className="inline-flex min-h-12 items-center rounded-full bg-secondary px-5 text-sm font-semibold"
+            >
+              Opening hours
+            </Link>
+            <Link
+              to="/contact"
+              className="inline-flex min-h-12 items-center rounded-full bg-brand px-5 text-sm font-semibold text-cream"
+            >
+              Contact us
+            </Link>
+          </div>
+        </div>
+      </section>
+    </PublicShell>
   );
 }

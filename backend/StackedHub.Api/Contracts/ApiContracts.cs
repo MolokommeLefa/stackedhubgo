@@ -79,12 +79,8 @@ public record OrderDto(
     decimal Total,
     OrderStatus Status,
     DateTime PlacedAt,
-    DateTime? ScheduledFor = null,
-    string Fulfilment = "Immediate",
-    DateTime? EstimatedReadyAt = null,
-    int PrepLeadMinutes = 20,
-    string? ReleaseError = null,
-    List<OrderStatusEventDto>? StatusHistory = null);
+    PaymentMethod PaymentMethod = PaymentMethod.Cash,
+    string? SpecialInstructions = null);
 
 public record UpdateStatusRequest(OrderStatus? Status, OrderStatus? NextStatus);
 

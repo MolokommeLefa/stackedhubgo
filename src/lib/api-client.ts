@@ -90,13 +90,19 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       },
     });
   } catch {
-    throw new ApiError(`Can't reach the API at ${base}. Check the address and that the API is running, then retry.`, 0);
+    throw new ApiError(
+      `Can't reach the API at ${base}. Check the address and that the API is running, then retry.`,
+      0,
+    );
   }
 
   if (response.status === 401) {
     tokenStore.clear();
     unauthorizedHandler?.();
-    throw new ApiError("Your session has expired or the details are wrong. Please sign in again.", 401);
+    throw new ApiError(
+      "Your session has expired or the details are wrong. Please sign in again.",
+      401,
+    );
   }
   if (response.status === 403) {
     throw new ApiError("Your account doesn't have access to this.", 403);
@@ -134,6 +140,8 @@ export const endpoints = {
   customers: "/api/customers",
   promotions: "/api/promotions",
   promotion: (id: string) => `/api/promotions/${id}`,
+  loyaltyWallet: "/api/loyalty/wallet",
+  loyaltyRedeem: "/api/loyalty/redeem",
   aiRecommendations: "/api/ai/recommendations",
   groups: "/api/groups",
   groupJoin: "/api/groups/join",
