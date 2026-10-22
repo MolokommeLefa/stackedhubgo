@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { CalendarClock, Copy, ShoppingBasket, Truck, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
@@ -53,6 +54,17 @@ function PortalPage() {
   const [error, setError] = useState<unknown>(null);
   const [asking, setAsking] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
+  const [scheduleMode, setScheduleMode] = useState<"asap" | "scheduled">("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card">("Cash");
+  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
+  const [cardExpiry, setCardExpiry] = useState("12/30");
+  const [cardCvv, setCardCvv] = useState("123");
+  const [groupInvite, setGroupInvite] = useState<Array<{ menuItemId: string; quantity: number }> | null>(null);
+  const [inviteRead, setInviteRead] = useState(false);
+  const [basketOpen, setBasketOpen] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,10 +89,64 @@ function PortalPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (menu.length === 0 || inviteRead) return;
+    setInviteRead(true);
+    const raw = new URLSearchParams(window.location.search).get("group");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed) && parsed.every((item) =>
+        item && typeof item.menuItemId === "string" &&
+        typeof item.quantity === "number" && Number.isInteger(item.quantity) &&
+        item.quantity > 0 && menu.some((m) => m.id === item.menuItemId)
+      )) setGroupInvite(parsed.map((item) => ({ menuItemId: item.menuItemId, quantity: item.quantity })));
+      else toast.error("This group basket link is invalid or contains unavailable items.");
+    } catch {
+      toast.error("This group basket link could not be read.");
+    }
+  }, [menu, inviteRead]);
+
   const mine = orders.filter((o) => o.customerId === user?.id);
   const cartItems = menu.filter((m) => cart[m.id]);
-  const total = cartItems.reduce((s, m) => s + m.price * cart[m.id]!, 0);
+  const itemCount = cartItems.reduce((sum, m) => sum + cart[m.id]!, 0);
+  const subtotal = cartItems.reduce((sum, m) => sum + m.price * cart[m.id]!, 0);
+  const deliveryFee = fulfilment === "Delivery" && cartItems.length > 0 ? 25 : 0;
+  const total = subtotal + deliveryFee;
   const available = menu.filter((m) => m.available);
+
+  const shareGroupBasket = async () => {
+    if (cartItems.length === 0) {
+      toast.error("Add items to your basket before sharing a group order.");
+      return;
+    }
+    const payload = cartItems.map((item) => ({ menuItemId: item.id, quantity: cart[item.id]! }));
+    const url = new URL("/portal", window.location.origin);
+    url.searchParams.set("group", JSON.stringify(payload));
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      toast.success("Group basket link copied", { description: "Share it with friends so they can add these items." });
+    } catch {
+      window.prompt("Copy this group basket link:", url.toString());
+    }
+  };
+
+  const joinGroupBasket = () => {
+    if (!groupInvite) return;
+    setCart((current) => {
+      const next = { ...current };
+      for (const item of groupInvite) next[item.menuItemId] = (next[item.menuItemId] ?? 0) + item.quantity;
+      return next;
+    });
+    setGroupInvite(null);
+    setPlaced(null);
+    setPlacedOrder(null);
+    setBasketOpen(true);
+    toast.success("Group items added to your basket");
+  };
+
+  const toLocalDateTimeValue = (date: Date) =>
+    new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
   const add = (id: string) => {
     setPlaced(null);
@@ -117,12 +183,41 @@ function PortalPage() {
 
   const checkout = async () => {
     if (!user || cartItems.length === 0) return;
+    if (fulfilment === "Delivery" && !deliveryAddress.trim()) {
+      setError("Add your delivery address before placing the order.");
+      return;
+    }
+    if (scheduleMode === "scheduled") {
+      const selectedTime = new Date(scheduledFor).getTime();
+      if (!scheduledFor || !Number.isFinite(selectedTime) || selectedTime < Date.now() + 45 * 60 * 1000 || selectedTime > Date.now() + 7 * 24 * 60 * 60 * 1000) {
+        setError("Choose a time at least 45 minutes from now and within the next 7 days.");
+        return;
+      }
+    }
+    if (paymentMethod === "Card") {
+      if (isLiveApi()) {
+        setError("Card payments are demo-only until a payment provider is connected. Choose cash for live orders.");
+        return;
+      }
+      if (cardNumber.replace(/\D/g, "") !== "4242424242424242" || cardExpiry !== "12/30" || cardCvv !== "123") {
+        setError("Demo card declined. Use 4242 4242 4242 4242, expiry 12/30 and CVV 123.");
+        return;
+      }
+    }
     setOrdering(true);
     setError(null);
     try {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
+        paymentMethod,
+        paymentStatus: paymentMethod === "Card" ? "Paid" : undefined,
+        fulfilment,
+        deliveryAddress: fulfilment === "Delivery" ? deliveryAddress.trim() : undefined,
+        fees: deliveryFee,
+        specialInstructions: scheduleMode === "scheduled" && scheduledFor
+          ? "Scheduled order for " + new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })
+          : undefined,
         items: cartItems.map((m) => ({
           menuItemId: m.id,
           name: m.name,
@@ -133,7 +228,7 @@ function PortalPage() {
       setOrders((prev) => [order, ...prev]);
       setCart({});
       setPlacedOrder(order);
-      setPlaced(`Order ${order.reference} is in. We'll update the status as the kitchen works.`);
+      setPlaced("Order " + order.reference + " is confirmed. " + (fulfilment === "Delivery" ? "Delivery" : "Collection") + " · " + (scheduleMode === "scheduled" && scheduledFor ? "scheduled for " + new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" }) : "as soon as possible") + ".");
       toast.success("Order placed", {
         description: `${order.reference} · ${order.items.reduce((n, i) => n + i.quantity, 0)} items · we'll update the status as the kitchen works`,
         duration: 7000,
