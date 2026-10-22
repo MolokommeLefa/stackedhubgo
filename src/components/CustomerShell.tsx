@@ -47,16 +47,10 @@ export function CustomerShell({
             </Link>
             <nav className="flex items-center gap-1 sm:gap-2">
               <Link
-                to={user?.role === "Customer" ? "/portal" : "/order"}
+                to="/order"
                 className="inline-flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-cream/80 hover:text-cream sm:px-3"
               >
-                Menu & order
-              </Link>
-              <Link
-                to="/rewards"
-                className="inline-flex min-h-11 items-center rounded-full px-2.5 text-sm font-semibold text-cream/80 hover:text-cream sm:px-3"
-              >
-                Rewards
+                Menu
               </Link>
               <Link
                 to="/directions"

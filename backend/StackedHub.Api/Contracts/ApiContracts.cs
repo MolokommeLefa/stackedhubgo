@@ -64,9 +64,7 @@ public record OrderDto(
     List<OrderItemDto> Items,
     decimal Total,
     OrderStatus Status,
-    DateTime PlacedAt,
-    PaymentMethod PaymentMethod = PaymentMethod.Cash,
-    string? SpecialInstructions = null);
+    DateTime PlacedAt);
 
 public record UpdateStatusRequest(OrderStatus? Status, OrderStatus? NextStatus);
 

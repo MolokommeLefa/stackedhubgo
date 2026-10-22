@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, MapPin, Sparkles } from "lucide-react";
 import burger from "@/assets/food-mains.jpg";
-import pizza from "@/assets/food-pizza.jpg";
 import sides from "@/assets/food-sides.jpg";
 import { PublicShell } from "@/components/PublicShell";
+import { StandaloneWelcome } from "@/components/StandaloneWelcome";
 import { SLOGAN } from "@/components/site-info";
 import { homeRouteForRole, useAuth } from "@/lib/auth";
+import { useStandalonePwa } from "@/lib/use-standalone-pwa";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,8 +30,11 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
+  const standalone = useStandalonePwa();
   const { user, ready } = useAuth();
   const orderHref = ready && user ? homeRouteForRole(user.role) : "/login";
+
+  if (standalone) return <StandaloneWelcome />;
 
   return (
     <PublicShell>
@@ -103,24 +107,13 @@ function LandingPage() {
             </p>
           </div>
         </article>
-
-        <article className="surface-card overflow-hidden rounded-3xl">
-          <img
-            src={pizza}
-            alt="Gas-fired pizza topped with fresh ingredients"
-            width={944}
-            height={704}
-            className="aspect-[4/3] w-full object-cover"
-          />
-          <div className="p-5">
-            <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
-              flavour.
-            </p>
-          </div>
+        <article className="flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-3xl bg-brand p-6 text-cream">
+          <h2 className="font-display text-xl font-semibold">Gas-fired pizzas</h2>
+          <p className="mt-2 text-sm text-cream/80">
+            Pizzas cooked in a gas-fired oven and topped with fresh ingredients bursting with
+            flavour.
+          </p>
         </article>
-
         <article className="surface-card overflow-hidden rounded-3xl">
           <img
             src={sides}

@@ -2,12 +2,6 @@
 
 Local files only. `MenuPhoto` falls back to the category image if a file fails to load.
 
-## Site photography added on 15 Oct 2026
-
-| Filename          | Use                           | Origin                                                | Licence                                    |
-| ----------------- | ----------------------------- | ----------------------------------------------------- | ------------------------------------------ |
-| `food-pizza.jpg`  | Homepage gas-fired pizza card | Generated with OpenAI image generation on 15 Oct 2026 | Generated asset for this project; not stock |
-
 ## New in this pass (generated)
 
 | Filename                     | Menu item                      | Origin                                                | Prompt / source                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Licence                                             |

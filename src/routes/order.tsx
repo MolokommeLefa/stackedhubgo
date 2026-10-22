@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Copy, Minus, Plus, Search, UsersRound } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Minus, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerShell } from "@/components/CustomerShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
@@ -56,72 +56,11 @@ function OrderMenu() {
   const menu = useLoad(getMenu, []);
   const orders = useLoad(getOrderQueue, []);
   const { user } = useAuth();
-  const { add, count, subtotal, lines } = useCart();
+  const { add, count, subtotal } = useCart();
   const basket = useBasketUi();
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<MenuItem | null>(null);
-  const [sharedGroup, setSharedGroup] = useState<Array<{ menuItemId: string; name: string; unitPrice: number; quantity: number; options: string[]; note?: string }> | null>(null);
-
-  // Signed-in customers use the portal as the single ordering surface.
-  // Preserve group invitations or transfer the current basket snapshot when redirecting.
-  useEffect(() => {
-    if (user?.role !== "Customer") return;
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has("group") && lines.length > 0) {
-      params.set("group", JSON.stringify(lines.map((line) => ({
-        menuItemId: line.menuItemId,
-        quantity: line.quantity,
-      }))));
-    }
-    const query = params.toString();
-    window.location.replace("/portal" + (query ? "?" + query : ""));
-  }, [user?.role, lines]);
-
-  useEffect(() => {
-    const raw = new URLSearchParams(window.location.search).get("group");
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed) && parsed.every((item) =>
-        item && typeof item.menuItemId === "string" && typeof item.name === "string" &&
-        typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice) &&
-        typeof item.quantity === "number" && Number.isInteger(item.quantity) && item.quantity > 0 &&
-        Array.isArray(item.options)
-      )) setSharedGroup(parsed);
-      else toast.error("This group basket link is invalid.");
-    } catch {
-      toast.error("This group basket link could not be read.");
-    }
-  }, []);
-
-  const shareGroupBasket = async () => {
-    const payload = lines.map(({ menuItemId, name, unitPrice, quantity, options, note }) =>
-      ({ menuItemId, name, unitPrice, quantity, options, note }));
-    const url = new URL("/order", window.location.origin);
-    url.searchParams.set("group", JSON.stringify(payload));
-    try {
-      await navigator.clipboard.writeText(url.toString());
-      toast.success("Group order link copied", { description: "Share it with everyone joining this order." });
-    } catch {
-      window.prompt("Copy this group order link:", url.toString());
-    }
-  };
-
-  const joinSharedGroup = () => {
-    if (!sharedGroup) return;
-    for (const item of sharedGroup) add({
-      menuItemId: item.menuItemId,
-      name: item.name,
-      unitPrice: item.unitPrice,
-      quantity: item.quantity,
-      options: item.options,
-      note: item.note,
-    });
-    setSharedGroup(null);
-    toast.success("Shared items added to your basket", { description: "Review the combined basket before checkout." });
-    basket?.openBasket();
-  };
 
   const shown = useMemo(
     () =>
@@ -164,30 +103,6 @@ function OrderMenu() {
           What are you craving?
         </h1>
 
-        {sharedGroup && (
-          <section className="mt-6 rounded-3xl border border-primary/20 bg-primary/5 p-5 sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Join a group order">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.18em] text-primary uppercase">Group order invitation</p>
-              <h2 className="mt-1 font-display text-2xl font-semibold">Add your friends’ picks</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{sharedGroup.length} shared line items are ready to add. Review quantities and customise your own items before checkout.</p>
-            </div>
-            <button type="button" onClick={joinSharedGroup} className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground sm:mt-0">
-              <UsersRound className="size-4" aria-hidden /> Join group basket
-            </button>
-          </section>
-        )}
-        <section className="mt-6 flex flex-col gap-3 rounded-3xl bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-          <div className="flex items-start gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-secondary"><UsersRound className="size-5" aria-hidden /></span>
-            <div>
-              <h2 className="font-semibold">Ordering together?</h2>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">Share a basket link so friends can add the shared picks to their own basket before the organiser checks out.</p>
-            </div>
-          </div>
-          <button type="button" onClick={() => void shareGroupBasket()} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-cream">
-            <Copy className="size-4" aria-hidden /> Share group basket
-          </button>
-        </section>
         <div className="mt-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">

@@ -138,7 +138,5 @@ export const endpoints = {
   customers: "/api/customers",
   promotions: "/api/promotions",
   promotion: (id: string) => `/api/promotions/${id}`,
-  loyaltyWallet: "/api/loyalty/wallet",
-  loyaltyRedeem: "/api/loyalty/redeem",
   aiRecommendations: "/api/ai/recommendations",
 } as const;

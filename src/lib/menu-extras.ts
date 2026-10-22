@@ -38,15 +38,13 @@ const byId: Record<string, { src: string; position: string }> = {
 };
 
 export function imageFor(item: { id?: string; category?: MenuItem["category"] }) {
-  const match = item.id ? byId[item.id] : undefined;
-  if (match) return match.src;
+  if (item.id && byId[item.id]) return byId[item.id].src;
   if (item.category) return categoryImage[item.category] ?? FALLBACK_IMAGE;
   return FALLBACK_IMAGE;
 }
 
 export function imagePosition(item: { id?: string; category?: MenuItem["category"] }) {
-  const match = item.id ? byId[item.id] : undefined;
-  if (match) return match.position;
+  if (item.id && byId[item.id]) return byId[item.id].position;
   return "object-center";
 }
 

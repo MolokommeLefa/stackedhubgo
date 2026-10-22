@@ -21,9 +21,7 @@ public static class Mapping
             order.Items.Select(item => new OrderItemDto(item.MenuItemId.ToString(), item.Name, item.Quantity, item.UnitPrice)).ToList(),
             order.Total,
             order.Status,
-            order.PlacedAt,
-            order.PaymentMethod,
-            order.SpecialInstructions);
+            order.PlacedAt);
 
     public static PromotionDto ToDto(this Promotion promotion) =>
         new(promotion.Id.ToString(), promotion.Title, promotion.Description, promotion.DiscountPercent, promotion.StartsAt, promotion.EndsAt, promotion.Active, promotion.Redemptions);

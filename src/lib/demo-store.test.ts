@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getLoyaltyWallet, getOrderQueue, getReport, placeOrder, updateOrderStatus } from "./data";
+import { getOrderQueue, getReport, placeOrder, updateOrderStatus } from "./data";
 import {
   bestSellersFromOrders,
   createSeedStore,
@@ -91,44 +91,6 @@ describe("demo store persistence", () => {
     expect(report.completedSales).toBeGreaterThanOrEqual(145 + 446 + 166);
     expect(report.bestSellers.some((item) => item.name === "Double Smash Burger")).toBe(true);
     expect(report.hourlyOrders.reduce((sum, row) => sum + row.orders, 0)).toBe(report.orderCount);
-  });
-
-  it("earns points only after an order is completed", async () => {
-    const before = await getLoyaltyWallet("c1");
-    const created = await placeOrder({
-      customerId: "c1",
-      customerName: "Priya Nair",
-      items: [{ menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 1, unitPrice: 129 }],
-      fulfilment: "Collection",
-    });
-    const afterPlaced = await getLoyaltyWallet("c1");
-    expect(afterPlaced.points).toBe(before.points);
-    await updateOrderStatus(created.id, "Completed");
-    const afterCompleted = await getLoyaltyWallet("c1");
-    expect(afterCompleted.points).toBe(before.points + 12);
-  });
-
-  it("does not apply the same redemption id twice", async () => {
-    const before = await getLoyaltyWallet("c1");
-    const redemption = { rewardId: "r-20", redemptionId: "idem-r-20" };
-    await placeOrder({
-      customerId: "c1",
-      customerName: "Priya Nair",
-      items: [{ menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 1, unitPrice: 129 }],
-      fulfilment: "Collection",
-      redemption,
-    });
-    const afterFirst = await getLoyaltyWallet("c1");
-    await placeOrder({
-      customerId: "c1",
-      customerName: "Priya Nair",
-      items: [{ menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 1, unitPrice: 129 }],
-      fulfilment: "Collection",
-      redemption,
-    });
-    const afterSecond = await getLoyaltyWallet("c1");
-    expect(afterFirst.points).toBe(before.points - 50);
-    expect(afterSecond.points).toBe(afterFirst.points);
   });
 
   it("reseeds when stored JSON is invalid or from an older version", () => {

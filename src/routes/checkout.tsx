@@ -1,14 +1,13 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerShell } from "@/components/CustomerShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { ADDRESS_LINES } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
-import { isLiveApi } from "@/lib/api-client";
 import { useCart } from "@/lib/cart";
-import { getLoyaltyWallet, placeOrder, type LoyaltyWallet } from "@/lib/data";
+import { placeOrder } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
 import { cartTotals, validateDeliveryAddress } from "@/lib/order-rules";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -30,58 +29,24 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
-function toLocalDateTimeValue(date: Date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
-
 function statusDone(current: OrderStatus, step: OrderStatus) {
   const order: OrderStatus[] = ["Placed", "In kitchen", "Ready", "Completed"];
   return order.indexOf(current) >= order.indexOf(step);
 }
 
 function CheckoutPage() {
-  const navigate = useNavigate();
   const { lines, setQuantity, clear } = useCart();
   const { user } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState("");
   const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
-  const [scheduleMode, setScheduleMode] = useState<"asap" | "scheduled">("asap");
-  const [scheduledFor, setScheduledFor] = useState("");
   const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
-  const [cardholder, setCardholder] = useState(user?.name ?? "");
-  const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
-  const [cardExpiry, setCardExpiry] = useState("12/30");
-  const [cardCvv, setCardCvv] = useState("123");
   const [notes, setNotes] = useState("");
   const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [placed, setPlaced] = useState<Order | null>(null);
-  const [wallet, setWallet] = useState<LoyaltyWallet | null>(null);
-  const [rewardId, setRewardId] = useState<string | null>(null);
-  const [redemptionId, setRedemptionId] = useState<string | null>(null);
   const totals = cartTotals(lines, fulfilment);
-  const selectedReward = useMemo(
-    () => wallet?.availableRewards.find((reward) => reward.id === rewardId) ?? null,
-    [wallet, rewardId],
-  );
-  const canApplyReward = Boolean(
-    selectedReward && wallet && wallet.points >= selectedReward.points,
-  );
-  const discount = canApplyReward && selectedReward ? selectedReward.value : 0;
-  const finalTotal = Math.max(0, totals.total - discount);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let mounted = true;
-    void getLoyaltyWallet(user.id).then((next) => {
-      if (mounted) setWallet(next);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id]);
 
   if (placed) {
     const steps = [
@@ -90,15 +55,12 @@ function CheckoutPage() {
       { label: "Ready", status: "Ready" as const, hint: "20–25 min" },
     ];
     return (
-      <CustomerShell requireAuth>
+      <CustomerShell hideCart requireAuth>
         <div className="mx-auto max-w-lg px-4 pt-12">
           <div className="surface-card rounded-[2rem] p-8">
             <CheckCircle2 className="mx-auto size-12 text-success" aria-hidden />
             <p className="mt-4 text-center text-xs font-semibold tracking-[0.18em] text-success uppercase">
               Order {placed.reference}
-            </p>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Placed {new Date(placed.placedAt).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}
             </p>
             <h1 className="mt-2 text-center font-display text-4xl font-semibold">
               The grill is on.
@@ -133,25 +95,15 @@ function CheckoutPage() {
               {fulfilment === "Delivery" && address.trim()
                 ? `Delivery to ${address.trim()}`
                 : `${fulfilment} from ${ADDRESS_LINES[0]}, ${ADDRESS_LINES[1]}`}
-              {scheduleMode === "scheduled" && scheduledFor
-                ? ` · Scheduled for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}`
-                : ""}
             </p>
             <p className="mt-4 text-center font-semibold">
               Total {currency(placed.total)} · Pay by {payment.toLowerCase()}
             </p>
-            <button
-              type="button"
-              onClick={() => void navigate({ to: "/track/$reference", params: { reference: placed.id } })}
-              className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
-            >
-              Track my order
-            </button>
             <Link
               to="/order"
-              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-secondary text-sm font-semibold"
+              className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
             >
-              Back to menu
+              Done
             </Link>
           </div>
         </div>
@@ -168,26 +120,6 @@ function CheckoutPage() {
       return setError("Enter a 10-digit phone number, e.g. 082 123 4567.");
     const addressError = validateDeliveryAddress(fulfilment, address);
     if (addressError) return setError(addressError);
-    if (selectedReward && !canApplyReward) {
-      return setError("You don't have enough points for this reward.");
-    }
-    if (scheduleMode === "scheduled") {
-      const selectedTime = new Date(scheduledFor).getTime();
-      const minTime = Date.now() + 45 * 60 * 1000;
-      const maxTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
-      if (!scheduledFor || !Number.isFinite(selectedTime) || selectedTime < minTime || selectedTime > maxTime) {
-        return setError("Choose a time at least 45 minutes from now and within the next 7 days.");
-      }
-    }
-    if (payment === "Card" && isLiveApi()) {
-      return setError("The live card provider is not connected yet. Choose Cash for this order; demo card checkout is available when using the local preview data.");
-    }
-    if (payment === "Card") {
-      const digits = cardNumber.replace(/\D/g, "");
-      if (cardholder.trim().length < 2 || digits !== "4242424242424242" || !/^\d{2}\/\d{2}$/.test(cardExpiry) || cardCvv !== "123") {
-        return setError("Demo payment declined. Use card 4242 4242 4242 4242, expiry 12/30, and CVV 123.");
-      }
-    }
     setError("");
     setSubmitting(true);
     try {
@@ -201,11 +133,9 @@ function CheckoutPage() {
           unitPrice: l.unitPrice,
         })),
         paymentMethod: payment,
-        paymentStatus: payment === "Card" ? "Paid" : undefined,
         fulfilment,
         deliveryAddress: fulfilment === "Delivery" ? address.trim() : undefined,
         specialInstructions: [
-          scheduleMode === "scheduled" && scheduledFor ? `Scheduled order for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}` : "",
           notes.trim(),
           ...lines
             .filter((l) => l.note || l.options.length)
@@ -214,19 +144,10 @@ function CheckoutPage() {
           .filter(Boolean)
           .join("; "),
         fees: totals.fee,
-        redemption:
-          selectedReward && redemptionId
-            ? { rewardId: selectedReward.id, redemptionId }
-            : undefined,
       });
       clear();
-      setRewardId(null);
-      setRedemptionId(null);
       setPlaced(order);
-      toast.success("Order placed", {
-        description: `${order.reference} · ${fulfilment} · ${currency(order.total)}`,
-        duration: 7000,
-      });
+      toast.success(`Order ${order.reference} placed`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "We couldn't place your order. Try again.");
     } finally {
@@ -236,20 +157,16 @@ function CheckoutPage() {
 
   const field = "mt-1 min-h-11 w-full rounded-2xl bg-secondary px-3 text-sm outline-none";
   return (
-    <CustomerShell requireAuth>
+    <CustomerShell hideCart requireAuth>
       <form
         onSubmit={submit}
         className="mx-auto grid max-w-5xl gap-6 px-4 pt-8 lg:grid-cols-[1fr_22rem]"
       >
         <section className="surface-card rounded-[2rem] p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">Your basket</p>
-              <h1 className="font-display text-3xl font-semibold">Review & checkout</h1>
-              <p className="mt-1 text-sm text-muted-foreground">{lines.reduce((sum, line) => sum + line.quantity, 0)} items · {currency(totals.subtotal)} subtotal</p>
-            </div>
-            <Link to="/order" className="inline-flex min-h-10 items-center rounded-full bg-secondary px-4 text-sm font-semibold">Edit basket</Link>
-          </div>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+            Your order
+          </p>
+          <h1 className="font-display text-3xl font-semibold">Checkout</h1>
           {!lines.length && (
             <p className="mt-4 text-sm text-muted-foreground">
               Your cart is empty.{" "}
@@ -317,22 +234,6 @@ function CheckoutPage() {
                 ))}
               </div>
             </fieldset>
-            <fieldset className="sm:col-span-2">
-              <legend className="text-sm font-semibold">When would you like your order?</legend>
-              <div className="mt-2 grid grid-cols-2 gap-1 rounded-full bg-secondary p-1">
-                <button type="button" aria-pressed={scheduleMode === "asap"} onClick={() => setScheduleMode("asap")} className={scheduleMode === "asap" ? "min-h-11 rounded-full bg-card text-sm font-semibold shadow-sm" : "min-h-11 rounded-full text-sm text-muted-foreground"}>As soon as possible</button>
-                <button type="button" aria-pressed={scheduleMode === "scheduled"} onClick={() => setScheduleMode("scheduled")} className={scheduleMode === "scheduled" ? "min-h-11 rounded-full bg-card text-sm font-semibold shadow-sm" : "min-h-11 rounded-full text-sm text-muted-foreground"}>Schedule order</button>
-              </div>
-              {scheduleMode === "scheduled" && (
-                <div className="mt-3 rounded-2xl border border-border p-4">
-                  <label className="text-sm font-medium">
-                    Preferred date and time
-                    <input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} min={toLocalDateTimeValue(new Date(Date.now() + 45 * 60 * 1000))} max={toLocalDateTimeValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))} className={field} required />
-                  </label>
-                  <p className="mt-2 text-xs text-muted-foreground">Choose a slot at least 45 minutes ahead, up to 7 days in advance. Live kitchen-capacity validation is still required before production release.</p>
-                </div>
-              )}
-            </fieldset>
             <label className="text-sm font-semibold">
               Full name
               <input
@@ -376,74 +277,6 @@ function CheckoutPage() {
                 <option>Card</option>
               </select>
             </label>
-            {payment === "Card" && (
-              <fieldset className="sm:col-span-2 rounded-2xl border border-border p-4">
-                <legend className="px-1 text-sm font-semibold">Demo card gateway</legend>
-                <div className="mb-3 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
-                  <strong className="text-foreground">Sandbox only · no real charge.</strong> Use the demo test card below. This is a placeholder for a future PayPal checkout integration.
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm font-medium sm:col-span-2">
-                    Name on card
-                    <input value={cardholder} onChange={(e) => setCardholder(e.target.value)} autoComplete="cc-name" className={field} />
-                  </label>
-                  <label className="text-sm font-medium sm:col-span-2">
-                    Card number
-                    <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={19} className={field} aria-describedby="demo-card-hint" />
-                  </label>
-                  <label className="text-sm font-medium">
-                    Expiry
-                    <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} placeholder="MM/YY" autoComplete="off" maxLength={5} className={field} />
-                  </label>
-                  <label className="text-sm font-medium">
-                    CVV
-                    <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={4} className={field} />
-                  </label>
-                </div>
-                <p id="demo-card-hint" className="mt-2 text-xs text-muted-foreground">
-                  Test details: 4242 4242 4242 4242 · 12/30 · 123. Do not enter real card details.
-                </p>
-              </fieldset>
-            )}
-            <label className="text-sm font-semibold sm:col-span-2">
-              Reward redemption
-              <div className="mt-2 grid gap-2">
-                {wallet?.availableRewards.map((reward) => {
-                  const enabled = (wallet.points ?? 0) >= reward.points;
-                  const active = rewardId === reward.id;
-                  return (
-                    <button
-                      key={reward.id}
-                      type="button"
-                      disabled={!enabled}
-                      onClick={() => {
-                        if (active) {
-                          setRewardId(null);
-                          setRedemptionId(null);
-                          return;
-                        }
-                        const nextId =
-                          typeof crypto !== "undefined" && "randomUUID" in crypto
-                            ? crypto.randomUUID()
-                            : `redeem-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                        setRewardId(reward.id);
-                        setRedemptionId(nextId);
-                      }}
-                      className={`flex min-h-11 items-center justify-between rounded-2xl px-3 text-sm ${
-                        active ? "bg-primary text-primary-foreground" : "bg-secondary"
-                      } disabled:opacity-50`}
-                    >
-                      <span>{reward.title}</span>
-                      <span>{reward.points} pts</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Balance: {wallet?.points ?? 0} points. Rewards are disabled if your balance is too
-                low.
-              </p>
-            </label>
             <label className="text-sm font-semibold sm:col-span-2">
               Special instructions
               <input
@@ -478,15 +311,9 @@ function CheckoutPage() {
               <dt>Delivery</dt>
               <dd>{currency(totals.fee)}</dd>
             </div>
-            {selectedReward && (
-              <div className="flex justify-between">
-                <dt>Reward discount</dt>
-                <dd>-{currency(discount)}</dd>
-              </div>
-            )}
             <div className="flex justify-between border-t border-border pt-3 font-display text-xl font-semibold">
               <dt>Total</dt>
-              <dd>{currency(finalTotal)}</dd>
+              <dd>{currency(totals.total)}</dd>
             </div>
           </dl>
           {error && (
@@ -502,7 +329,7 @@ function CheckoutPage() {
             disabled={submitting || !lines.length}
             className="mt-5 min-h-12 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {submitting ? "Placing order…" : `Place order · ${currency(finalTotal)}`}
+            {submitting ? "Placing order…" : `Place order · ${currency(totals.total)}`}
           </button>
           <Link
             to="/order"
