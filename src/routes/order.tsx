@@ -63,6 +63,21 @@ function OrderMenu() {
   const [selected, setSelected] = useState<MenuItem | null>(null);
   const [sharedGroup, setSharedGroup] = useState<Array<{ menuItemId: string; name: string; unitPrice: number; quantity: number; options: string[]; note?: string }> | null>(null);
 
+  // Signed-in customers use the portal as the single ordering surface.
+  // Preserve group invitations or transfer the current basket snapshot when redirecting.
+  useEffect(() => {
+    if (user?.role !== "Customer") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("group") && lines.length > 0) {
+      params.set("group", JSON.stringify(lines.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+      }))));
+    }
+    const query = params.toString();
+    window.location.replace("/portal" + (query ? "?" + query : ""));
+  }, [user?.role, lines]);
+
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get("group");
     if (!raw) return;
