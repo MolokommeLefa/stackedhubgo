@@ -202,7 +202,7 @@ function PortalPage() {
         setError("Card payments are demo-only until a payment provider is connected. Choose cash for live orders.");
         return;
       }
-      if (cardNumber.replace(/\D/g, "") !== "4242424242424242" || cardExpiry !== "12/30" || cardCvv !== "123") {
+      if (cardholder.trim().length < 2 || cardNumber.replace(/\D/g, "") !== "4242424242424242" || cardExpiry !== "12/30" || cardCvv !== "123") {
         setError("Demo card declined. Use 4242 4242 4242 4242, expiry 12/30 and CVV 123.");
         return;
       }
