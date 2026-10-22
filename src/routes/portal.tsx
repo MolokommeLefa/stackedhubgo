@@ -246,8 +246,7 @@ function PortalPage() {
 
   return (
     <AppShell
-      title="Customer portal"
-      subtitle="Order & loyalty"
+      title={user?.name ? `Welcome back, ${user.name.split(' ')[0]}!` : "Welcome back!"}
       allow={["Customer"]}
       actions={
         <div className="relative">
