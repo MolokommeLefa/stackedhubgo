@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, Copy, ShoppingBasket, Truck, UsersRound } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
@@ -65,6 +66,7 @@ function PortalPage() {
   const [cardExpiry, setCardExpiry] = useState("12/30");
   const [cardCvv, setCardCvv] = useState("123");
   const [groupInvite, setGroupInvite] = useState<Array<{ menuItemId: string; quantity: number }> | null>(null);
+  const [groupShare, setGroupShare] = useState<{ url: string; code: string } | null>(null);
   const [inviteRead, setInviteRead] = useState(false);
   const [basketOpen, setBasketOpen] = useState(true);
   const [headerBasketOpen, setHeaderBasketOpen] = useState(false);
@@ -95,19 +97,26 @@ function PortalPage() {
   useEffect(() => {
     if (menu.length === 0 || inviteRead) return;
     setInviteRead(true);
-    const raw = new URLSearchParams(window.location.search).get("group");
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("group");
     if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed) && parsed.every((item) =>
-        item && typeof item.menuItemId === "string" &&
-        typeof item.quantity === "number" && Number.isInteger(item.quantity) &&
-        item.quantity > 0 && menu.some((m) => m.id === item.menuItemId)
-      )) setGroupInvite(parsed.map((item) => ({ menuItemId: item.menuItemId, quantity: item.quantity })));
-      else toast.error("This group basket link is invalid or contains unavailable items.");
-    } catch {
-      toast.error("This group basket link could not be read.");
-    }
+    void (async () => {
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        const valid = Array.isArray(parsed) && parsed.length > 0 && parsed.length <= 50 && parsed.every((item) =>
+          item && typeof item.menuItemId === "string" && typeof item.quantity === "number" &&
+          Number.isInteger(item.quantity) && item.quantity > 0 && item.quantity <= 99 && menu.some((m) => m.id === item.menuItemId)
+        );
+        if (!valid) { toast.error("This group basket link is invalid or contains unavailable items."); return; }
+        const code = params.get("groupCode");
+        if (code) {
+          const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(parsed)));
+          const fingerprint = Array.from(new Uint8Array(digest)).slice(0, 5).map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+          if (fingerprint !== code.toUpperCase()) { toast.error("This group basket code does not match its contents."); return; }
+        }
+        setGroupInvite(parsed.map((item) => ({ menuItemId: item.menuItemId, quantity: item.quantity })));
+      } catch { toast.error("This group basket link could not be read."); }
+    })();
   }, [menu, inviteRead]);
 
   const mine = orders.filter((o) => o.customerId === user?.id);
@@ -119,19 +128,20 @@ function PortalPage() {
   const available = menu.filter((m) => m.available);
 
   const shareGroupBasket = async () => {
-    if (cartItems.length === 0) {
-      toast.error("Add items to your basket before sharing a group order.");
-      return;
-    }
-    const payload = cartItems.map((item) => ({ menuItemId: item.id, quantity: cart[item.id]! }));
-    const url = new URL("/portal", window.location.origin);
-    url.searchParams.set("group", JSON.stringify(payload));
+    if (cartItems.length === 0) { toast.error("Add items to your basket before sharing a group order."); return; }
     try {
-      await navigator.clipboard.writeText(url.toString());
-      toast.success("Group basket link copied", { description: "Share it with friends so they can add these items." });
-    } catch {
-      window.prompt("Copy this group basket link:", url.toString());
-    }
+      const payload = cartItems.map((item) => ({ menuItemId: item.id, quantity: cart[item.id]! }));
+      const serialized = JSON.stringify(payload);
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(serialized));
+      const code = Array.from(new Uint8Array(digest)).slice(0, 5).map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+      const url = new URL("/portal", window.location.origin);
+      url.searchParams.set("group", serialized);
+      url.searchParams.set("groupCode", code);
+      const shareUrl = url.toString();
+      setGroupShare({ url: shareUrl, code });
+      try { await navigator.clipboard.writeText(shareUrl); toast.success("Group basket link copied", { description: "Share the QR code or link with friends." }); }
+      catch { /* The QR remains available if clipboard access is unavailable. */ }
+    } catch { toast.error("Could not create a group basket share code. Please try again."); }
   };
 
   const joinGroupBasket = () => {
@@ -529,6 +539,19 @@ function PortalPage() {
                       <button type="button" onClick={() => void shareGroupBasket()} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-border px-4 text-sm font-semibold">
                         <Copy className="size-4" aria-hidden /> Share group basket
                       </button>
+                      {groupShare && (
+                        <div className="mt-3 rounded-2xl border border-border bg-secondary/50 p-4 text-center">
+                          <p className="text-sm font-semibold">Scan to join this group basket</p>
+                          <div className="mx-auto mt-3 flex w-fit rounded-xl bg-white p-3"><QRCodeSVG value={groupShare.url} size={176} level="M" marginSize={2} /></div>
+                          <p className="mt-3 text-xs text-muted-foreground">Share code</p>
+                          <p className="font-mono text-xl font-bold tracking-[0.18em]">{groupShare.code}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Code fingerprint checks that the shared basket contents match the link.</p>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <button type="button" onClick={() => void navigator.clipboard.writeText(groupShare.url).then(() => toast.success("Group link copied")).catch(() => toast.error("Clipboard unavailable; scan the QR code instead."))} className="min-h-10 rounded-full bg-card px-3 text-xs font-semibold">Copy link</button>
+                            <button type="button" onClick={() => setGroupShare(null)} className="min-h-10 rounded-full bg-card px-3 text-xs font-semibold">Close</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <button type="button" disabled={ordering} onClick={() => void checkout()} className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                       {ordering ? "Placing order…" : "Confirm order"}
