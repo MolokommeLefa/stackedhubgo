@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
+import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
 import type { MenuItem, Order, Promotion } from "@/lib/types";
 
 export const Route = createFileRoute("/portal")({
@@ -111,7 +112,7 @@ function PortalPage() {
   const cartItems = menu.filter((m) => cart[m.id]);
   const itemCount = cartItems.reduce((sum, m) => sum + cart[m.id]!, 0);
   const subtotal = cartItems.reduce((sum, m) => sum + m.price * cart[m.id]!, 0);
-  const deliveryFee = fulfilment === "Delivery" && cartItems.length > 0 ? 25 : 0;
+  const deliveryFee = fulfilment === "Delivery" && cartItems.length > 0 ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
   const available = menu.filter((m) => m.available);
 
@@ -183,8 +184,9 @@ function PortalPage() {
 
   const checkout = async () => {
     if (!user || cartItems.length === 0) return;
-    if (fulfilment === "Delivery" && !deliveryAddress.trim()) {
-      setError("Add your delivery address before placing the order.");
+    const addressError = validateDeliveryAddress(fulfilment, deliveryAddress);
+    if (addressError) {
+      setError(addressError);
       return;
     }
     if (scheduleMode === "scheduled") {
@@ -372,7 +374,7 @@ function PortalPage() {
             </Panel>
 
             <div className="space-y-6">
-              <Panel title={"Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
+              <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
                   <ShoppingBasket className="size-5" aria-hidden />
                 </button>
@@ -382,6 +384,26 @@ function PortalPage() {
                     <p className="text-sm text-foreground" role="status">
                       {placed}
                     </p>
+                    {placedOrder && (
+                      <div className="rounded-2xl bg-secondary p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{placedOrder.reference}</span>
+                          <StatusPill status={placedOrder.status} />
+                        </div>
+                        <ul className="mt-3 space-y-2 text-sm">
+                          {placedOrder.items.map((item) => (
+                            <li key={item.menuItemId} className="flex justify-between gap-3">
+                              <span>{item.quantity} × {item.name}</span>
+                              <span className="shrink-0">{currency(item.unitPrice * item.quantity)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
+                          <span>Total</span><span>{currency(placedOrder.total)}</span>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">{paymentMethod === "Card" ? "Demo card payment simulated" : "Payment: cash"} · {fulfilment} · {scheduleMode === "scheduled" && scheduledFor ? new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" }) : "ASAP"}</p>
+                      </div>
+                    )}
                     {placedOrder && (
                       <Link
                         to="/track/$reference"
@@ -416,7 +438,8 @@ function PortalPage() {
                             >
                               −
                             </button>
-                            {cart[m.id]}
+                            <span className="min-w-4 text-center tabular-nums">{cart[m.id]}</span>
+                            <button type="button" aria-label={"Add one " + m.name} onClick={() => add(m.id)} className="grid size-9 place-items-center rounded-full bg-secondary">+</button>
                           </span>
                         </li>
                       ))}
@@ -481,7 +504,7 @@ function PortalPage() {
                 )}
               </Panel>
 
-              {placedOrder?.fulfilment === "Delivery" && (
+              {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
                   <div className="rounded-2xl bg-secondary p-3">
                     <p className="text-sm font-semibold">{placedOrder.deliveryStatus ?? placedOrder.status}</p>
