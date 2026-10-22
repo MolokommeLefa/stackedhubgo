@@ -14,7 +14,7 @@ import type { MenuItem, Order, Promotion } from "@/lib/types";
 export const Route = createFileRoute("/portal")({
   head: () => ({
     meta: [
-      { title: "Customer Portal — StackedHub" },
+      { title: "Welcome Back! — StackedHub" },
       {
         name: "description",
         content: "Order food, track orders, earn loyalty points and get AI meal suggestions.",
