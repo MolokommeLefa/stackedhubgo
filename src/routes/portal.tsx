@@ -67,6 +67,7 @@ function PortalPage() {
   const [groupInvite, setGroupInvite] = useState<Array<{ menuItemId: string; quantity: number }> | null>(null);
   const [inviteRead, setInviteRead] = useState(false);
   const [basketOpen, setBasketOpen] = useState(true);
+  const [headerBasketOpen, setHeaderBasketOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -244,7 +245,38 @@ function PortalPage() {
   };
 
   return (
-    <AppShell title="Customer portal" subtitle="Order & loyalty" allow={["Customer"]}>
+    <AppShell
+      title="Customer portal"
+      subtitle="Order & loyalty"
+      allow={["Customer"]}
+      actions={
+        <div className="relative">
+          <button type="button" onClick={() => setHeaderBasketOpen((open) => !open)} aria-expanded={headerBasketOpen} aria-label={"Preview basket: " + itemCount + " items, " + currency(total)} className="relative inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-semibold text-foreground shadow-sm transition hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <ShoppingBasket className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Basket</span>
+            <span className="grid min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{itemCount}</span>
+          </button>
+          {headerBasketOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-4 text-foreground shadow-xl">
+              <div className="flex items-center justify-between gap-3"><p className="font-display text-lg font-semibold">Your basket</p><span className="text-xs text-muted-foreground">{itemCount} {itemCount === 1 ? "item" : "items"}</span></div>
+              {cartItems.length === 0 ? (
+                <p className="py-5 text-sm text-muted-foreground">Your basket is empty. Add something from the menu.</p>
+              ) : (
+                <>
+                  <ul className="mt-3 max-h-56 space-y-3 overflow-y-auto">
+                    {cartItems.map((item) => <li key={item.id} className="flex items-start justify-between gap-3 text-sm"><span className="min-w-0">{cart[item.id]} × {item.name}</span><span className="shrink-0 font-medium">{currency(item.price * cart[item.id]!)}</span></li>)}
+                  </ul>
+                  <div className="mt-3 flex justify-between border-t border-border pt-3 text-sm font-semibold"><span>Subtotal</span><span>{currency(subtotal)}</span></div>
+                  {fulfilment === "Delivery" && <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>Delivery fee</span><span>{currency(deliveryFee)}</span></div>}
+                  <div className="mt-1 flex justify-between text-sm font-semibold"><span>Total</span><span>{currency(total)}</span></div>
+                </>
+              )}
+              <button type="button" onClick={() => { setHeaderBasketOpen(false); setBasketOpen(true); document.getElementById("portal-basket")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className="mt-4 min-h-10 w-full rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">{cartItems.length === 0 ? "Browse menu" : "View basket & checkout"}</button>
+            </div>
+          )}
+        </div>
+      }
+    >
       <LoadState loading={loading} error={error} onRetry={() => void load()} />
       {!loading && (
         <>
@@ -375,6 +407,7 @@ function PortalPage() {
             </Panel>
 
             <div className="space-y-6">
+              <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
                   <ShoppingBasket className="size-5" aria-hidden />
@@ -505,6 +538,7 @@ function PortalPage() {
                   </>
                 )}
               </Panel>
+              </div>
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
