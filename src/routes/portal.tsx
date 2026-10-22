@@ -60,6 +60,7 @@ function PortalPage() {
   const [scheduledFor, setScheduledFor] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"Cash" | "Card">("Cash");
+  const [cardholder, setCardholder] = useState(user?.name ?? "");
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
   const [cardExpiry, setCardExpiry] = useState("12/30");
   const [cardCvv, setCardCvv] = useState("123");
@@ -483,6 +484,7 @@ function PortalPage() {
                         {paymentMethod === "Card" && (
                           <div className="mt-3 space-y-2 rounded-2xl border border-border p-3">
                             <p className="text-xs text-muted-foreground">Demo only · no real charge. PayPal is not connected. Use the test details below; live API checkout blocks this option.</p>
+                            <label className="block text-xs font-medium">Name on card<input value={cardholder} onChange={(e) => setCardholder(e.target.value)} autoComplete="cc-name" className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
                             <label className="block text-xs font-medium">Card number<input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} autoComplete="off" inputMode="numeric" maxLength={19} className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
                             <div className="grid grid-cols-2 gap-2">
                               <label className="block text-xs font-medium">Expiry<input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} autoComplete="off" maxLength={5} className="mt-1 min-h-10 w-full rounded-lg bg-secondary px-3 text-sm" /></label>
