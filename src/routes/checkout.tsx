@@ -30,6 +30,10 @@ export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
 
+function toLocalDateTimeValue(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 function statusDone(current: OrderStatus, step: OrderStatus) {
   const order: OrderStatus[] = ["Placed", "In kitchen", "Ready", "Completed"];
   return order.indexOf(current) >= order.indexOf(step);
@@ -42,6 +46,8 @@ function CheckoutPage() {
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState("");
   const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
+  const [scheduleMode, setScheduleMode] = useState<"asap" | "scheduled">("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
   const [cardholder, setCardholder] = useState(user?.name ?? "");
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
@@ -84,7 +90,7 @@ function CheckoutPage() {
       { label: "Ready", status: "Ready" as const, hint: "20–25 min" },
     ];
     return (
-      <CustomerShell hideCart requireAuth>
+      <CustomerShell requireAuth>
         <div className="mx-auto max-w-lg px-4 pt-12">
           <div className="surface-card rounded-[2rem] p-8">
             <CheckCircle2 className="mx-auto size-12 text-success" aria-hidden />
@@ -127,6 +133,9 @@ function CheckoutPage() {
               {fulfilment === "Delivery" && address.trim()
                 ? `Delivery to ${address.trim()}`
                 : `${fulfilment} from ${ADDRESS_LINES[0]}, ${ADDRESS_LINES[1]}`}
+              {scheduleMode === "scheduled" && scheduledFor
+                ? ` · Scheduled for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}`
+                : ""}
             </p>
             <p className="mt-4 text-center font-semibold">
               Total {currency(placed.total)} · Pay by {payment.toLowerCase()}
@@ -162,6 +171,14 @@ function CheckoutPage() {
     if (selectedReward && !canApplyReward) {
       return setError("You don't have enough points for this reward.");
     }
+    if (scheduleMode === "scheduled") {
+      const selectedTime = new Date(scheduledFor).getTime();
+      const minTime = Date.now() + 45 * 60 * 1000;
+      const maxTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      if (!scheduledFor || !Number.isFinite(selectedTime) || selectedTime < minTime || selectedTime > maxTime) {
+        return setError("Choose a time at least 45 minutes from now and within the next 7 days.");
+      }
+    }
     if (payment === "Card" && isLiveApi()) {
       return setError("The live card provider is not connected yet. Choose Cash for this order; demo card checkout is available when using the local preview data.");
     }
@@ -188,6 +205,7 @@ function CheckoutPage() {
         fulfilment,
         deliveryAddress: fulfilment === "Delivery" ? address.trim() : undefined,
         specialInstructions: [
+          scheduleMode === "scheduled" && scheduledFor ? `Scheduled order for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}` : "",
           notes.trim(),
           ...lines
             .filter((l) => l.note || l.options.length)
@@ -218,16 +236,20 @@ function CheckoutPage() {
 
   const field = "mt-1 min-h-11 w-full rounded-2xl bg-secondary px-3 text-sm outline-none";
   return (
-    <CustomerShell hideCart requireAuth>
+    <CustomerShell requireAuth>
       <form
         onSubmit={submit}
         className="mx-auto grid max-w-5xl gap-6 px-4 pt-8 lg:grid-cols-[1fr_22rem]"
       >
         <section className="surface-card rounded-[2rem] p-6">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-            Your order
-          </p>
-          <h1 className="font-display text-3xl font-semibold">Checkout</h1>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">Your basket</p>
+              <h1 className="font-display text-3xl font-semibold">Review & checkout</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{lines.reduce((sum, line) => sum + line.quantity, 0)} items · {currency(totals.subtotal)} subtotal</p>
+            </div>
+            <Link to="/order" className="inline-flex min-h-10 items-center rounded-full bg-secondary px-4 text-sm font-semibold">Edit basket</Link>
+          </div>
           {!lines.length && (
             <p className="mt-4 text-sm text-muted-foreground">
               Your cart is empty.{" "}
@@ -294,6 +316,22 @@ function CheckoutPage() {
                   </button>
                 ))}
               </div>
+            </fieldset>
+            <fieldset className="sm:col-span-2">
+              <legend className="text-sm font-semibold">When would you like your order?</legend>
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-full bg-secondary p-1">
+                <button type="button" aria-pressed={scheduleMode === "asap"} onClick={() => setScheduleMode("asap")} className={scheduleMode === "asap" ? "min-h-11 rounded-full bg-card text-sm font-semibold shadow-sm" : "min-h-11 rounded-full text-sm text-muted-foreground"}>As soon as possible</button>
+                <button type="button" aria-pressed={scheduleMode === "scheduled"} onClick={() => setScheduleMode("scheduled")} className={scheduleMode === "scheduled" ? "min-h-11 rounded-full bg-card text-sm font-semibold shadow-sm" : "min-h-11 rounded-full text-sm text-muted-foreground"}>Schedule order</button>
+              </div>
+              {scheduleMode === "scheduled" && (
+                <div className="mt-3 rounded-2xl border border-border p-4">
+                  <label className="text-sm font-medium">
+                    Preferred date and time
+                    <input type="datetime-local" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} min={toLocalDateTimeValue(new Date(Date.now() + 45 * 60 * 1000))} max={toLocalDateTimeValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))} className={field} required />
+                  </label>
+                  <p className="mt-2 text-xs text-muted-foreground">Choose a slot at least 45 minutes ahead, up to 7 days in advance. Live kitchen-capacity validation is still required before production release.</p>
+                </div>
+              )}
             </fieldset>
             <label className="text-sm font-semibold">
               Full name
