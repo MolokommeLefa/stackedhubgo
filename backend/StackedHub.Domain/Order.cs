@@ -12,8 +12,12 @@ public class Order
     public decimal Total { get; set; }
     public string? SpecialInstructions { get; set; }
     public DateTime PlacedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ScheduledFor { get; set; }
+    public int PrepLeadMinutes { get; set; } = 20;
+    public string? ReleaseError { get; set; }
 
     public User Customer { get; set; } = null!;
     public User? Staff { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public ICollection<OrderStatusEvent> StatusHistory { get; set; } = new List<OrderStatusEvent>();
 }

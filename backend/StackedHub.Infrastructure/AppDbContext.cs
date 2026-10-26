@@ -13,6 +13,12 @@ public class AppDbContext : DbContext
     public DbSet<MenuItem> MenuItems => Set<MenuItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderStatusEvent> OrderStatusEvents => Set<OrderStatusEvent>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+    public DbSet<GroupBasket> GroupBaskets => Set<GroupBasket>();
+    public DbSet<GroupBasketParticipant> GroupBasketParticipants => Set<GroupBasketParticipant>();
+    public DbSet<GroupBasketItem> GroupBasketItems => Set<GroupBasketItem>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
 
@@ -51,6 +57,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(32);
             entity.Property(x => x.Total).HasPrecision(10, 2);
             entity.Property(x => x.SpecialInstructions).HasMaxLength(500);
+            entity.Property(x => x.ReleaseError).HasMaxLength(500);
+            entity.HasIndex(x => x.ScheduledFor);
             entity.HasOne(x => x.Customer)
                 .WithMany(x => x.PlacedOrders)
                 .HasForeignKey(x => x.CustomerId)
@@ -61,6 +69,53 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
+        modelBuilder.Entity<OrderStatusEvent>(entity =>
+        {
+            entity.Property(x => x.Status).HasConversion(
+                v => ChannelLabels.FromStatus(v),
+                v => ChannelLabels.ToStatus(v));
+            entity.Property(x => x.Note).HasMaxLength(400);
+            entity.HasIndex(x => x.OrderId);
+            entity.HasOne(x => x.Order)
+                .WithMany(x => x.StatusHistory)
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Actor)
+                .WithMany()
+                .HasForeignKey(x => x.ActorId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.Property(x => x.Key).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.RequestHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => new { x.CustomerId, x.Key }).IsUnique();
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoyaltyTransaction>(entity =>
+        {
+            entity.Property(x => x.Type).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(200).IsRequired();
+            entity.HasIndex(x => new { x.OrderId, x.Type }).IsUnique();
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<OrderItem>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
@@ -68,6 +123,60 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Subtotal).HasPrecision(10, 2);
             entity.HasOne(x => x.Order).WithMany(x => x.Items).HasForeignKey(x => x.OrderId);
             entity.HasOne(x => x.MenuItem).WithMany(x => x.OrderItems).HasForeignKey(x => x.MenuItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(x => x.AddedByName).HasMaxLength(160);
+            entity.HasOne(x => x.AddedBy)
+                .WithMany()
+                .HasForeignKey(x => x.AddedByCustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<GroupBasket>(entity =>
+        {
+            entity.Property(x => x.JoinCode).HasMaxLength(12).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.SpecialInstructions).HasMaxLength(500);
+            entity.HasIndex(x => x.JoinCode).IsUnique();
+            entity.HasOne(x => x.Host)
+                .WithMany()
+                .HasForeignKey(x => x.HostCustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Order)
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<GroupBasketParticipant>(entity =>
+        {
+            entity.HasIndex(x => new { x.GroupBasketId, x.CustomerId }).IsUnique();
+            entity.HasOne(x => x.GroupBasket)
+                .WithMany(x => x.Participants)
+                .HasForeignKey(x => x.GroupBasketId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<GroupBasketItem>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.UnitPrice).HasPrecision(10, 2);
+            entity.Ignore(x => x.Subtotal);
+            entity.Property(x => x.SpecialInstructions).HasMaxLength(500);
+            entity.HasOne(x => x.GroupBasket)
+                .WithMany(x => x.Items)
+                .HasForeignKey(x => x.GroupBasketId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Customer)
+                .WithMany()
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.MenuItem)
+                .WithMany()
+                .HasForeignKey(x => x.MenuItemId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

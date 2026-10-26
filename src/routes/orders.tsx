@@ -37,6 +37,16 @@ export const Route = createFileRoute("/orders")({
   component: OrdersPage,
 });
 
+const statuses: OrderStatus[] = ["Scheduled", "Placed", "In kitchen", "Ready", "Completed", "Cancelled"];
+const flow: Record<OrderStatus, OrderStatus | null> = {
+  Scheduled: null,
+  Placed: "In kitchen",
+  "In kitchen": "Ready",
+  Ready: "Completed",
+  Completed: null,
+  Cancelled: null,
+};
+const label: Partial<Record<OrderStatus, string>> = { "In kitchen": "Accept", Ready: "Mark ready", Completed: "Complete" };
 const tabs = [
   { id: "All", label: "All" },
   { id: "Placed", label: "New" },
@@ -93,6 +103,36 @@ function OrdersPage() {
               label="Search the queue"
             />
           </div>
+        }
+      >
+        <LoadState loading={loading} error={error ?? actionError} />
+        <div className="divide-y divide-border">
+          {shown.map((o) => {
+            const next = flow[o.status];
+            return (
+              <div key={o.id} className="py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{o.reference} · {o.customerName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {o.channel} · {formatTime(o.placedAt)} · {currency(o.total)}
+                      {o.scheduledFor ? ` · collect ${formatTime(o.scheduledFor)}` : ""}
+                      {o.items.some((item) => item.addedByName) ? ` · ${o.items.map((item) => item.addedByName ?? item.name).filter((name, index, all) => all.indexOf(name) === index).join(", ")}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusPill status={o.status} />
+                    {next && (
+                      <button onClick={() => move(o.id, next)} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                        {label[next]}
+                      </button>
+                    )}
+                    {(next || o.status === "Scheduled") && (
+                      <button onClick={() => move(o.id, "Cancelled")} className="rounded-xl bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
           <button type="button" onClick={() => void reload()} className={wsBtnGhost}>
             Refresh
           </button>

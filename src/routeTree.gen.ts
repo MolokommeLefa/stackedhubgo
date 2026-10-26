@@ -19,6 +19,7 @@ import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DirectionsRouteImport } from './routes/directions'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GroupRouteImport } from './routes/group'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as OrderRouteImport } from './routes/order'
@@ -83,6 +84,9 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupRoute = GroupRouteImport.update({
+  id: '/group',
+  path: '/group',
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -160,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/directions': typeof DirectionsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/group': typeof GroupRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
   '/order': typeof OrderRoute
@@ -185,6 +190,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/directions': typeof DirectionsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/group': typeof GroupRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
   '/order': typeof OrderRoute
@@ -211,6 +217,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/directions': typeof DirectionsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/group': typeof GroupRoute
   '/login': typeof LoginRoute
   '/menu': typeof MenuRoute
   '/order': typeof OrderRoute
@@ -238,6 +245,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/directions'
     | '/forgot-password'
+    | '/group'
     | '/login'
     | '/menu'
     | '/order'
@@ -263,6 +271,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/directions'
     | '/forgot-password'
+    | '/group'
     | '/login'
     | '/menu'
     | '/order'
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/directions'
     | '/forgot-password'
+    | '/group'
     | '/login'
     | '/menu'
     | '/order'
@@ -314,6 +324,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DirectionsRoute: typeof DirectionsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GroupRoute: typeof GroupRoute
   LoginRoute: typeof LoginRoute
   MenuRoute: typeof MenuRoute
   OrderRoute: typeof OrderRoute
@@ -401,6 +412,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/group': {
+      id: '/group'
+      path: '/group'
+      fullPath: '/group'
+      preLoaderRoute: typeof GroupRouteImport
     '/login': {
       id: '/login'
       path: '/login'
@@ -506,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DirectionsRoute: DirectionsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GroupRoute: GroupRoute,
   LoginRoute: LoginRoute,
   MenuRoute: MenuRoute,
   OrderRoute: OrderRoute,

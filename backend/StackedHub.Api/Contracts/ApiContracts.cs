@@ -45,15 +45,29 @@ public record UpsertMenuRequest(
 public record CartLineRequest(
     [Required] string MenuItemId,
     [Range(1, 20)] int Quantity,
-    string? SpecialInstructions);
+    string? SpecialInstructions,
+    string? AddedByCustomerId = null);
 
 public record PlaceOrderRequest(
     PaymentMethod PaymentMethod,
     string? SpecialInstructions,
     [Required, MinLength(1)] List<CartLineRequest> Items,
-    OrderChannel? Channel = null);
+    OrderChannel? Channel = null,
+    DateTime? ScheduledFor = null,
+    string? IdempotencyKey = null);
 
-public record OrderItemDto(string MenuItemId, string Name, int Quantity, decimal UnitPrice);
+public record OrderItemDto(
+    string MenuItemId,
+    string Name,
+    int Quantity,
+    decimal UnitPrice,
+    string? AddedByCustomerId = null,
+    string? AddedByName = null,
+    string? SpecialInstructions = null);
+
+public record OrderStatusEventDto(OrderStatus Status, DateTime At, string? Note);
+
+public record OrderSlotDto(DateTime Start, DateTime End, int Capacity, int Booked, int Remaining, bool Available);
 
 public record OrderDto(
     string Id,
@@ -136,3 +150,63 @@ public record ReportDto(
     List<ChannelSales> SalesByChannel);
 
 public record AuditLogDto(string Id, string Actor, UserRole Role, string Action, string Target, DateTime At);
+
+public record CreateGroupBasketRequest(string? SpecialInstructions, DateTime? ScheduledFor = null);
+
+public record JoinGroupBasketRequest([Required] string JoinCode);
+
+public record UpsertGroupItemRequest(
+    [Required] string MenuItemId,
+    [Range(1, 20)] int Quantity,
+    string? SpecialInstructions);
+
+public record CheckoutGroupBasketRequest(
+    PaymentMethod PaymentMethod,
+    OrderChannel? Channel = null,
+    DateTime? ScheduledFor = null,
+    string? SpecialInstructions = null,
+    string? IdempotencyKey = null);
+
+public record GroupParticipantDto(string CustomerId, string Name, DateTime JoinedAt, bool IsHost);
+
+public record GroupBasketItemDto(
+    string Id,
+    string CustomerId,
+    string CustomerName,
+    string MenuItemId,
+    string Name,
+    int Quantity,
+    decimal UnitPrice,
+    decimal Subtotal,
+    string? SpecialInstructions);
+
+public record GroupBasketDto(
+    string Id,
+    string JoinCode,
+    GroupBasketStatus Status,
+    string HostCustomerId,
+    string HostName,
+    DateTime CreatedAt,
+    DateTime? ScheduledFor,
+    string? SpecialInstructions,
+    decimal Total,
+    string? OrderId,
+    List<GroupParticipantDto> Participants,
+    List<GroupBasketItemDto> Items);
+
+public record LoyaltyRewardDto(string Id, string Title, string Description, int PointsCost, bool Affordable);
+
+public record LoyaltyProgressDto(string Label, int Current, int Target, int Remaining);
+
+public record LoyaltyTransactionDto(string Id, int Points, string Type, string Reason, DateTime At, string? OrderId);
+
+public record LoyaltyWalletDto(
+    int Balance,
+    string Tier,
+    string EarnRule,
+    LoyaltyProgressDto? NextTier,
+    LoyaltyProgressDto? NextReward,
+    List<LoyaltyRewardDto> Rewards,
+    List<LoyaltyTransactionDto> Transactions);
+
+public record RedeemLoyaltyRequest([Required] string RewardId);

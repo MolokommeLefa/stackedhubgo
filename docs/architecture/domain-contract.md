@@ -176,7 +176,7 @@ Seeded demo password (backend): `Stacked123!` (`DbSeeder`).
 
 `isLiveApi()` when a non-empty base URL exists (`stackedhub.apiUrl` then `VITE_API_BASE_URL`).
 
-Runtime API (launch profile): **`http://localhost:5032`**. Frontend README still mentions **`http://localhost:5000`** (QA/docs issue, RBV-004). `/health` is unauthenticated `{ status: "ok" }`.
+Runtime API (launch profile): **`http://localhost:5032`**. Frontend README now matches this port (RBV-004 docs issue resolved). `/health` is unauthenticated `{ status: "ok" }`.
 
 | Surface | Demo (`isLiveApi` false) | Live (URL set) |
 |---|---|---|

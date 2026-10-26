@@ -7,6 +7,10 @@ import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
+import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
+import { currency, formatSlot } from "@/lib/mock-data";
+import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
+import { Link } from "@tanstack/react-router";
 import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
 import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
@@ -30,6 +34,15 @@ interface Suggestion {
   reason: string;
 }
 
+function LoyaltyBar({ current, target }: { current: number; target: number }) {
+  const pct = target <= 0 ? 0 : Math.min(100, Math.round((current / target) * 100));
+  return (
+    <div className="glass-soft mt-2 h-2 overflow-hidden rounded-full">
+      <div className="bg-gradient-brand h-full rounded-full" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 function demoSuggest(prompt: string, pool: MenuItem[]): Suggestion[] {
   const p = prompt.toLowerCase();
   let picks = pool.filter((m) => m.available);
@@ -43,7 +56,7 @@ function demoSuggest(prompt: string, pool: MenuItem[]): Suggestion[] {
 }
 
 function PortalPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [promos, setPromos] = useState<Promotion[]>([]);
@@ -56,6 +69,13 @@ function PortalPage() {
   const [error, setError] = useState<unknown>(null);
   const [asking, setAsking] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
+  const [when, setWhen] = useState<"now" | "schedule">("now");
+  const [slots, setSlots] = useState<OrderSlot[]>([]);
+  const [slot, setSlot] = useState("");
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<LoyaltyWallet | null>(null);
+  const [redeeming, setRedeeming] = useState<string | null>(null);
   const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
   const [scheduleMode, setScheduleMode] = useState<"asap" | "scheduled">("asap");
   const [scheduledFor, setScheduledFor] = useState("");
@@ -83,18 +103,33 @@ function PortalPage() {
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
+      if (user?.role === "Customer") {
+        const nextWallet = await getLoyaltyWallet(user);
+        setWallet(nextWallet);
+        updateUser({ loyaltyPoints: nextWallet.balance });
+      } else {
+        setWallet(null);
+      }
     } catch (err) {
       setError(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateUser, user]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
+    if (when !== "schedule") return;
+    void getOrderSlots()
+      .then((next) => {
+        setSlots(next.filter((item) => item.available));
+        setSlot((current) => current || next.find((item) => item.available)?.start || "");
+      })
+      .catch(setError);
+  }, [when]);
     if (menu.length === 0 || inviteRead) return;
     setInviteRead(true);
     const params = new URLSearchParams(window.location.search);
@@ -224,6 +259,8 @@ function PortalPage() {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
+        paymentMethod: payment,
+        ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
         paymentStatus: paymentMethod === "Card" ? "Paid" : undefined,
         fulfilment,
@@ -241,6 +278,12 @@ function PortalPage() {
       });
       setOrders((prev) => [order, ...prev]);
       setCart({});
+      setWhen("now");
+      setPlaced(
+        order.status === "Scheduled"
+          ? `Order ${order.reference} is booked${order.scheduledFor ? ` for ${formatSlot(order.scheduledFor)}` : ""}.`
+          : `Order ${order.reference} is in. We'll update the status as the kitchen works.`,
+      );
       setPlacedOrder(order);
       setPlaced("Order " + order.reference + " is confirmed. " + (fulfilment === "Delivery" ? "Delivery" : "Collection") + " · " + (scheduleMode === "scheduled" && scheduledFor ? "scheduled for " + new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" }) : "as soon as possible") + ".");
       toast.success("Order placed", {
@@ -251,6 +294,21 @@ function PortalPage() {
       setError(err);
     } finally {
       setOrdering(false);
+    }
+  };
+
+  const redeem = async (rewardId: string) => {
+    if (!user) return;
+    setRedeeming(rewardId);
+    setError(null);
+    try {
+      const next = await redeemLoyaltyReward(rewardId, user);
+      setWallet(next);
+      updateUser({ loyaltyPoints: next.balance });
+    } catch (err) {
+      setError(err);
+    } finally {
+      setRedeeming(null);
     }
   };
 
@@ -302,6 +360,10 @@ function PortalPage() {
             </section>
           )}
           <div className="grid gap-4 sm:grid-cols-3">
+            <div className="glass rounded-3xl p-5">
+              <p className="text-xs text-muted-foreground">Loyalty points</p>
+              <p className="mt-1 text-2xl font-bold">{wallet?.balance ?? user?.loyaltyPoints ?? 0}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{wallet?.tier ?? "New"} member</p>
             <div className="surface-card rounded-3xl p-5">
               <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
                 Loyalty points
@@ -323,6 +385,76 @@ function PortalPage() {
               </p>
             </div>
           </div>
+
+          {wallet && (
+            <Panel title="Loyalty wallet">
+              <p className="text-sm text-muted-foreground">{wallet.earnRule}</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {wallet.nextTier && (
+                  <div className="glass-soft rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Next tier</p>
+                    <p className="mt-1 text-sm font-semibold">
+                      {wallet.nextTier.remaining} points to {wallet.nextTier.label}
+                    </p>
+                    <LoyaltyBar current={wallet.nextTier.current} target={wallet.nextTier.target} />
+                  </div>
+                )}
+                {wallet.nextReward && (
+                  <div className="glass-soft rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Next reward</p>
+                    <p className="mt-1 text-sm font-semibold">
+                      {wallet.nextReward.remaining} points to {wallet.nextReward.label}
+                    </p>
+                    <LoyaltyBar current={wallet.nextReward.current} target={wallet.nextReward.target} />
+                  </div>
+                )}
+                {!wallet.nextTier && !wallet.nextReward && (
+                  <p className="text-sm text-muted-foreground">VIP unlocked — you can redeem any listed reward.</p>
+                )}
+              </div>
+              <ul className="mt-4 space-y-2">
+                {wallet.rewards.map((reward) => (
+                  <li key={reward.id} className="glass-soft flex items-center justify-between gap-3 rounded-2xl p-4">
+                    <div>
+                      <p className="text-sm font-semibold">{reward.title}</p>
+                      <p className="text-xs text-muted-foreground">{reward.description}</p>
+                      <p className="mt-1 text-xs font-medium">{reward.pointsCost} points</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!reward.affordable || redeeming === reward.id}
+                      onClick={() => void redeem(reward.id)}
+                      className="bg-gradient-brand min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {redeeming === reward.id ? "Redeeming…" : reward.affordable ? "Redeem" : "Need more"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-muted-foreground">Recent activity</p>
+                {wallet.transactions.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">No points activity yet — complete an order to start earning.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {wallet.transactions.slice(0, 6).map((item) => (
+                      <li key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span>
+                          {item.reason}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {new Date(item.at).toLocaleDateString()}
+                          </span>
+                        </span>
+                        <span className={item.points < 0 ? "text-destructive" : "text-primary"}>
+                          {item.points > 0 ? `+${item.points}` : item.points}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Panel>
+          )}
 
           <Panel title="Ask for a recommendation">
             <p className="mb-3 text-sm text-muted-foreground">
@@ -416,6 +548,14 @@ function PortalPage() {
             </Panel>
 
             <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Ordering with friends?{" "}
+                <Link to="/group" className="font-semibold text-primary">
+                  Start a group order
+                </Link>
+                .
+              </p>
+              <Panel title="Your order">
               <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
@@ -487,6 +627,48 @@ function PortalPage() {
                         </li>
                       ))}
                     </ul>
+                    <p className="mt-3 text-sm font-semibold">Total {currency(total)}</p>
+                    <fieldset className="mt-4 space-y-2">
+                      <legend className="text-xs font-semibold text-muted-foreground">Pay at collection</legend>
+                      {(["Cash", "Card"] as const).map((method) => (
+                        <label key={method} className="flex min-h-11 items-center gap-2 text-sm">
+                          <input type="radio" name="payment" checked={payment === method} onChange={() => setPayment(method)} />
+                          {method}
+                        </label>
+                      ))}
+                    </fieldset>
+                    <fieldset className="mt-3 space-y-2">
+                      <legend className="text-xs font-semibold text-muted-foreground">When</legend>
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input type="radio" name="when" checked={when === "now"} onChange={() => setWhen("now")} />
+                        As soon as it is ready
+                      </label>
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input type="radio" name="when" checked={when === "schedule"} onChange={() => setWhen("schedule")} />
+                        Schedule collection
+                      </label>
+                      {when === "schedule" && (
+                        <select
+                          value={slot}
+                          onChange={(e) => setSlot(e.target.value)}
+                          className="glass-soft min-h-11 w-full rounded-xl px-3 text-sm outline-none"
+                        >
+                          {slots.length === 0 && <option value="">No slots available</option>}
+                          {slots.map((item) => (
+                            <option key={item.start} value={item.start}>
+                              {formatSlot(item.start)} · {item.remaining} left
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </fieldset>
+                    <button
+                      type="button"
+                      disabled={ordering || (when === "schedule" && !slot)}
+                      onClick={() => void checkout()}
+                      className="bg-gradient-brand mt-4 min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {ordering ? "Placing order…" : when === "schedule" ? "Schedule order" : "Place order"}
                     <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency(subtotal)}</span></div>
                       {fulfilment === "Delivery" && <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{currency(deliveryFee)}</span></div>}
@@ -578,6 +760,33 @@ function PortalPage() {
               )}
               <Panel title="Recent tickets">
                 {mine.map((o) => (
+                  <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span>
+                        {o.reference} · {currency(o.total)}
+                      </span>
+                      <StatusPill status={o.status} />
+                    </div>
+                    {o.scheduledFor && (
+                      <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
+                    )}
+                    {(o.status === "Placed" || o.status === "Scheduled") && (
+                      <button
+                        type="button"
+                        disabled={cancelling === o.id}
+                        onClick={() => {
+                          setCancelling(o.id);
+                          void cancelOrder(o.id)
+                            .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
+                            .catch(setError)
+                            .finally(() => setCancelling(null));
+                        }}
+                        className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                      >
+                        {cancelling === o.id ? "Cancelling…" : "Cancel order"}
+                      </button>
+                    )}
+                  </div>
                   <Link
                     key={o.id}
                     to="/track/$reference"

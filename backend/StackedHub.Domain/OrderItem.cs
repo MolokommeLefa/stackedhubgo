@@ -10,7 +10,10 @@ public class OrderItem
     public decimal UnitPrice { get; set; }
     public decimal Subtotal { get; set; }
     public string? SpecialInstructions { get; set; }
+    public int? AddedByCustomerId { get; set; }
+    public string? AddedByName { get; set; }
 
     public Order Order { get; set; } = null!;
     public MenuItem MenuItem { get; set; } = null!;
+    public User? AddedBy { get; set; }
 }

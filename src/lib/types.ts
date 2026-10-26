@@ -8,13 +8,22 @@ export interface AuthUser {
   loyaltyPoints?: number;
 }
 
-export type OrderStatus = "Placed" | "In kitchen" | "Ready" | "Completed" | "Cancelled";
+export type OrderStatus = "Placed" | "In kitchen" | "Ready" | "Completed" | "Cancelled" | "Scheduled";
 
 export interface OrderItem {
   menuItemId: string;
   name: string;
   quantity: number;
   unitPrice: number;
+  addedByCustomerId?: string;
+  addedByName?: string;
+  specialInstructions?: string;
+}
+
+export interface OrderStatusEvent {
+  status: OrderStatus;
+  at: string;
+  note?: string;
 }
 
 export interface Order {
@@ -27,6 +36,55 @@ export interface Order {
   total: number;
   status: OrderStatus;
   placedAt: string;
+  scheduledFor?: string;
+  fulfilment?: "Immediate" | "Scheduled";
+  estimatedReadyAt?: string;
+  statusHistory?: OrderStatusEvent[];
+}
+
+export interface OrderSlot {
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  remaining: number;
+  available: boolean;
+}
+
+export type GroupBasketStatus = "Open" | "Locked" | "Converted" | "Cancelled";
+
+export interface GroupParticipant {
+  customerId: string;
+  name: string;
+  joinedAt: string;
+  isHost: boolean;
+}
+
+export interface GroupBasketItem {
+  id: string;
+  customerId: string;
+  customerName: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  specialInstructions?: string;
+}
+
+export interface GroupBasket {
+  id: string;
+  joinCode: string;
+  status: GroupBasketStatus;
+  hostCustomerId: string;
+  hostName: string;
+  createdAt: string;
+  scheduledFor?: string;
+  specialInstructions?: string;
+  total: number;
+  orderId?: string;
+  participants: GroupParticipant[];
+  items: GroupBasketItem[];
   specialInstructions?: string | undefined;
   paymentMethod?: "Cash" | "Card" | undefined;
   /** Only supplied when the payment provider/API confirms the actual payment state. */
@@ -64,6 +122,40 @@ export interface Customer {
   loyaltyPoints: number;
   tier: "New" | "Regular" | "VIP";
   note: string;
+}
+
+export interface LoyaltyReward {
+  id: string;
+  title: string;
+  description: string;
+  pointsCost: number;
+  affordable: boolean;
+}
+
+export interface LoyaltyProgress {
+  label: string;
+  current: number;
+  target: number;
+  remaining: number;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  points: number;
+  type: "Earn" | "Redeem";
+  reason: string;
+  at: string;
+  orderId?: string;
+}
+
+export interface LoyaltyWallet {
+  balance: number;
+  tier: string;
+  earnRule: string;
+  nextTier?: LoyaltyProgress | null;
+  nextReward?: LoyaltyProgress | null;
+  rewards: LoyaltyReward[];
+  transactions: LoyaltyTransaction[];
 }
 
 export interface Promotion {

@@ -16,7 +16,8 @@ public enum OrderStatus
     InKitchen = 2,
     Ready = 3,
     Completed = 4,
-    Cancelled = 5
+    Cancelled = 5,
+    Scheduled = 6
 }
 
 public enum OrderChannel
@@ -43,4 +44,13 @@ public enum MenuCategory
     Sides = 2,
     Drinks = 3,
     Desserts = 4
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum GroupBasketStatus
+{
+    Open = 1,
+    Locked = 2,
+    Converted = 3,
+    Cancelled = 4
 }

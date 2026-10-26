@@ -37,6 +37,14 @@ public class OrdersController : ControllerBase
         return Forbid();
     }
 
+    [Authorize(Roles = nameof(UserRole.Customer))]
+    [HttpGet("slots")]
+    public async Task<ActionResult<List<OrderSlotDto>>> Slots([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken)
+    {
+        var slots = await _orders.ListSlots(from, to, cancellationToken);
+        return Ok(slots);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<OrderDto>> Get(string id, CancellationToken cancellationToken)
     {
@@ -61,8 +69,16 @@ public class OrdersController : ControllerBase
 
     [Authorize(Roles = nameof(UserRole.Customer))]
     [HttpPost]
-    public async Task<ActionResult<OrderDto>> Place(PlaceOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<OrderDto>> Place(
+        PlaceOrderRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey) && !string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            request = request with { IdempotencyKey = idempotencyKey };
+        }
+
         try
         {
             var order = await _orders.PlacePickupAsync(User.RequireUserId(), request, cancellationToken);

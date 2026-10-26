@@ -32,6 +32,7 @@ interface AuthContextValue {
   ready: boolean;
   signIn: (args: { email: string; password: string; role: Role }) => Promise<AuthUser>;
   register: (args: { name: string; email: string; password: string }) => Promise<AuthUser>;
+  updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
 }
 
@@ -120,9 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return next;
   }, []);
 
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, ...patch };
+      window.localStorage.setItem(USER_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ user, ready, signIn, register, signOut }),
-    [user, ready, signIn, register, signOut],
+    () => ({ user, ready, signIn, register, updateUser, signOut }),
+    [user, ready, signIn, register, updateUser, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

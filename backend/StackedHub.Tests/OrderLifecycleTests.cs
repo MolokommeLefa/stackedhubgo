@@ -10,15 +10,19 @@ public class OrderLifecycleTests
     [InlineData(OrderStatus.InKitchen, OrderStatus.Ready, true)]
     [InlineData(OrderStatus.Ready, OrderStatus.Completed, true)]
     [InlineData(OrderStatus.Completed, OrderStatus.Cancelled, false)]
+    [InlineData(OrderStatus.Scheduled, OrderStatus.Placed, true)]
+    [InlineData(OrderStatus.Scheduled, OrderStatus.Cancelled, true)]
+    [InlineData(OrderStatus.Scheduled, OrderStatus.InKitchen, false)]
     public void Status_machine_matches_frontend_board(OrderStatus from, OrderStatus to, bool allowed)
     {
         Assert.Equal(allowed, OrderLifecycle.CanTransition(from, to));
     }
 
     [Fact]
-    public void Customer_can_only_cancel_while_placed()
+    public void Customer_can_only_cancel_while_placed_or_scheduled()
     {
         Assert.True(OrderLifecycle.CustomerCanCancel(OrderStatus.Placed));
+        Assert.True(OrderLifecycle.CustomerCanCancel(OrderStatus.Scheduled));
         Assert.False(OrderLifecycle.CustomerCanCancel(OrderStatus.InKitchen));
         Assert.False(OrderLifecycle.CustomerCanCancel(OrderStatus.Ready));
     }

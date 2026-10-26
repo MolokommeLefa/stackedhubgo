@@ -19,7 +19,7 @@ Frontend resolution (`api-client.ts`):
 **API listen URL (launch profile `http`):** `http://localhost:5032`  
 **Health:** `GET /health` → `{ status: "ok" }` (anonymous) (`Program.cs`).
 
-**QA/documentation issue:** frontend `README.md` still tells testers `VITE_API_BASE_URL=http://localhost:5000`. Settings placeholder is `5032`. Using 5000 will fail connectivity (RBV-004). This documentation pass does **not** edit README.
+**QA/documentation issue (resolved):** frontend `README.md` now tells testers `VITE_API_BASE_URL=http://localhost:5032`, matching the launch profile and the Settings placeholder (RBV-004).
 
 Settings Test connection: unauthenticated `fetch` to `{base}/health`. Save clears JWT/user and returns to `/`.
 
@@ -110,7 +110,7 @@ Portal **always** uses static `mock-data` imports for menu/orders/promotions, ev
 ## 7. Integration QA checks (updated)
 
 1. Empty URL → demo; Staff/Admin still use `data.ts` demo store, not raw route `useState` for those pages.
-2. Live URL **`http://localhost:5032`** (not README 5000) → `/health` 200.
+2. Live URL **`http://localhost:5032`** (as documented in README) → `/health` 200.
 3. Live login with seed `Stacked123!`; wrong password → 401 (UAT-CUS-003) — **Not Run**.
 4. After login, Bearer on `data.ts` calls.
 5. `user.role` is `Admin` not `Administrator`.
@@ -133,6 +133,6 @@ Backend automated coverage: `ApiFlowTests`, `OrderLifecycleTests` (see test-stra
 | Customer Must (create/track/pickup/payment UI) | **Not wired**; API create exists |
 | Order lifecycle vs requirements | **VAL-001 open** — names aligned FE↔BE, not vs requirements |
 | Authentication | API implemented; **browser UAT outstanding**; demo ignores password |
-| Host port | **5032** runtime; README **5000** discrepancy |
+| Host port | **5032** runtime; README **5032** — aligned |
 | Menu DELETE | **Not implemented** on API or `data.ts` |
 | Forgot-password | **Stub** |
