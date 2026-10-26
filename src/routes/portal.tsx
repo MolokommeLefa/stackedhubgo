@@ -559,8 +559,6 @@ function PortalPage() {
                 </Link>
                 .
               </p>
-              <Panel title="Your order">
-              <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
                   <ShoppingBasket className="size-5" aria-hidden />
@@ -747,7 +745,6 @@ function PortalPage() {
                   </>
                 )}
               </Panel>
-              </div>
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
