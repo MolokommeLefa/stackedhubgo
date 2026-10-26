@@ -361,3 +361,11 @@ export function LoadState({
   }
   return null;
 }
+
+export function EmptyHint({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
+}

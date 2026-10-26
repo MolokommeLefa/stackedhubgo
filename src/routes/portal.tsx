@@ -10,11 +10,7 @@ import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
 import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
-import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
-import { currency } from "@/lib/mock-data";
 import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
-import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -118,7 +114,6 @@ function PortalPage() {
       setLoading(false);
     }
   }, [updateUser, userId, userRole]);
-  }, [updateUser, user]);
 
   useEffect(() => {
     void load();
@@ -270,7 +265,6 @@ function PortalPage() {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
-        paymentMethod: payment,
         ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
         ...(paymentMethod === "Card" ? { paymentStatus: "Paid" as const } : {}),
@@ -565,8 +559,6 @@ function PortalPage() {
                 </Link>
                 .
               </p>
-              <Panel title="Your order">
-              <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
                   <ShoppingBasket className="size-5" aria-hidden />
@@ -753,7 +745,6 @@ function PortalPage() {
                   </>
                 )}
               </Panel>
-              </div>
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
@@ -770,13 +761,14 @@ function PortalPage() {
                 </Panel>
               )}
               <Panel title="Recent tickets">
-                {mine.map((o) => (
-                  <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                <div>
+                  {mine.map((o) => (
                     <Link
+                      key={o.id}
                       to="/track/$reference"
                       params={{ reference: o.id }}
                       aria-label={`Track order ${o.reference}`}
-                      className="flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl border-b border-border p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span className="min-w-0">
                         <span className="block font-medium">{o.reference}</span>
@@ -784,49 +776,9 @@ function PortalPage() {
                       </span>
                       <StatusPill status={o.status} />
                     </Link>
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span>
-                        {o.reference} · {currency(o.total)}
-                      </span>
-                      <StatusPill status={o.status} />
-                    </div>
-                    {o.scheduledFor && (
-                      <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
-                    )}
-                    {(o.status === "Placed" || o.status === "Scheduled") && (
-                      <button
-                        type="button"
-                        disabled={cancelling === o.id}
-                        onClick={() => {
-                          setCancelling(o.id);
-                          void cancelOrder(o.id)
-                            .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
-                            .catch(setError)
-                            .finally(() => setCancelling(null));
-                        }}
-                        className="mt-2 min-h-11 text-xs font-semibold text-destructive"
-                      >
-                        {cancelling === o.id ? "Cancelling…" : "Cancel order"}
-                      </button>
-                    )}
-                  </div>
-                  <Link
-                    key={o.id}
-                    to="/track/$reference"
-                    params={{ reference: o.id }}
-                    aria-label={`Track order ${o.reference}`}
-                    className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-medium">{o.reference}</span>
-                      <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
-                    </span>
-                    <StatusPill status={o.status} />
-                  </Link>
-                ))}
-                {mine.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No orders yet.</p>
-                )}
+                  ))}
+                  {mine.length === 0 && <p className="text-sm text-muted-foreground">No orders yet.</p>}
+                </div>
               </Panel>
             </div>
           </div>
