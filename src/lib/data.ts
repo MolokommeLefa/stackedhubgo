@@ -116,38 +116,6 @@ const LOYALTY_REWARDS = [
   { id: "off80", title: "R80 off next order", description: "Recorded as a voucher for your next pickup.", pointsCost: 250 },
 ] as const;
 
-let store: {
-  orders: Order[];
-  menu: MenuItem[];
-  users: ManagedUser[];
-  audit: AuditLogEntry[];
-  customers: Customer[];
-  promotions: Promotion[];
-  loyalty: Record<string, { balance: number; transactions: LoyaltyTransaction[] }>;
-} | null = null;
-
-function demo() {
-  if (!store) {
-    store = {
-      orders: mock.orders.map((o) => ({ ...o })),
-      menu: mock.menuItems.map((m) => ({ ...m })),
-      audit: [...mock.auditLog],
-      customers: mock.customers.map((c) => ({ ...c })),
-      promotions: mock.promotions.map((p) => ({ ...p })),
-      users: [
-        { id: "u1", name: "Thandi Mokoena", email: "thandi@stackedfoods.co.za", role: "Admin", active: true },
-        { id: "u2", name: "Jason Reid", email: "jason@stackedfoods.co.za", role: "Staff", active: true },
-        { id: "u3", name: "Nomsa Khumalo", email: "nomsa@stackedfoods.co.za", role: "Staff", active: true },
-        ...mock.customers.map((c) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          role: "Customer" as const,
-          loyaltyPoints: c.loyaltyPoints,
-          active: true,
-        })),
-      ],
-      loyalty: {},
 function demo() {
   return getDemoStore();
 }
