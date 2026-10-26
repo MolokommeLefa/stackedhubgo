@@ -37,7 +37,7 @@ function TrackList() {
           Follow preparation and collection progress from your order details.
         </p>
 
-        {orders.error && (
+        {orders.error ? (
           <div className="surface-card mt-6 rounded-2xl p-4" role="alert">
             <p className="font-semibold">We couldn't load your orders.</p>
             <p className="mt-1 text-sm text-muted-foreground">Check your connection and try again.</p>
@@ -45,7 +45,7 @@ function TrackList() {
               Try again
             </button>
           </div>
-        )}
+        ) : null}
 
         {orders.loading ? (
           <div className="mt-6 space-y-3" aria-label="Loading orders">

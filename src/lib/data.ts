@@ -14,7 +14,6 @@ import {
   addEntry,
   balance,
   canRedeem,
-  nextReward,
   pointsForCompletedOrder,
   REWARDS,
 } from "./loyalty";
@@ -32,6 +31,7 @@ import type {
   OrderSlot,
   MenuItem,
   Order,
+  OrderSlot,
   OrderStatus,
   Promotion,
 } from "./types";
@@ -57,6 +57,13 @@ export interface PlaceOrderInput {
   items: { menuItemId: string; name: string; quantity: number; unitPrice: number; specialInstructions?: string }[];
   channel?: Order["channel"];
   paymentMethod?: "Cash" | "Card";
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
+  scheduledFor?: string;
+  specialInstructions?: string;
+  fulfilment?: "Collection" | "Delivery";
+  deliveryAddress?: string;
+  fees?: number;
+  redemption?: { rewardId: string; redemptionId: string };
   scheduledFor?: string;
   specialInstructions?: string;
   items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
@@ -175,12 +182,21 @@ function applyCompletedOrderEarn(
   syncCustomerPoints(customerId);
 }
 
+function catalogReward(id: string): { id: string; title: string; points: number; value: number } | undefined {
+  const listed = REWARDS.find((reward) => reward.id === id);
+  if (listed) return listed;
+  const extra = LOYALTY_REWARDS.find((reward) => reward.id === id);
+  if (!extra) return undefined;
+  const value = extra.id === "off30" ? 30 : extra.id === "off80" ? 80 : extra.id === "drink" ? 32 : 0;
+  return { id: extra.id, title: extra.title, points: extra.pointsCost, value };
+}
+
 function redeemInDemo(input: {
   customerId: string;
   rewardId: string;
   redemptionId: string;
 }): RedemptionResult {
-  const reward = REWARDS.find((candidate) => candidate.id === input.rewardId);
+  const reward = catalogReward(input.rewardId);
   if (!reward) throw new ApiError("That reward is no longer available.", 404);
   const store = demo();
   if (store.loyalty.usedRedemptionIds.includes(input.redemptionId)) {
@@ -217,6 +233,37 @@ function loyaltyTier(points: number): Customer["tier"] {
   return points >= 400 ? "VIP" : points >= 100 ? "Regular" : "New";
 }
 
+function walletFromLedger(customerId: string): LoyaltyWallet {
+  const history = getCustomerLedger(customerId);
+  return buildWallet({
+    balance: balance(history),
+    transactions: history.map((entry) => ({
+      id: entry.key,
+      points: entry.points,
+      type: entry.type === "earn" ? "Earn" : "Redeem",
+      reason: entry.label,
+      at: entry.at,
+    })),
+  });
+}
+
+function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): LoyaltyWallet {
+  const catalog = [
+    ...LOYALTY_REWARDS.map((reward) => ({
+      id: reward.id,
+      title: reward.title,
+      description: reward.description,
+      pointsCost: reward.pointsCost,
+    })),
+    ...REWARDS.map((reward) => ({
+      id: reward.id,
+      title: reward.title,
+      description: `R${reward.value} off at checkout`,
+      pointsCost: reward.points,
+    })),
+  ];
+  const rewards = catalog.map((reward) => ({
+    ...reward,
 function demoLoyalty(user: AuthUser) {
   const d = demo();
   if (!d.loyalty[user.id]) {
@@ -249,6 +296,7 @@ function buildWallet(account: { balance: number; transactions: LoyaltyTransactio
       : account.balance < 400
         ? { label: "VIP", current: account.balance, target: 400, remaining: 400 - account.balance }
         : undefined;
+  const nextRewardDef = catalog.find((reward) => account.balance < reward.pointsCost);
   const nextRewardDef = LOYALTY_REWARDS.find((reward) => account.balance < reward.pointsCost);
   return {
     balance: account.balance,
@@ -329,6 +377,13 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   const fees = input.fees ?? 0;
   let discount = 0;
   if (isLiveApi()) {
+    const notes =
+      composeOrderNotes({
+        fulfilment: input.fulfilment,
+        deliveryAddress: input.deliveryAddress,
+        specialInstructions: input.specialInstructions,
+        includeFulfilment: true,
+      }) ?? null;
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
       body: json({
@@ -342,18 +397,14 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         scheduledFor: input.scheduledFor,
         specialInstructions: input.specialInstructions,
         paymentMethod: input.paymentMethod ?? "Cash",
-        specialInstructions:
-          composeOrderNotes({
-            fulfilment: input.fulfilment,
-            deliveryAddress: input.deliveryAddress,
-            specialInstructions: input.specialInstructions,
-            includeFulfilment: true,
-          }) ?? null,
-        items: input.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+        specialInstructions: notes,
+        items: input.items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          specialInstructions: item.specialInstructions,
+        })),
         channel: input.channel ?? "Website",
-        redemption: input.redemption
-          ? { rewardId: input.redemption.rewardId, redemptionId: input.redemption.redemptionId }
-          : undefined,
+        ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
       }),
     });
   }
@@ -381,6 +432,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     total,
     status: scheduled ? "Scheduled" : "Placed",
     placedAt: new Date().toISOString(),
+    fulfilment: input.fulfilment ?? (scheduled ? "Scheduled" : "Immediate"),
     fulfilment: scheduled ? "Scheduled" : "Immediate",
     statusHistory: [
       {
@@ -390,6 +442,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       },
     ],
     ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
+    ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
+    ...(input.paymentStatus ? { paymentStatus: input.paymentStatus } : {}),
+    ...(notes ? { specialInstructions: notes } : {}),
     paymentMethod: input.paymentMethod,
     paymentStatus: input.paymentStatus,
     fulfilment: input.fulfilment,
@@ -437,6 +492,10 @@ export async function getOrderSlots(): Promise<OrderSlot[]> {
   return slots;
 }
 
+export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<LoyaltyWallet> {
+  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
+  const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
+  return walletFromLedger(customerId);
 export async function getLoyaltyWallet(customerId: string): Promise<LoyaltyWallet> {
   if (isLiveApi())
     return apiRequest<LoyaltyWallet>(`${endpoints.loyaltyWallet}?customerId=${customerId}`);
@@ -460,11 +519,20 @@ export async function redeemReward(input: {
   rewardId: string;
   redemptionId: string;
 }): Promise<RedemptionResult> {
-  if (isLiveApi())
-    return apiRequest<RedemptionResult>(endpoints.loyaltyRedeem, {
+  if (isLiveApi()) {
+    const wallet = await apiRequest<LoyaltyWallet>(endpoints.loyaltyRedeem, {
       method: "POST",
-      body: json(input),
+      body: json({ rewardId: input.rewardId }),
     });
+    const reward = catalogReward(input.rewardId);
+    return {
+      rewardId: input.rewardId,
+      redemptionId: input.redemptionId,
+      applied: true,
+      pointsBalance: wallet.balance,
+      discountValue: reward?.value ?? 0,
+    };
+  }
   return redeemInDemo(input);
 }
 
@@ -743,6 +811,12 @@ export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Pro
       body: json({ rewardId }),
     });
   }
+  redeemInDemo({
+    customerId: user.id,
+    rewardId,
+    redemptionId: `redeem:${user.id}:${rewardId}:${Date.now()}`,
+  });
+  return walletFromLedger(user.id);
   const reward = LOYALTY_REWARDS.find((item) => item.id === rewardId);
   if (!reward) throw new ApiError("That reward is not available.", 400);
   const account = demoLoyalty(user);

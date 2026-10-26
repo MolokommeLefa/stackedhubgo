@@ -21,6 +21,7 @@ export function timeAgo(iso: string) {
 }
 
 export const nextStatus: Record<OrderStatus, OrderStatus | null> = {
+  Scheduled: "Placed",
   Placed: "In kitchen",
   "In kitchen": "Ready",
   Ready: "Completed",
@@ -29,12 +30,14 @@ export const nextStatus: Record<OrderStatus, OrderStatus | null> = {
 };
 
 export const actionLabel: Partial<Record<OrderStatus, string>> = {
+  Placed: "Release",
   "In kitchen": "Accept order",
   Ready: "Mark as ready",
   Completed: "Complete order",
 };
 
 export const statusAccent: Record<string, string> = {
+  Scheduled: "bg-primary/60",
   Placed: "bg-primary",
   "In kitchen": "bg-warning",
   Ready: "bg-success",

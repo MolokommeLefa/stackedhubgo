@@ -130,6 +130,7 @@ function notify(s: State, n: Omit<AppNotification, "at" | "read">) {
 }
 
 const STATUS_COPY: Record<OrderStatus, string> = {
+  Scheduled: "Your collection slot is booked.",
   Placed: "The kitchen has your order.",
   "In kitchen": "Your order is being prepared.",
   Ready: "Your order is ready.",

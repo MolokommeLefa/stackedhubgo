@@ -39,6 +39,7 @@ export const Route = createFileRoute("/orders")({
 
 const statuses: OrderStatus[] = ["Scheduled", "Placed", "In kitchen", "Ready", "Completed", "Cancelled"];
 const flow: Record<OrderStatus, OrderStatus | null> = {
+  Scheduled: "Placed",
   Scheduled: null,
   Placed: "In kitchen",
   "In kitchen": "Ready",
@@ -46,9 +47,16 @@ const flow: Record<OrderStatus, OrderStatus | null> = {
   Completed: null,
   Cancelled: null,
 };
+const label: Partial<Record<OrderStatus, string>> = {
+  Placed: "Release",
+  "In kitchen": "Accept",
+  Ready: "Mark ready",
+  Completed: "Complete",
+};
 const label: Partial<Record<OrderStatus, string>> = { "In kitchen": "Accept", Ready: "Mark ready", Completed: "Complete" };
 const tabs = [
   { id: "All", label: "All" },
+  { id: "Scheduled", label: "Scheduled" },
   { id: "Placed", label: "New" },
   { id: "In kitchen", label: "Preparing" },
   { id: "Ready", label: "Ready" },
@@ -143,7 +151,7 @@ function OrdersPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {shown.map((o) => {
-          const next = nextStatus[o.status];
+          const next = nextStatus[o.status] ?? flow[o.status];
           return (
             <article key={o.id} className="surface-card overflow-hidden rounded-[1.6rem]">
               <div className={`h-1 ${statusAccent[o.status] ?? "bg-border"}`} aria-hidden />
@@ -161,6 +169,7 @@ function OrdersPage() {
                 </p>
                 <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   {o.fulfilment ?? o.channel}
+                  {o.scheduledFor ? ` · ${timeAgo(o.scheduledFor)}` : ""}
                 </p>
                 {o.specialInstructions && (
                   <p className="mt-3 rounded-2xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
@@ -173,10 +182,10 @@ function OrdersPage() {
                 <div className="flex flex-wrap gap-2">
                   {next && (
                     <button type="button" onClick={() => move(o.id, next)} className={wsBtnPrimary}>
-                      {actionLabel[next]}
+                      {actionLabel[next] ?? label[next]}
                     </button>
                   )}
-                  {next && (
+                  {(next || o.status === "Scheduled") && (
                     <button
                       type="button"
                       onClick={() => move(o.id, "Cancelled")}
