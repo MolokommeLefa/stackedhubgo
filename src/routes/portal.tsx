@@ -9,6 +9,10 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
+import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
+import { Link } from "@tanstack/react-router";
+import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
+import { currency } from "@/lib/mock-data";
 import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
 import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
 
@@ -101,8 +105,8 @@ function PortalPage() {
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
-      if (userRole === "Customer" && userId) {
-        const nextWallet = await getLoyaltyWallet(userId);
+      if (user?.role === "Customer") {
+        const nextWallet = await getLoyaltyWallet(user);
         setWallet(nextWallet);
         updateUser({ loyaltyPoints: nextWallet.balance });
       } else {
@@ -114,6 +118,7 @@ function PortalPage() {
       setLoading(false);
     }
   }, [updateUser, userId, userRole]);
+  }, [updateUser, user]);
 
   useEffect(() => {
     void load();
@@ -265,6 +270,8 @@ function PortalPage() {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
+        paymentMethod: payment,
+        ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
         ...(paymentMethod === "Card" ? { paymentStatus: "Paid" as const } : {}),
         fulfilment,
@@ -558,6 +565,7 @@ function PortalPage() {
                 </Link>
                 .
               </p>
+              <Panel title="Your order">
               <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
@@ -776,6 +784,12 @@ function PortalPage() {
                       </span>
                       <StatusPill status={o.status} />
                     </Link>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span>
+                        {o.reference} · {currency(o.total)}
+                      </span>
+                      <StatusPill status={o.status} />
+                    </div>
                     {o.scheduledFor && (
                       <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
                     )}
@@ -796,6 +810,19 @@ function PortalPage() {
                       </button>
                     )}
                   </div>
+                  <Link
+                    key={o.id}
+                    to="/track/$reference"
+                    params={{ reference: o.id }}
+                    aria-label={`Track order ${o.reference}`}
+                    className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-medium">{o.reference}</span>
+                      <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
+                    </span>
+                    <StatusPill status={o.status} />
+                  </Link>
                 ))}
                 {mine.length === 0 && (
                   <p className="text-sm text-muted-foreground">No orders yet.</p>

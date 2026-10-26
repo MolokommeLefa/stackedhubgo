@@ -43,6 +43,65 @@ export interface Order {
   paymentMethod?: "Cash" | "Card";
   paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
   specialInstructions?: string;
+  fulfilment?: "Immediate" | "Scheduled";
+  estimatedReadyAt?: string;
+  statusHistory?: OrderStatusEvent[];
+}
+
+export interface OrderSlot {
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  remaining: number;
+  available: boolean;
+}
+
+export type GroupBasketStatus = "Open" | "Locked" | "Converted" | "Cancelled";
+
+export interface GroupParticipant {
+  customerId: string;
+  name: string;
+  joinedAt: string;
+  isHost: boolean;
+}
+
+export interface GroupBasketItem {
+  id: string;
+  customerId: string;
+  customerName: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  specialInstructions?: string;
+}
+
+export interface GroupBasket {
+  id: string;
+  joinCode: string;
+  status: GroupBasketStatus;
+  hostCustomerId: string;
+  hostName: string;
+  createdAt: string;
+  scheduledFor?: string;
+  specialInstructions?: string;
+  total: number;
+  orderId?: string;
+  participants: GroupParticipant[];
+  items: GroupBasketItem[];
+  specialInstructions?: string | undefined;
+  paymentMethod?: "Cash" | "Card" | undefined;
+  /** Only supplied when the payment provider/API confirms the actual payment state. */
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
+  fulfilment?: "Collection" | "Delivery" | undefined;
+  /** Optional server-calculated estimate and actual milestone timestamps. */
+  estimatedReadyAt?: string | undefined;
+  readyAt?: string | undefined;
+  completedAt?: string | undefined;
+  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected" | undefined;
+  statusHistory?: { status: OrderStatus; at: string }[] | undefined;
   updatedAt?: string;
   readyAt?: string;
   completedAt?: string;
