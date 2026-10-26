@@ -690,11 +690,6 @@ export async function removeGroupItem(basketId: string, itemId: string): Promise
   return groupTotal(basket);
 }
 
-export async function getLoyaltyWallet(user: AuthUser): Promise<LoyaltyWallet> {
-  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
-  return buildWallet(demoLoyalty(user));
-}
-
 export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<import("./types").LoyaltyWallet> {
   if (isLiveApi()) {
     return apiRequest<import("./types").LoyaltyWallet>(endpoints.loyaltyRedeem, {
