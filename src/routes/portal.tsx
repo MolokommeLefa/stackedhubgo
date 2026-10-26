@@ -746,6 +746,7 @@ function PortalPage() {
                   </>
                 )}
               </Panel>
+              </div>
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
