@@ -191,14 +191,6 @@ function walletFromLedger(customerId: string): LoyaltyWallet {
   });
 }
 
-function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): LoyaltyWallet {
-  const rewards = LOYALTY_REWARDS.map((reward) => ({
-    id: reward.id,
-    title: reward.title,
-    description: reward.description,
-    pointsCost: reward.pointsCost,
-    affordable: account.balance >= reward.pointsCost,
-  }));
 function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): import("./types").LoyaltyWallet {
   const rewards = [
     ...LOYALTY_REWARDS.map((reward) => ({
