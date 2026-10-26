@@ -10,11 +10,7 @@ import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
 import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
-import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
-import { currency } from "@/lib/mock-data";
 import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
-import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -118,7 +114,6 @@ function PortalPage() {
       setLoading(false);
     }
   }, [updateUser, userId, userRole]);
-  }, [updateUser, user]);
 
   useEffect(() => {
     void load();
@@ -270,7 +265,6 @@ function PortalPage() {
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
-        paymentMethod: payment,
         ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
         ...(paymentMethod === "Card" ? { paymentStatus: "Paid" as const } : {}),
