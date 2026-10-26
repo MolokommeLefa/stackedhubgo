@@ -102,10 +102,10 @@ describe("demo store persistence", () => {
       fulfilment: "Collection",
     });
     const afterPlaced = await getLoyaltyWallet("c1");
-    expect(afterPlaced.points).toBe(before.points);
+    expect(afterPlaced.balance).toBe(before.balance);
     await updateOrderStatus(created.id, "Completed");
     const afterCompleted = await getLoyaltyWallet("c1");
-    expect(afterCompleted.points).toBe(before.points + 12);
+    expect(afterCompleted.balance).toBe(before.balance + 12);
   });
 
   it("does not apply the same redemption id twice", async () => {
@@ -127,8 +127,8 @@ describe("demo store persistence", () => {
       redemption,
     });
     const afterSecond = await getLoyaltyWallet("c1");
-    expect(afterFirst.points).toBe(before.points - 50);
-    expect(afterSecond.points).toBe(afterFirst.points);
+    expect(afterFirst.balance).toBe(before.balance - 50);
+    expect(afterSecond.balance).toBe(afterFirst.balance);
   });
 
   it("reseeds when stored JSON is invalid or from an older version", () => {

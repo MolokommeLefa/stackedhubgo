@@ -8,7 +8,8 @@ import { ADDRESS_LINES } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
 import { isLiveApi } from "@/lib/api-client";
 import { useCart } from "@/lib/cart";
-import { getLoyaltyWallet, placeOrder, type LoyaltyWallet } from "@/lib/data";
+import { getLoyaltyWallet, placeOrder } from "@/lib/data";
+import type { LoyaltyWallet } from "@/lib/types";
 import { currency } from "@/lib/mock-data";
 import { cartTotals, validateDeliveryAddress } from "@/lib/order-rules";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -63,21 +64,40 @@ function CheckoutPage() {
   const [redemptionId, setRedemptionId] = useState<string | null>(null);
   const totals = cartTotals(lines, fulfilment);
   const selectedReward = useMemo(
-    () => wallet?.availableRewards.find((reward) => reward.id === rewardId) ?? null,
+    () => wallet?.rewards.find((reward) => reward.id === rewardId) ?? null,
     [wallet, rewardId],
   );
   const canApplyReward = Boolean(
-    selectedReward && wallet && wallet.points >= selectedReward.points,
+    selectedReward && wallet && wallet.balance >= selectedReward.pointsCost,
   );
-  const discount = canApplyReward && selectedReward ? selectedReward.value : 0;
+  const discount =
+    canApplyReward && selectedReward && !isLiveApi()
+      ? selectedReward.id === "off30"
+        ? 30
+        : selectedReward.id === "off80"
+          ? 80
+          : selectedReward.id === "drink"
+            ? 32
+            : selectedReward.id === "r-20"
+              ? 20
+              : selectedReward.id === "r-50"
+                ? 50
+                : selectedReward.id === "r-120"
+                  ? 120
+                  : 0
+      : 0;
   const finalTotal = Math.max(0, totals.total - discount);
 
   useEffect(() => {
     if (!user?.id) return;
     let mounted = true;
-    void getLoyaltyWallet(user.id).then((next) => {
-      if (mounted) setWallet(next);
-    });
+    void getLoyaltyWallet(user.id)
+      .then((next) => {
+        if (mounted) setWallet(next);
+      })
+      .catch(() => {
+        if (mounted) setWallet(null);
+      });
     return () => {
       mounted = false;
     };
@@ -191,6 +211,17 @@ function CheckoutPage() {
     setError("");
     setSubmitting(true);
     try {
+      const notesText = [
+        scheduleMode === "scheduled" && scheduledFor
+          ? `Scheduled order for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}`
+          : "",
+        notes.trim(),
+        ...lines
+          .filter((l) => l.note || l.options.length)
+          .map((l) => `${l.name}: ${[...l.options, l.note].filter(Boolean).join(", ")}`),
+      ]
+        .filter(Boolean)
+        .join("; ");
       const order = await placeOrder({
         customerId: user?.id ?? "guest",
         customerName: name.trim(),
@@ -201,23 +232,17 @@ function CheckoutPage() {
           unitPrice: l.unitPrice,
         })),
         paymentMethod: payment,
-        paymentStatus: payment === "Card" ? "Paid" : undefined,
         fulfilment,
-        deliveryAddress: fulfilment === "Delivery" ? address.trim() : undefined,
-        specialInstructions: [
-          scheduleMode === "scheduled" && scheduledFor ? `Scheduled order for ${new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })}` : "",
-          notes.trim(),
-          ...lines
-            .filter((l) => l.note || l.options.length)
-            .map((l) => `${l.name}: ${[...l.options, l.note].filter(Boolean).join(", ")}`),
-        ]
-          .filter(Boolean)
-          .join("; "),
         fees: totals.fee,
-        redemption:
-          selectedReward && redemptionId
-            ? { rewardId: selectedReward.id, redemptionId }
-            : undefined,
+        ...(payment === "Card" ? { paymentStatus: "Paid" as const } : {}),
+        ...(fulfilment === "Delivery" ? { deliveryAddress: address.trim() } : {}),
+        ...(scheduleMode === "scheduled" && scheduledFor
+          ? { scheduledFor: new Date(scheduledFor).toISOString() }
+          : {}),
+        ...(notesText ? { specialInstructions: notesText } : {}),
+        ...(selectedReward && redemptionId && !isLiveApi()
+          ? { redemption: { rewardId: selectedReward.id, redemptionId } }
+          : {}),
       });
       clear();
       setRewardId(null);
@@ -408,8 +433,8 @@ function CheckoutPage() {
             <label className="text-sm font-semibold sm:col-span-2">
               Reward redemption
               <div className="mt-2 grid gap-2">
-                {wallet?.availableRewards.map((reward) => {
-                  const enabled = (wallet.points ?? 0) >= reward.points;
+                {wallet?.rewards.map((reward) => {
+                  const enabled = (wallet.balance ?? 0) >= reward.pointsCost;
                   const active = rewardId === reward.id;
                   return (
                     <button
@@ -434,13 +459,13 @@ function CheckoutPage() {
                       } disabled:opacity-50`}
                     >
                       <span>{reward.title}</span>
-                      <span>{reward.points} pts</span>
+                      <span>{reward.pointsCost} pts</span>
                     </button>
                   );
                 })}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Balance: {wallet?.points ?? 0} points. Rewards are disabled if your balance is too
+                Balance: {wallet?.balance ?? 0} points. Rewards are disabled if your balance is too
                 low.
               </p>
             </label>

@@ -54,23 +54,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(USER_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored) as AuthUser);
-      } catch {
-        window.localStorage.removeItem(USER_KEY);
-      }
-    }
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
     setUnauthorizedHandler(() => {
       window.localStorage.removeItem(USER_KEY);
       setUser(null);
     });
     return () => setUnauthorizedHandler(null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const restore = async () => {
+      const storedRaw = window.localStorage.getItem(USER_KEY);
+      let stored: AuthUser | null = null;
+      if (storedRaw) {
+        try {
+          stored = JSON.parse(storedRaw) as AuthUser;
+        } catch {
+          window.localStorage.removeItem(USER_KEY);
+        }
+      }
+
+      if (isLiveApi()) {
+        if (!tokenStore.get()) {
+          window.localStorage.removeItem(USER_KEY);
+          if (!cancelled) {
+            setUser(null);
+            setReady(true);
+          }
+          return;
+        }
+        try {
+          const me = await apiRequest<AuthUser>(endpoints.me);
+          if (!cancelled) persist(me);
+        } catch {
+          if (!cancelled) {
+            window.localStorage.removeItem(USER_KEY);
+            tokenStore.clear();
+            setUser(null);
+          }
+        }
+      } else if (stored) {
+        if (!cancelled) setUser(stored);
+      }
+
+      if (!cancelled) setReady(true);
+    };
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signIn = useCallback<AuthContextValue["signIn"]>(async ({ email, password, role }) => {

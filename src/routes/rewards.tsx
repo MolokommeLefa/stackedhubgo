@@ -3,7 +3,7 @@ import { CustomerShell } from "@/components/CustomerShell";
 import { LoadState } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { getLoyaltyWallet } from "@/lib/data";
-import { currency, formatDate } from "@/lib/mock-data";
+import { formatDate } from "@/lib/mock-data";
 import { useLoad } from "@/lib/use-load";
 
 export const Route = createFileRoute("/rewards")({
@@ -22,11 +22,11 @@ export const Route = createFileRoute("/rewards")({
 function RewardsPage() {
   const { user } = useAuth();
   const wallet = useLoad(async () => getLoyaltyWallet(user?.id ?? ""), {
-    points: 0,
-    next: { reward: null, progress: 0, needed: 0 },
-    availableRewards: [],
-    history: [],
-    rules: [],
+    balance: 0,
+    tier: "New",
+    earnRule: "Earn 1 point for every R10 on a completed order.",
+    rewards: [],
+    transactions: [],
   });
 
   return (
@@ -49,17 +49,22 @@ function RewardsPage() {
                 <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   Balance
                 </p>
-                <p className="mt-2 font-display text-4xl font-semibold">{wallet.data.points} pts</p>
-                {wallet.data.next.reward ? (
+                <p className="mt-2 font-display text-4xl font-semibold">{wallet.data.balance} pts</p>
+                {wallet.data.nextReward ? (
                   <>
                     <p className="mt-3 text-sm text-muted-foreground">
-                      {wallet.data.next.needed} pts until {wallet.data.next.reward.title}
+                      {wallet.data.nextReward.remaining} pts until {wallet.data.nextReward.label}
                     </p>
                     <div className="mt-2 h-2 rounded-full bg-background">
                       <div
                         className="h-full rounded-full bg-primary"
                         style={{
-                          width: `${Math.min(100, Math.round(wallet.data.next.progress * 100))}%`,
+                          width: `${Math.min(
+                            100,
+                            Math.round(
+                              (wallet.data.nextReward.current / wallet.data.nextReward.target) * 100,
+                            ),
+                          )}%`,
                         }}
                       />
                     </div>
@@ -73,13 +78,13 @@ function RewardsPage() {
 
               <h2 className="mt-6 text-sm font-semibold">History</h2>
               <ul className="mt-3 space-y-2">
-                {wallet.data.history.map((entry) => (
+                {wallet.data.transactions.map((entry) => (
                   <li
-                    key={entry.key}
+                    key={entry.id}
                     className="flex items-center justify-between rounded-2xl bg-secondary px-3 py-2 text-sm"
                   >
                     <div>
-                      <p className="font-semibold">{entry.label}</p>
+                      <p className="font-semibold">{entry.reason}</p>
                       <p className="text-xs text-muted-foreground">{formatDate(entry.at)}</p>
                     </div>
                     <span
@@ -93,7 +98,7 @@ function RewardsPage() {
                     </span>
                   </li>
                 ))}
-                {wallet.data.history.length === 0 && (
+                {wallet.data.transactions.length === 0 && (
                   <li className="text-sm text-muted-foreground">No loyalty activity yet.</li>
                 )}
               </ul>
@@ -105,11 +110,11 @@ function RewardsPage() {
           <section className="surface-card rounded-[2rem] p-6">
             <h2 className="text-sm font-semibold">Available rewards</h2>
             <ul className="mt-3 space-y-2 text-sm">
-              {wallet.data.availableRewards.map((reward) => (
+              {wallet.data.rewards.map((reward) => (
                 <li key={reward.id} className="rounded-2xl bg-secondary px-3 py-2">
                   <p className="font-semibold">{reward.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    Redeem {reward.points} pts for {currency(reward.value)} off at checkout.
+                    Redeem {reward.pointsCost} pts{reward.affordable ? " · available now" : ""}.
                   </p>
                 </li>
               ))}
@@ -119,9 +124,12 @@ function RewardsPage() {
           <section className="surface-card rounded-[2rem] p-6">
             <h2 className="text-sm font-semibold">Rules</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-              {wallet.data.rules.map((rule) => (
-                <li key={rule}>{rule}</li>
-              ))}
+              <li>{wallet.data.earnRule}</li>
+              {wallet.data.nextTier && (
+                <li>
+                  {wallet.data.nextTier.remaining} points to {wallet.data.nextTier.label}.
+                </li>
+              )}
             </ul>
           </section>
         </aside>

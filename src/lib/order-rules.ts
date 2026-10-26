@@ -6,6 +6,7 @@ import type { OrderStatus } from "./types";
 
 /** Allowed forward step for each status; null means terminal. */
 export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
+  Scheduled: "Placed",
   Placed: "In kitchen",
   "In kitchen": "Ready",
   Ready: "Completed",
@@ -15,6 +16,7 @@ export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
 
 /** Staff-facing label for the single next action on an order card. */
 export const NEXT_ACTION_LABEL: Record<OrderStatus, string | null> = {
+  Scheduled: "Release",
   Placed: "Accept",
   "In kitchen": "Mark ready",
   Ready: "Complete",
@@ -24,6 +26,7 @@ export const NEXT_ACTION_LABEL: Record<OrderStatus, string | null> = {
 
 /** Board column / customer-facing name for each backend status. */
 export const STATUS_LABEL: Record<OrderStatus, string> = {
+  Scheduled: "Scheduled",
   Placed: "New",
   "In kitchen": "Preparing",
   Ready: "Ready",

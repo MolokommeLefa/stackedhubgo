@@ -9,12 +9,8 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
-import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
-import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
-import { currency } from "@/lib/mock-data";
 import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
-import type { MenuItem, Order, Promotion } from "@/lib/types";
+import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -91,6 +87,8 @@ function PortalPage() {
   const [basketOpen, setBasketOpen] = useState(true);
   const [headerBasketOpen, setHeaderBasketOpen] = useState(false);
 
+  const userId = user?.id;
+  const userRole = user?.role;
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -103,8 +101,8 @@ function PortalPage() {
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
-      if (user?.role === "Customer") {
-        const nextWallet = await getLoyaltyWallet(user);
+      if (userRole === "Customer" && userId) {
+        const nextWallet = await getLoyaltyWallet(userId);
         setWallet(nextWallet);
         updateUser({ loyaltyPoints: nextWallet.balance });
       } else {
@@ -115,7 +113,7 @@ function PortalPage() {
     } finally {
       setLoading(false);
     }
-  }, [updateUser, user]);
+  }, [updateUser, userId, userRole]);
 
   useEffect(() => {
     void load();
@@ -130,6 +128,8 @@ function PortalPage() {
       })
       .catch(setError);
   }, [when]);
+
+  useEffect(() => {
     if (menu.length === 0 || inviteRead) return;
     setInviteRead(true);
     const params = new URLSearchParams(window.location.search);
@@ -256,19 +256,21 @@ function PortalPage() {
     setOrdering(true);
     setError(null);
     try {
+      const scheduledAt =
+        scheduleMode === "scheduled" && scheduledFor
+          ? new Date(scheduledFor).toISOString()
+          : when === "schedule" && slot
+            ? slot
+            : undefined;
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
-        paymentMethod: payment,
-        ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
-        paymentStatus: paymentMethod === "Card" ? "Paid" : undefined,
+        ...(paymentMethod === "Card" ? { paymentStatus: "Paid" as const } : {}),
         fulfilment,
-        deliveryAddress: fulfilment === "Delivery" ? deliveryAddress.trim() : undefined,
+        ...(fulfilment === "Delivery" ? { deliveryAddress: deliveryAddress.trim() } : {}),
         fees: deliveryFee,
-        specialInstructions: scheduleMode === "scheduled" && scheduledFor
-          ? "Scheduled order for " + new Date(scheduledFor).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short" })
-          : undefined,
+        ...(scheduledAt ? { scheduledFor: scheduledAt } : {}),
         items: cartItems.map((m) => ({
           menuItemId: m.id,
           name: m.name,
@@ -364,6 +366,7 @@ function PortalPage() {
               <p className="text-xs text-muted-foreground">Loyalty points</p>
               <p className="mt-1 text-2xl font-bold">{wallet?.balance ?? user?.loyaltyPoints ?? 0}</p>
               <p className="mt-1 text-xs text-muted-foreground">{wallet?.tier ?? "New"} member</p>
+            </div>
             <div className="surface-card rounded-3xl p-5">
               <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
                 Loyalty points
@@ -555,7 +558,6 @@ function PortalPage() {
                 </Link>
                 .
               </p>
-              <Panel title="Your order">
               <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
@@ -669,6 +671,7 @@ function PortalPage() {
                       className="bg-gradient-brand mt-4 min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                     >
                       {ordering ? "Placing order…" : when === "schedule" ? "Schedule order" : "Place order"}
+                    </button>
                     <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency(subtotal)}</span></div>
                       {fulfilment === "Delivery" && <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{currency(deliveryFee)}</span></div>}
@@ -761,12 +764,18 @@ function PortalPage() {
               <Panel title="Recent tickets">
                 {mine.map((o) => (
                   <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span>
-                        {o.reference} · {currency(o.total)}
+                    <Link
+                      to="/track/$reference"
+                      params={{ reference: o.id }}
+                      aria-label={`Track order ${o.reference}`}
+                      className="flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-medium">{o.reference}</span>
+                        <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
                       </span>
                       <StatusPill status={o.status} />
-                    </div>
+                    </Link>
                     {o.scheduledFor && (
                       <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
                     )}
@@ -787,19 +796,6 @@ function PortalPage() {
                       </button>
                     )}
                   </div>
-                  <Link
-                    key={o.id}
-                    to="/track/$reference"
-                    params={{ reference: o.id }}
-                    aria-label={`Track order ${o.reference}`}
-                    className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-medium">{o.reference}</span>
-                      <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
-                    </span>
-                    <StatusPill status={o.status} />
-                  </Link>
                 ))}
                 {mine.length === 0 && (
                   <p className="text-sm text-muted-foreground">No orders yet.</p>

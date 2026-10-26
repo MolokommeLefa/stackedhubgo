@@ -37,9 +37,22 @@ export interface Order {
   status: OrderStatus;
   placedAt: string;
   scheduledFor?: string;
-  fulfilment?: "Immediate" | "Scheduled";
+  fulfilment?: "Immediate" | "Scheduled" | "Collection" | "Delivery";
   estimatedReadyAt?: string;
   statusHistory?: OrderStatusEvent[];
+  paymentMethod?: "Cash" | "Card";
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
+  specialInstructions?: string;
+  updatedAt?: string;
+  readyAt?: string;
+  completedAt?: string;
+  deliveryStatus?:
+    | "Pending"
+    | "Preparing"
+    | "Ready for collection"
+    | "Out for delivery"
+    | "Delivered"
+    | "Collected";
 }
 
 export interface OrderSlot {
@@ -85,18 +98,6 @@ export interface GroupBasket {
   orderId?: string;
   participants: GroupParticipant[];
   items: GroupBasketItem[];
-  specialInstructions?: string | undefined;
-  paymentMethod?: "Cash" | "Card" | undefined;
-  /** Only supplied when the payment provider/API confirms the actual payment state. */
-  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
-  fulfilment?: "Collection" | "Delivery" | undefined;
-  /** Optional server-calculated estimate and actual milestone timestamps. */
-  estimatedReadyAt?: string | undefined;
-  readyAt?: string | undefined;
-  completedAt?: string | undefined;
-  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected" | undefined;
-  statusHistory?: { status: OrderStatus; at: string }[] | undefined;
-  updatedAt?: string;
 }
 
 export interface MenuItem {
