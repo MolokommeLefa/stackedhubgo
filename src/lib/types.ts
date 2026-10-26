@@ -43,19 +43,6 @@ export interface Order {
   paymentMethod?: "Cash" | "Card";
   paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
   specialInstructions?: string;
-  deliveryAddress?: string;
-  deliveryStatus?:
-    | "Pending"
-    | "Preparing"
-    | "Ready for collection"
-    | "Out for delivery"
-    | "Delivered"
-    | "Collected";
-  driverLocation?: { lat: number; lng: number; updatedAt?: string };
-  estimatedDeliveryAt?: string;
-  readyAt?: string;
-  completedAt?: string;
-  updatedAt?: string;
 }
 
 export interface OrderSlot {
@@ -101,6 +88,17 @@ export interface GroupBasket {
   orderId?: string;
   participants: GroupParticipant[];
   items: GroupBasketItem[];
+  paymentMethod?: "Cash" | "Card";
+  /** Only supplied when the payment provider/API confirms the actual payment state. */
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
+  fulfilment?: "Collection" | "Delivery";
+  /** Optional server-calculated estimate and actual milestone timestamps. */
+  estimatedReadyAt?: string;
+  readyAt?: string;
+  completedAt?: string;
+  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected";
+  statusHistory?: { status: OrderStatus; at: string }[];
+  updatedAt?: string;
 }
 
 export interface MenuItem {

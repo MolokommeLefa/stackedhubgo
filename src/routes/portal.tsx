@@ -746,7 +746,6 @@ function PortalPage() {
                   </>
                 )}
               </Panel>
-              </div>
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
@@ -755,13 +754,14 @@ function PortalPage() {
                 </Panel>
               )}
               <Panel title="Recent tickets">
-                {mine.map((o) => (
-                  <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                <div>
+                  {mine.map((o) => (
                     <Link
+                      key={o.id}
                       to="/track/$reference"
                       params={{ reference: o.id }}
                       aria-label={`Track order ${o.reference}`}
-                      className="flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl border-b border-border p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <span className="min-w-0">
                         <span className="block font-medium">{o.reference}</span>

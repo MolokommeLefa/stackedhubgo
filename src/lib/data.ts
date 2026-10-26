@@ -199,13 +199,36 @@ function buildWallet(account: { balance: number; transactions: LoyaltyTransactio
     pointsCost: reward.pointsCost,
     affordable: account.balance >= reward.pointsCost,
   }));
+function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): import("./types").LoyaltyWallet {
+  const rewards = [
+    ...LOYALTY_REWARDS.map((reward) => ({
+      id: reward.id,
+      title: reward.title,
+      description: reward.description,
+      pointsCost: reward.pointsCost,
+      affordable: account.balance >= reward.pointsCost,
+    })),
+    ...REWARDS.map((reward) => ({
+      id: reward.id,
+      title: reward.title,
+      description: `R${reward.value} off at checkout`,
+      pointsCost: reward.points,
+      affordable: account.balance >= reward.points,
+    })),
+  ];
   const nextTier =
     account.balance < 100
       ? { label: "Regular", current: account.balance, target: 100, remaining: 100 - account.balance }
       : account.balance < 400
         ? { label: "VIP", current: account.balance, target: 400, remaining: 400 - account.balance }
         : undefined;
-  const nextRewardDef = LOYALTY_REWARDS.find((reward) => account.balance < reward.pointsCost);
+  const nextRewardDef = [...LOYALTY_REWARDS.map((reward) => ({
+    title: reward.title,
+    pointsCost: reward.pointsCost,
+  })), ...REWARDS.map((reward) => ({
+    title: reward.title,
+    pointsCost: reward.points,
+  }))].find((reward) => account.balance < reward.pointsCost);
   return {
     balance: account.balance,
     tier: loyaltyTier(account.balance),
@@ -301,10 +324,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         })),
         channel: input.channel ?? "Website",
         paymentMethod: input.paymentMethod ?? "Cash",
-        specialInstructions: notes,
         ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
-        ...(input.fulfilment ? { fulfilment: input.fulfilment } : {}),
-        ...(input.deliveryAddress ? { deliveryAddress: input.deliveryAddress } : {}),
+        specialInstructions: notes,
       }),
     });
   }
@@ -344,7 +365,6 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
     ...(input.paymentStatus ? { paymentStatus: input.paymentStatus } : {}),
     ...(notes ? { specialInstructions: notes } : {}),
-    ...(input.deliveryAddress ? { deliveryAddress: input.deliveryAddress } : {}),
   };
   const store = demo();
   store.orders.unshift(created);
@@ -693,9 +713,9 @@ export async function removeGroupItem(basketId: string, itemId: string): Promise
   return groupTotal(basket);
 }
 
-export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<LoyaltyWallet> {
+export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<import("./types").LoyaltyWallet> {
   if (isLiveApi()) {
-    return apiRequest<LoyaltyWallet>(endpoints.loyaltyRedeem, {
+    return apiRequest<import("./types").LoyaltyWallet>(endpoints.loyaltyRedeem, {
       method: "POST",
       body: json({ rewardId }),
     });
