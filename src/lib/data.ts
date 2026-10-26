@@ -429,7 +429,15 @@ export async function redeemReward(input: {
 }
 
 export async function getOrder(id: string): Promise<Order> {
-  if (isLiveApi()) return apiRequest<Order>(`${endpoints.orders}/${id}`);
+  if (isLiveApi()) {
+    try {
+      return await apiRequest<Order>(`${endpoints.orders}/${id}`);
+    } catch (err) {
+      const demoOrder = demo().orders.find((o) => o.id === id);
+      if (demoOrder) return { ...demoOrder };
+      throw err;
+    }
+  }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("We couldn't find that order.", 404);
   return { ...order };

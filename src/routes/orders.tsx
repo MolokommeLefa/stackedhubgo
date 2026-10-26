@@ -30,6 +30,21 @@ export const Route = createFileRoute("/orders")({
   component: OrdersPage,
 });
 
+const statuses: OrderStatus[] = ["Scheduled", "Placed", "In kitchen", "Ready", "Completed", "Cancelled"];
+const flow: Record<OrderStatus, OrderStatus | null> = {
+  Scheduled: "Placed",
+  Placed: "In kitchen",
+  "In kitchen": "Ready",
+  Ready: "Completed",
+  Completed: null,
+  Cancelled: null,
+};
+const label: Partial<Record<OrderStatus, string>> = {
+  Placed: "Release",
+  "In kitchen": "Accept",
+  Ready: "Mark ready",
+  Completed: "Complete",
+};
 const tabs = [
   { id: "All", label: "All" },
   { id: "Scheduled", label: "Scheduled" },
@@ -85,6 +100,9 @@ function OrdersPage() {
           <div className="min-w-56 flex-1">
             <SearchField id="queue-search" value={query} onChange={setQuery} placeholder="Order or customer" label="Search the queue" />
           </div>
+          <button type="button" onClick={() => void reload()} className={wsBtnGhost}>
+            Refresh
+          </button>
           <button type="button" onClick={() => void reload()} className={wsBtnGhost}>Refresh</button>
         </div>
       </div>

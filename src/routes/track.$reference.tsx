@@ -14,6 +14,7 @@ import {
   type IssueKind,
 } from "@/lib/engagement";
 import { currency } from "@/lib/mock-data";
+import { DeliveryTrackingMap } from "@/components/DeliveryTrackingMap";
 import type { Order, OrderStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/track/$reference")({
@@ -224,62 +225,7 @@ function TrackPage() {
               )}
             </div>
           </div>
-          {isDelivery && (
-            <section className="mt-5 overflow-hidden rounded-2xl border border-border" aria-label="Driver tracking map">
-              <div className="flex items-start justify-between gap-3 p-4">
-                <div>
-                  <p className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">Delivery map</p>
-                  <h2 className="mt-1 font-display text-xl font-semibold">
-                    {order.deliveryStatus === "Out for delivery" ? "Your driver is on the way" : order.status === "Completed" ? "Delivery completed" : "Your delivery route"}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {order.deliveryStatus === "Out for delivery" ? "Driver location is a demo marker until live GPS is connected." : "Route preview · live driver location will appear when dispatch starts."}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
-                  {order.deliveryStatus === "Out for delivery" ? "On the way" : fulfilmentLabel}
-                </span>
-              </div>
-              <div className="relative h-64 overflow-hidden bg-[#e8eee6]">
-                <svg viewBox="0 0 640 360" role="img" aria-label="Illustrative delivery map with a route from restaurant to customer" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice">
-                  <rect width="640" height="360" fill="#e8eee6" />
-                  <path d="M-20 65 L660 300 M-30 270 L660 75 M110 -20 L280 390 M450 -20 L350 390 M-20 175 L660 175" stroke="#ffffff" strokeWidth="28" fill="none" />
-                  <path d="M-20 65 L660 300 M-30 270 L660 75 M110 -20 L280 390 M450 -20 L350 390 M-20 175 L660 175" stroke="#d3dbd0" strokeWidth="2" fill="none" />
-                  <path d="M95 275 C160 260 180 205 250 210 S360 130 410 150 S490 110 545 70" stroke="#f9faf7" strokeWidth="12" fill="none" strokeLinecap="round" />
-                  <path d="M95 275 C160 260 180 205 250 210 S360 130 410 150 S490 110 545 70" stroke="#267a61" strokeWidth="5" fill="none" strokeDasharray="8 7" strokeLinecap="round" />
-                  <g transform="translate(95 275)">
-                    <circle r="18" fill="#267a61" opacity=".15" /><circle r="9" fill="#267a61" stroke="#fff" strokeWidth="3" />
-                  </g>
-                  <g transform="translate(545 70)">
-                    <circle r="21" fill="#e6a23c" opacity=".2" /><circle r="11" fill="#e6a23c" stroke="#fff" strokeWidth="3" />
-                    <path d="M-5 -1 h10 M0 -6 v10" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-                  </g>
-                  <g fontFamily="Arial, sans-serif" fontSize="14" fontWeight="600" fill="#26342d">
-                    <rect x="35" y="300" width="145" height="28" rx="14" fill="#fff" /><text x="48" y="319">StackedHub kitchen</text>
-                    <rect x="450" y="27" width="145" height="28" rx="14" fill="#fff" /><text x="463" y="46">Delivery address</text>
-                  </g>
-                </svg>
-                <div className="absolute bottom-3 left-3 rounded-xl bg-white/95 px-3 py-2 text-xs font-medium text-[#26342d] shadow-sm">
-                  <span className="mr-2 inline-block size-2 rounded-full bg-[#267a61]" />Restaurant
-                  <span className="ml-4 mr-2 inline-block size-2 rounded-full bg-[#e6a23c]" />Destination
-                </div>
-              </div>
-              <div className="grid gap-2 p-4 sm:grid-cols-3">
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-xs text-muted-foreground">Driver status</p>
-                  <p className="mt-1 text-sm font-semibold">{order.deliveryStatus ?? (order.status === "Completed" ? "Delivered" : order.status === "Ready" ? "Ready for dispatch" : "Waiting for kitchen")}</p>
-                </div>
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-xs text-muted-foreground">Estimated arrival</p>
-                  <p className="mt-1 text-sm font-semibold">{order.status === "Completed" ? "Arrived" : order.deliveryStatus === "Out for delivery" ? "About 10–20 min" : "Shown after dispatch"}</p>
-                </div>
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-xs text-muted-foreground">Location updates</p>
-                  <p className="mt-1 text-sm font-semibold">Demo preview</p>
-                </div>
-              </div>
-            </section>
-          )}
+          {isDelivery && <DeliveryTrackingMap order={order} />}
           <ul className="mt-6 divide-y divide-border rounded-2xl bg-secondary px-4 text-sm">
             {order.items.map((it) => (
               <li key={it.menuItemId + it.name} className="flex justify-between py-2">
