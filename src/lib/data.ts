@@ -25,10 +25,6 @@ import type {
   Customer,
   GroupBasket,
   LoyaltyTransaction,
-  LoyaltyWallet,
-  MenuItem,
-  Order,
-  OrderSlot,
   MenuItem,
   Order,
   OrderSlot,
@@ -64,19 +60,6 @@ export interface PlaceOrderInput {
   deliveryAddress?: string;
   fees?: number;
   redemption?: { rewardId: string; redemptionId: string };
-  scheduledFor?: string;
-  specialInstructions?: string;
-  items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
-  channel?: Order["channel"] | undefined;
-  paymentMethod?: "Cash" | "Card" | undefined;
-  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
-  fulfilment?: "Collection" | "Delivery" | undefined;
-  specialInstructions?: string | undefined;
-  /** Street and suburb. Required in the UI only for Delivery; packed into specialInstructions. */
-  deliveryAddress?: string | undefined;
-  /** Extra charges such as delivery, added on top of item totals. */
-  fees?: number | undefined;
-  redemption?: { rewardId: string; redemptionId: string } | undefined;
 }
 
 export interface LoyaltyWallet {
