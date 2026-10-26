@@ -756,8 +756,8 @@ function PortalPage() {
               <Panel title="Recent tickets">
                 <div>
                   {mine.map((o) => (
+                    <div key={o.id} className="mb-3">
                     <Link
-                      key={o.id}
                       to="/track/$reference"
                       params={{ reference: o.id }}
                       aria-label={`Track order ${o.reference}`}
