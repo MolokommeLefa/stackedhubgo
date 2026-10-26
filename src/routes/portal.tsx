@@ -788,8 +788,9 @@ function PortalPage() {
                         {cancelling === o.id ? "Cancelling…" : "Cancel order"}
                       </button>
                     )}
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
                 {mine.length === 0 && (
                   <p className="text-sm text-muted-foreground">No orders yet.</p>
                 )}
