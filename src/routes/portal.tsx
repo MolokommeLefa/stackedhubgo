@@ -757,43 +757,41 @@ function PortalPage() {
                 <div>
                   {mine.map((o) => (
                     <div key={o.id} className="mb-3">
-                    <Link
-                      to="/track/$reference"
-                      params={{ reference: o.id }}
-                      aria-label={`Track order ${o.reference}`}
-                      className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl border-b border-border p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    >
-                      <span className="min-w-0">
-                        <span className="block font-medium">{o.reference}</span>
-                        <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
-                      </span>
-                      <StatusPill status={o.status} />
-                    </Link>
-                    {o.scheduledFor && (
-                      <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
-                    )}
-                    {(o.status === "Placed" || o.status === "Scheduled") && (
-                      <button
-                        type="button"
-                        disabled={cancelling === o.id}
-                        onClick={() => {
-                          setCancelling(o.id);
-                          void cancelOrder(o.id)
-                            .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
-                            .catch(setError)
-                            .finally(() => setCancelling(null));
-                        }}
-                        className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                      <Link
+                        to="/track/$reference"
+                        params={{ reference: o.id }}
+                        aria-label={`Track order ${o.reference}`}
+                        className="flex min-h-11 items-center justify-between gap-2 rounded-xl border-b border-border p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       >
-                        {cancelling === o.id ? "Cancelling…" : "Cancel order"}
-                      </button>
-                    )}
+                        <span className="min-w-0">
+                          <span className="block font-medium">{o.reference}</span>
+                          <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
+                        </span>
+                        <StatusPill status={o.status} />
+                      </Link>
+                      {o.scheduledFor && (
+                        <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
+                      )}
+                      {(o.status === "Placed" || o.status === "Scheduled") && (
+                        <button
+                          type="button"
+                          disabled={cancelling === o.id}
+                          onClick={() => {
+                            setCancelling(o.id);
+                            void cancelOrder(o.id)
+                              .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
+                              .catch(setError)
+                              .finally(() => setCancelling(null));
+                          }}
+                          className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                        >
+                          {cancelling === o.id ? "Cancelling…" : "Cancel order"}
+                        </button>
+                      )}
                     </div>
                   ))}
+                  {mine.length === 0 && <p className="text-sm text-muted-foreground">No orders yet.</p>}
                 </div>
-                {mine.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No orders yet.</p>
-                )}
               </Panel>
             </div>
           </div>
