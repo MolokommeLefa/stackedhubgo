@@ -25,6 +25,7 @@ import type {
   Customer,
   GroupBasket,
   LoyaltyTransaction,
+  LoyaltyWallet,
   MenuItem,
   Order,
   OrderSlot,
@@ -399,8 +400,8 @@ export async function getOrderSlots(): Promise<OrderSlot[]> {
   return slots;
 }
 
-export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<import("./types").LoyaltyWallet> {
-  if (isLiveApi()) return apiRequest<import("./types").LoyaltyWallet>(endpoints.loyalty);
+export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<LoyaltyWallet> {
+  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
   const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
   return walletFromLedger(customerId);
 }
