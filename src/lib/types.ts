@@ -88,7 +88,6 @@ export interface GroupBasket {
   orderId?: string;
   participants: GroupParticipant[];
   items: GroupBasketItem[];
-  specialInstructions?: string;
   paymentMethod?: "Cash" | "Card";
   /** Only supplied when the payment provider/API confirms the actual payment state. */
   paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
