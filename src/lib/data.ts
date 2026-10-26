@@ -401,14 +401,8 @@ export async function getOrderSlots(): Promise<OrderSlot[]> {
 }
 
 export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<LoyaltyWallet> {
+  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
   const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
-  if (isLiveApi()) {
-    try {
-      return await apiRequest<LoyaltyWallet>(`${endpoints.loyaltyWallet}?customerId=${encodeURIComponent(customerId)}`);
-    } catch {
-      return apiRequest<LoyaltyWallet>(endpoints.loyalty);
-    }
-  }
   return walletFromLedger(customerId);
 }
 
