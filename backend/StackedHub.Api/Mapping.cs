@@ -38,41 +38,6 @@ public static class Mapping
                 .OrderBy(x => x.At)
                 .Select(x => new OrderStatusEventDto(x.Status, x.At, x.Note))
                 .ToList(),
-                .ToList());
-
-    public static GroupBasketDto ToDto(this GroupBasket basket) =>
-        new(
-            basket.Id.ToString(),
-            basket.JoinCode,
-            basket.Status,
-            basket.HostCustomerId.ToString(),
-            basket.Host?.Name ?? string.Empty,
-            basket.CreatedAt,
-            basket.ScheduledFor,
-            basket.SpecialInstructions,
-            basket.Items.Sum(x => x.Subtotal),
-            basket.OrderId?.ToString(),
-            basket.Participants
-                .OrderBy(x => x.JoinedAt)
-                .Select(x => new GroupParticipantDto(
-                    x.CustomerId.ToString(),
-                    x.Customer?.Name ?? string.Empty,
-                    x.JoinedAt,
-                    x.CustomerId == basket.HostCustomerId))
-                .ToList(),
-            basket.Items
-                .OrderBy(x => x.Id)
-                .Select(x => new GroupBasketItemDto(
-                    x.Id.ToString(),
-                    x.CustomerId.ToString(),
-                    x.Customer?.Name ?? string.Empty,
-                    x.MenuItemId.ToString(),
-                    x.Name,
-                    x.Quantity,
-                    x.UnitPrice,
-                    x.Subtotal,
-                    x.SpecialInstructions))
-                .ToList());
             order.PaymentMethod,
             order.SpecialInstructions);
 
