@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 import { CustomerShell } from "@/components/CustomerShell";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
+import { toUserMessage } from "@/lib/api-client";
 import { getMenu, getOrder } from "@/lib/data";
 import {
   recordStatus,
@@ -46,17 +47,21 @@ function TrackPage() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const history = useEngagement((s) => s.history[reference] ?? []) ?? [];
   const feedback = useEngagement((s) => s.feedback.find((f) => f.orderId === reference)) ?? null;
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const o = await getOrder(reference);
       setOrder(o);
       setError("");
       if (recordStatus(o)) toast.success(`${o.reference} is now ${o.status}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "We couldn't load this order.");
+      setError(toUserMessage(e, "We couldn't load this order."));
+    } finally {
+      setRefreshing(false);
     }
   }, [reference]);
 
@@ -72,7 +77,7 @@ function TrackPage() {
         <div className="mx-auto max-w-lg px-4 pt-12">
           <div className="surface-card rounded-[1.5rem] p-6">
             <p className="font-semibold">{error}</p>
-            <button onClick={load} className="mt-3 text-sm font-semibold text-primary">
+            <button type="button" onClick={() => void load()} className="mt-3 text-sm font-semibold text-primary">
               Try again
             </button>
           </div>
@@ -121,24 +126,37 @@ function TrackPage() {
   const etaLabel = order.estimatedReadyAt ? "Estimated ready time" : "Estimated ready time (initial estimate)";
 
   const orderAgain = async () => {
-    const menu = await getMenu();
-    let skipped = 0;
-    for (const it of order.items) {
-      const m = menu.find((x) => x.id === it.menuItemId || x.name === it.name);
-      if (!m || !m.available) {
-        skipped++;
-        continue;
+    try {
+      const menu = await getMenu();
+      let skipped = 0;
+      for (const it of order.items) {
+        const m = menu.find((x) => x.id === it.menuItemId || x.name === it.name);
+        if (!m || !m.available) {
+          skipped++;
+          continue;
+        }
+        add({ menuItemId: m.id, name: m.name, unitPrice: m.price, quantity: it.quantity, options: [], note: "" });
       }
-      add({ menuItemId: m.id, name: m.name, unitPrice: m.price, quantity: it.quantity, options: [], note: "" });
+      toast.success(skipped ? `Added to cart · ${skipped} item(s) sold out` : "Added to cart at today's prices");
+      void navigate({ to: "/checkout" });
+    } catch (e) {
+      toast.error(toUserMessage(e, "We couldn't reload the menu. Try again."));
     }
-    toast.success(skipped ? `Added to cart · ${skipped} item(s) sold out` : "Added to cart at today's prices");
-    void navigate({ to: "/checkout" });
   };
 
   return (
     <CustomerShell>
       <div className="mx-auto max-w-lg space-y-6 px-4 pt-10">
         <div className="surface-card rounded-[2rem] p-6">
+          {error && (
+            <div className="mb-4 rounded-2xl bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+              <p>Could not refresh this order. Showing the last known status.</p>
+              <p className="mt-1 text-xs">{error}</p>
+              <button type="button" onClick={() => void load()} className="mt-2 font-semibold">
+                {refreshing ? "Refreshing…" : "Try again"}
+              </button>
+            </div>
+          )}
           <p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
             Order {order.reference}
           </p>

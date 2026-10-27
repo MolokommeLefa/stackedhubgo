@@ -36,7 +36,7 @@ const empty: Report = {
 };
 
 function ReportsPage() {
-  const { data: r, loading, error } = useLoad(getReport, empty);
+  const { data: r, loading, error, reload } = useLoad(getReport, empty);
   const days = r.revenueByDay ?? [];
   const sellers = r.bestSellers ?? [];
   const channels = r.salesByChannel ?? [];
@@ -66,7 +66,7 @@ function ReportsPage() {
         </button>
       }
     >
-      <LoadState loading={loading} error={error} />
+      <LoadState loading={loading} error={error} onRetry={() => void reload()} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           dark

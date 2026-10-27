@@ -18,7 +18,7 @@ import {
   REWARDS,
 } from "./loyalty";
 import * as mock from "./mock-data";
-import { composeOrderNotes } from "./order-rules";
+import { canTransition, composeOrderNotes, MAX_LINE_QUANTITY } from "./order-rules";
 import type {
   AuditLogEntry,
   AuthUser,
@@ -61,6 +61,7 @@ export interface PlaceOrderInput {
   deliveryAddress?: string;
   fees?: number;
   redemption?: { rewardId: string; redemptionId: string };
+  idempotencyKey?: string;
 }
 
 export interface RedemptionResult {
@@ -286,6 +287,14 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
+  if (!canTransition(order.status, status)) {
+    throw new ApiError(
+      `This order cannot move from ${order.status} to ${status}.`,
+      409,
+      "http",
+      false,
+    );
+  }
   order.status = status;
   order.updatedAt = new Date().toISOString();
   applyCompletedOrderEarn(order.customerId, order.id, status, order.total);
@@ -295,6 +304,22 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   const scheduled = Boolean(input.scheduledFor);
+  if (!input.items.length) {
+    throw new ApiError("Your cart is empty.", 400, "http", false);
+  }
+  if (
+    input.items.some(
+      (item) =>
+        !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > MAX_LINE_QUANTITY,
+    )
+  ) {
+    throw new ApiError(
+      `Each item quantity must be between 1 and ${MAX_LINE_QUANTITY}.`,
+      400,
+      "http",
+      false,
+    );
+  }
   const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const fees = input.fees ?? 0;
   let discount = 0;
@@ -308,6 +333,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       }) ?? null;
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       body: json({
         items: input.items.map((item) => ({
           menuItemId: item.menuItemId,
@@ -318,6 +344,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         paymentMethod: input.paymentMethod ?? "Cash",
         ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
         specialInstructions: notes,
+        ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       }),
     });
   }
@@ -718,11 +745,16 @@ export async function checkoutGroupBasket(
   basketId: string,
   paymentMethod: "Cash" | "Card",
   user: AuthUser,
+  idempotencyKey?: string,
 ): Promise<Order> {
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.groupCheckout(basketId), {
       method: "POST",
-      body: json({ paymentMethod }),
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+      body: json({
+        paymentMethod,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
+      }),
     });
   }
   const basket = demoGroups.find((item) => item.id === basketId);

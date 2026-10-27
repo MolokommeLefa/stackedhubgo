@@ -318,7 +318,7 @@ function OrderMenu() {
             </div>
           </div>
           <div className="mt-5">
-            <LoadState loading={orders.loading} error={orders.error} />
+            <LoadState loading={orders.loading} error={orders.error} onRetry={() => void orders.reload()} />
             {mine.length === 0 && !orders.loading && (
               <p className="rounded-3xl bg-card px-5 py-6 text-sm text-muted-foreground">
                 No tickets yet. Your first order will show up here.

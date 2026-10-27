@@ -13,6 +13,7 @@ import {
 } from "@/components/workspace";
 import { getOrderQueue, updateOrderStatus } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
+import { canTransition } from "@/lib/order-rules";
 import type { OrderStatus } from "@/lib/types";
 import { useLoad } from "@/lib/use-load";
 
@@ -20,9 +21,15 @@ export const Route = createFileRoute("/orders")({
   head: () => ({
     meta: [
       { title: "Order Queue — StackedHub" },
-      { name: "description", content: "Acknowledge orders and move them through the kitchen lifecycle." },
+      {
+        name: "description",
+        content: "Acknowledge orders and move them through the kitchen lifecycle.",
+      },
       { property: "og:title", content: "Order Queue — StackedHub" },
-      { property: "og:description", content: "Acknowledge orders and move them through the kitchen lifecycle." },
+      {
+        property: "og:description",
+        content: "Acknowledge orders and move them through the kitchen lifecycle.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -30,21 +37,6 @@ export const Route = createFileRoute("/orders")({
   component: OrdersPage,
 });
 
-const statuses: OrderStatus[] = ["Scheduled", "Placed", "In kitchen", "Ready", "Completed", "Cancelled"];
-const flow: Record<OrderStatus, OrderStatus | null> = {
-  Scheduled: "Placed",
-  Placed: "In kitchen",
-  "In kitchen": "Ready",
-  Ready: "Completed",
-  Completed: null,
-  Cancelled: null,
-};
-const label: Partial<Record<OrderStatus, string>> = {
-  Placed: "Release",
-  "In kitchen": "Accept",
-  Ready: "Mark ready",
-  Completed: "Complete",
-};
 const tabs = [
   { id: "All", label: "All" },
   { id: "Scheduled", label: "Scheduled" },
@@ -80,11 +72,19 @@ function OrdersPage() {
   });
 
   async function move(id: string, status: OrderStatus) {
+    if (busyOrder) return;
+    const current = orders.find((order) => order.id === id);
+    if (current && !canTransition(current.status, status)) {
+      setActionError(new Error(`This order cannot move from ${current.status} to ${status}.`));
+      return;
+    }
     setActionError(null);
     setBusyOrder(id);
     try {
       const updated = await updateOrderStatus(id, status);
-      setData((current) => current.map((order) => (order.id === id ? { ...order, ...updated, status } : order)));
+      setData((current) =>
+        current.map((order) => (order.id === id ? { ...order, ...updated, status } : order)),
+      );
     } catch (cause) {
       setActionError(cause);
     } finally {
@@ -98,12 +98,17 @@ function OrdersPage() {
         <FilterTabs options={[...tabs]} value={tab} onChange={setTab} label="Order status" />
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-56 flex-1">
-            <SearchField id="queue-search" value={query} onChange={setQuery} placeholder="Order or customer" label="Search the queue" />
+            <SearchField
+              id="queue-search"
+              value={query}
+              onChange={setQuery}
+              placeholder="Order or customer"
+              label="Search the queue"
+            />
           </div>
           <button type="button" onClick={() => void reload()} className={wsBtnGhost}>
             Refresh
           </button>
-          <button type="button" onClick={() => void reload()} className={wsBtnGhost}>Refresh</button>
         </div>
       </div>
 
@@ -141,12 +146,22 @@ function OrdersPage() {
                 <p className="font-display text-xl font-semibold">{currency(order.total)}</p>
                 <div className="flex flex-wrap gap-2">
                   {next && (
-                    <button type="button" disabled={busyOrder === order.id} onClick={() => void move(order.id, next)} className={wsBtnPrimary}>
-                      {busyOrder === order.id ? "Updating…" : actionLabel[next] ?? next}
+                    <button
+                      type="button"
+                      disabled={busyOrder === order.id}
+                      onClick={() => void move(order.id, next)}
+                      className={wsBtnPrimary}
+                    >
+                      {busyOrder === order.id ? "Updating…" : (actionLabel[next] ?? next)}
                     </button>
                   )}
                   {next && order.status !== "Completed" && order.status !== "Cancelled" && (
-                    <button type="button" disabled={busyOrder === order.id} onClick={() => void move(order.id, "Cancelled")} className="inline-flex min-h-11 items-center justify-center rounded-full bg-destructive/10 px-4 text-sm font-semibold text-destructive">
+                    <button
+                      type="button"
+                      disabled={busyOrder === order.id}
+                      onClick={() => void move(order.id, "Cancelled")}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-destructive/10 px-4 text-sm font-semibold text-destructive"
+                    >
                       Cancel
                     </button>
                   )}
