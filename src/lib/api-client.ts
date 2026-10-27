@@ -51,20 +51,50 @@ export const tokenStore = {
   },
 };
 
+export const API_TIMEOUT_MS = 15_000;
+
+export type ApiErrorCode = "timeout" | "offline" | "network" | "http" | "parse" | "config";
+
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code: ApiErrorCode = "http",
+    public retryable = false,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
+export function isReadOnlyMethod(method?: string) {
+  const verb = (method ?? "GET").toUpperCase();
+  return verb === "GET" || verb === "HEAD";
+}
+
+export function toUserMessage(
+  error: unknown,
+  fallback = "The request failed. Check your connection and try again.",
+) {
+  if (typeof error === "string" && error.trim()) return error;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
+}
+
+export function newIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `idem-${Date.now()}-${Math.floor(Math.random() * 1_000_000_000)}`;
+}
+
+export type ApiRequestOptions = RequestInit & {
+  timeoutMs?: number;
+  idempotencyKey?: string;
+};
+
 async function readError(response: Response) {
   const text = await response.text().catch(() => "");
   try {
-    const json = JSON.parse(text);
+    const json = JSON.parse(text) as { error?: unknown; title?: unknown; detail?: unknown };
     if (json.error) return String(json.error);
     if (json.title) return String(json.title);
     if (json.detail) return String(json.detail);
@@ -77,26 +107,70 @@ async function readError(response: Response) {
   return text || response.statusText || `Request failed (${response.status})`;
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const base = getApiBaseUrl();
-  if (!base) throw new ApiError("API address is not set (demo mode).", 0);
+function networkError(base: string, timedOut: boolean): ApiError {
+  if (timedOut) {
+    return new ApiError(
+      "The request took too long. Check your connection and try again.",
+      0,
+      "timeout",
+      true,
+    );
+  }
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    return new ApiError("You appear to be offline. Reconnect and try again.", 0, "offline", true);
+  }
+  return new ApiError(
+    `Can't reach the API at ${base}. Check the address and that the API is running, then retry.`,
+    0,
+    "network",
+    true,
+  );
+}
 
+function parseSuccessBody<T>(text: string, status: number, retryable: boolean): T {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError("The server sent a response we could not read.", status, "parse", retryable);
+  }
+}
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const base = getApiBaseUrl();
+  if (!base) throw new ApiError("API address is not set (demo mode).", 0, "config", false);
+
+  const { timeoutMs = API_TIMEOUT_MS, idempotencyKey, ...init } = options;
+  const method = init.method ?? "GET";
+  const readOnly = isReadOnlyMethod(method);
   const token = tokenStore.get();
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const onUserAbort = () => controller.abort();
+  init.signal?.addEventListener("abort", onUserAbort);
+
   let response: Response;
   try {
     response = await fetch(`${base}${path}`, {
-      ...options,
+      ...init,
+      method,
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers ?? {}),
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...(init.headers ?? {}),
       },
     });
-  } catch {
-    throw new ApiError(
-      `Can't reach the API at ${base}. Check the address and that the API is running, then retry.`,
-      0,
-    );
+  } catch (err) {
+    if (init.signal?.aborted) throw err;
+    throw networkError(base, timedOut);
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener("abort", onUserAbort);
   }
 
   if (response.status === 401) {
@@ -105,14 +179,28 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     throw new ApiError(
       "Your session has expired or the details are wrong. Please sign in again.",
       401,
+      "http",
+      false,
     );
   }
   if (response.status === 403) {
-    throw new ApiError("Your account doesn't have access to this.", 403);
+    throw new ApiError("Your account doesn't have access to this.", 403, "http", false);
   }
-  if (!response.ok) throw new ApiError(await readError(response), response.status);
+  if (!response.ok) {
+    throw new ApiError(
+      await readError(response),
+      response.status,
+      "http",
+      readOnly && response.status >= 500,
+    );
+  }
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) {
+    throw new ApiError("The server sent an empty response.", response.status, "parse", readOnly);
+  }
+  return parseSuccessBody<T>(text, response.status, readOnly);
 }
 
 /** Endpoints from Role 2 (`ROLE-2.md` on Backend-database), plus staff aliases. */

@@ -60,14 +60,19 @@ function StaffDashboard() {
   const { user } = useAuth();
   const { orders, menu, active, ready, soldOut, list } = useQueueAndMenu();
   const [actionError, setActionError] = useState<unknown>(null);
+  const [busyOrder, setBusyOrder] = useState<string | null>(null);
 
   const move = async (id: string, next: OrderStatus) => {
+    if (busyOrder) return;
     setActionError(null);
+    setBusyOrder(id);
     try {
       await updateOrderStatus(id, next);
       orders.setData((prev) => prev.map((o) => (o.id === id ? { ...o, status: next } : o)));
     } catch (e) {
       setActionError(e);
+    } finally {
+      setBusyOrder(null);
     }
   };
 
@@ -113,7 +118,7 @@ function StaffDashboard() {
           />
           <ul className="divide-y divide-border">
             {active.slice(0, 6).map((o) => (
-              <ActionRow key={o.id} order={o} onMove={move} />
+              <ActionRow key={o.id} order={o} onMove={move} busy={busyOrder === o.id} />
             ))}
           </ul>
           {!orders.loading && active.length === 0 && (
@@ -124,7 +129,7 @@ function StaffDashboard() {
         </Panel>
 
         <Panel title="Heads up">
-          <LoadState loading={menu.loading} error={menu.error} />
+          <LoadState loading={menu.loading} error={menu.error} onRetry={() => void menu.reload()} />
           <ul className="space-y-3">
             {soldOut.map((m) => (
               <li key={m.id} className="rounded-2xl bg-secondary px-4 py-3 text-sm">
@@ -155,9 +160,11 @@ function StaffDashboard() {
 function ActionRow({
   order,
   onMove,
+  busy,
 }: {
   order: Order;
   onMove: (id: string, next: OrderStatus) => void;
+  busy: boolean;
 }) {
   const next = nextStatus[order.status];
   return (
@@ -176,10 +183,11 @@ function ActionRow({
         {next && (
           <button
             type="button"
+            disabled={busy}
             onClick={() => onMove(order.id, next)}
-            className="min-h-11 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+            className="min-h-11 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {actionLabel[next]}
+            {busy ? "Updating…" : actionLabel[next]}
           </button>
         )}
       </div>
@@ -222,7 +230,11 @@ function AdminDashboard() {
       </div>
 
       <Panel title={isLiveApi() ? "Orders by hour" : "Orders today by hour"}>
-        <LoadState loading={report.loading} error={report.error} />
+        <LoadState
+          loading={report.loading}
+          error={report.error}
+          onRetry={() => void report.reload()}
+        />
         {hours.length === 0 && !report.loading ? (
           <p className="text-sm text-muted-foreground">No hourly totals yet.</p>
         ) : (
