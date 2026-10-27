@@ -160,6 +160,9 @@ export interface LoyaltyWallet {
   transactions: LoyaltyTransaction[];
 }
 
+export type PromotionCampaignType = "Discount" | "Double points" | "Points milestone";
+export type PromotionAudience = "Everyone" | "New" | "Regular" | "VIP";
+
 export interface Promotion {
   id: string;
   title: string;
@@ -169,6 +172,11 @@ export interface Promotion {
   endsAt: string;
   active: boolean;
   redemptions: number;
+  /** Optional campaign fields; persisted in demo mode and sent to the API when supported. */
+  campaignType?: PromotionCampaignType;
+  pointsMultiplier?: number;
+  pointsTarget?: number;
+  eligibleGroup?: PromotionAudience;
 }
 
 export interface AuditLogEntry {
