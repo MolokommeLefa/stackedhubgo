@@ -1,13 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowUpRight, Award, Gift, Sparkles } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { CustomerShell } from "@/components/CustomerShell";
 import { LoadState } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { getLoyaltyWallet, getPromotions } from "@/lib/data";
 import { formatDate } from "@/lib/mock-data";
 import { useLoad } from "@/lib/use-load";
+import { promotionProgress } from "@/lib/loyalty";
 import type { Promotion } from "@/lib/types";
 
 export const Route = createFileRoute("/rewards")({
@@ -132,17 +132,14 @@ function RewardsPage() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {milestones.map((promotion) => {
-                    const target = Math.max(1, promotion.pointsTarget ?? 100);
-                    const progress = Math.min(100, Math.round((points / target) * 100));
-                    const remaining = Math.max(0, target - points);
-                    const unlocked = remaining === 0;
+                    const { target, percent: progress, remaining, unlocked } = promotionProgress(points, promotion.pointsTarget ?? 100);
                     return (
                       <article key={promotion.id} className="surface-card rounded-[1.5rem] p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-start gap-3"><div className="rounded-xl bg-primary/10 p-2 text-primary"><Gift className="size-5" /></div><div><h3 className="font-semibold">{promotion.title}</h3><p className="mt-1 text-sm text-muted-foreground">{promotion.description || "Keep earning points to unlock this milestone."}</p></div></div>
                           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${unlocked ? "bg-success/15 text-success" : "bg-secondary"}`}>{unlocked ? "Unlocked" : `${progress}%`}</span>
                         </div>
-                        <div className="mt-5 flex items-center justify-between text-xs"><span className="font-semibold">{points.toLocaleString()} / {target.toLocaleString()} points</span><span className="text-muted-foreground">{unlocked ? "Milestone reached" : `${remaining.toLocaleString()} to go`}</span></div>
+                        <div className="mt-5 flex items-center justify-between text-xs"><span className="font-semibold">{Math.min(points, target).toLocaleString()} / {target.toLocaleString()} points</span><span className="text-muted-foreground">{unlocked ? "Milestone reached" : `${remaining.toLocaleString()} to go`}</span></div>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-label={`${promotion.title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>
                         <p className="mt-3 text-xs text-muted-foreground">{promotion.endsAt ? `Ends ${formatDate(promotion.endsAt)}` : "No end date"} · For {promotion.eligibleGroup ?? "Everyone"}</p>
                       </article>
