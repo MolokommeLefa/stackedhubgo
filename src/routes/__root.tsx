@@ -140,8 +140,37 @@ function RootShell({ children }: { children: ReactNode }) {
         <head>
           <HeadContent />
         </head>
-        <body>
-          {children}
+        <body className="flex min-h-screen flex-col">
+          <div className="flex-1">
+            {children}
+          </div>
+          <footer className="w-full border-t border-border bg-card py-6 mt-auto">
+            <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 sm:flex-row">
+              <p className="text-sm text-muted-foreground">
+                © {new Date().getFullYear()} Stacked Foods. All rights reserved.
+              </p>
+              <div className="flex items-center gap-4 text-sm font-medium">
+                <a 
+                  href="https://www.instagram.com/bruv_burger" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors hover:text-[#E1306C]"
+                  aria-label="Instagram"
+                >
+                  Instagram
+                </a>
+                <a 
+                  href="https://wa.me/27782941439" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors hover:text-[#25D366]"
+                  aria-label="WhatsApp"
+                >
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </footer>
           <Scripts />
         </body>
       </html>
@@ -155,7 +184,6 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <CartProvider>
           <Outlet />
           <Toaster position="top-center" richColors />
