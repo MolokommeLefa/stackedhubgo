@@ -5,6 +5,8 @@ import { BrandMark } from "@/components/BrandMark";
 import { HOURS_SUMMARY } from "@/components/site-info";
 import { homeRouteForRole, useAuth } from "@/lib/auth";
 
+const SLOGAN_LINE = "Stacked high. Tastes higher. Bold, halaal flavour wherever we go.";
+
 const publicLinks = [
   { to: "/", label: "Home" },
   { to: "/about", label: "About" },
@@ -124,34 +126,39 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">{SLOGAN_LINE}</p>
             <p className="mt-3 text-xs text-muted-foreground">{HOURS_SUMMARY}</p>
           </div>
-          <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold" aria-label="Footer">
-            {publicLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="min-h-11 inline-flex items-center text-foreground"
-              >
-                {link.label}
-              </Link>
-            ))}
-            {ready && workspace ? (
-              <Link to={workspace} className="min-h-11 inline-flex items-center text-primary">
-                {user?.role === "Customer" ? "Portal" : "Workspace"}
-              </Link>
-            ) : (
-              <Link
-                to="/login"
-                search={{}}
-                className="min-h-11 inline-flex items-center text-primary"
-              >
-                Sign in
-              </Link>
-            )}
-          </nav>
+          <div className="flex flex-col sm:items-end gap-4">
+            <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold" aria-label="Footer">
+              {publicLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="min-h-11 inline-flex items-center text-foreground hover:text-primary"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {ready && workspace ? (
+                <Link to={workspace} className="min-h-11 inline-flex items-center text-primary">
+                  {user?.role === "Customer" ? "Portal" : "Workspace"}
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  search={{}}
+                  className="min-h-11 inline-flex items-center text-primary"
+                >
+                  Sign in
+                </Link>
+              )}
+            </nav>
+            
+            <div className="flex items-center gap-4 text-sm font-medium mt-2">
+              <a href="https://www.instagram.com/bruv_burger" target="_blank" rel="noopener noreferrer" className="text-muted-foreground transition-colors hover:text-[#E1306C]">Instagram</a>
+              <a href="https://wa.me/27782941439" target="_blank" rel="noopener noreferrer" className="text-muted-foreground transition-colors hover:text-[#25D366]">WhatsApp</a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
-
-const SLOGAN_LINE = "Stacked high. Tastes higher. Bold, halaal flavour wherever we go.";
