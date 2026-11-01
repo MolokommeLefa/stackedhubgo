@@ -10,7 +10,7 @@
 const ENV_API_URL: string = import.meta.env["VITE_API_BASE_URL"] ?? "";
 /** Deployed ASP.NET Core API used when neither deployment env nor a saved URL is configured. */
 export const DEFAULT_API_BASE_URL =
-  "https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net";
+  "https://stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net";
 const API_URL_KEY = "stackedhub.apiUrl";
 const TOKEN_KEY = "stackedhub.jwt";
 

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 
 /** Hosted Azure Web API (deployed by .github/workflows/deploy-api.yml). */
 export const HOSTED_API_URL =
-  "https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net";
+  "https://stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -199,7 +199,7 @@ function SettingsPage() {
           <p className="mt-1">
             The StackedHub API runs on Azure at{" "}
             <code className="break-all">
-              stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net
+              stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net
             </code>
             . Demo logins: thandi@stackedfoods.co.za (Admin), jason@stackedfoods.co.za (Staff),
             priya.nair@example.co.za (Customer), password <code>Stacked123!</code>.
