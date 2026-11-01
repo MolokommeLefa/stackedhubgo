@@ -105,8 +105,8 @@ function PortalPage() {
       setMenu(nextMenu);
       setOrders(nextOrders);
       setPromos(nextPromos);
-      if (user?.role === "Customer") {
-        const nextWallet = await getLoyaltyWallet(user);
+      if (userRole === "Customer" && userId) {
+        const nextWallet = await getLoyaltyWallet(userId);
         setWallet(nextWallet);
         updateUser({ loyaltyPoints: nextWallet.balance });
       } else {
@@ -117,7 +117,7 @@ function PortalPage() {
     } finally {
       setLoading(false);
     }
-  }, [updateUser, user, userId, userRole]);
+  }, [updateUser, userId, userRole]);
 
   useEffect(() => {
     void load();

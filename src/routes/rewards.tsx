@@ -57,7 +57,7 @@ function RewardsPage() {
   useEffect(() => { void loadCampaigns(); }, [loadCampaigns]);
 
   const points = wallet.data.balance;
-  const currentPromotions = promotions.filter(campaignIsCurrent).filter((p) => {
+  const currentPromotions = promotions.filter((p) => campaignIsCurrent(p)).filter((p) => {
     const audience = p.eligibleGroup ?? "Everyone";
     return audience === "Everyone" || audience === wallet.data.tier;
   });

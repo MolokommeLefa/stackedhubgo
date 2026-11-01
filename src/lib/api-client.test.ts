@@ -58,8 +58,9 @@ describe("apiRequest", () => {
       "fetch",
       vi.fn(async () => new Response("<html>nope</html>", { status: 200 })),
     );
-    const error = await apiRequest("/api/menu").catch((err) => err);
+    const error = await apiRequest("/api/menu").catch((err: unknown) => err);
     expect(error).toBeInstanceOf(ApiError);
+    if (!(error instanceof ApiError)) throw error;
     expect(error.code).toBe("parse");
     expect(error.retryable).toBe(true);
   });
