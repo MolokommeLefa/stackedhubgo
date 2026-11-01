@@ -99,6 +99,60 @@ export interface GroupBasket {
   deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected";
   statusHistory?: { status: OrderStatus; at: string }[];
   updatedAt?: string;
+  readyAt?: string;
+  completedAt?: string;
+  deliveryStatus?:
+    | "Pending"
+    | "Preparing"
+    | "Ready for collection"
+    | "Out for delivery"
+    | "Delivered"
+    | "Collected";
+}
+
+export interface OrderSlot {
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  remaining: number;
+  available: boolean;
+}
+
+export type GroupBasketStatus = "Open" | "Locked" | "Converted" | "Cancelled";
+
+export interface GroupParticipant {
+  customerId: string;
+  name: string;
+  joinedAt: string;
+  isHost: boolean;
+}
+
+export interface GroupBasketItem {
+  id: string;
+  customerId: string;
+  customerName: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  specialInstructions?: string;
+}
+
+export interface GroupBasket {
+  id: string;
+  joinCode: string;
+  status: GroupBasketStatus;
+  hostCustomerId: string;
+  hostName: string;
+  createdAt: string;
+  scheduledFor?: string;
+  specialInstructions?: string;
+  total: number;
+  orderId?: string;
+  participants: GroupParticipant[];
+  items: GroupBasketItem[];
 }
 
 export interface MenuItem {
