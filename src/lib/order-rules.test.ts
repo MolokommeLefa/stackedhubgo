@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   canTransition,
   cartTotals,
+  clampLineQuantity,
   composeOrderNotes,
   delayLevel,
+  MAX_LINE_QUANTITY,
   NEXT_STATUS,
+  sanitizeCartLines,
   validateDeliveryAddress,
   type CartLine,
 } from "./order-rules";
@@ -51,6 +54,27 @@ describe("cart totals", () => {
   it("adds R25 delivery fee only for delivery", () => {
     expect(cartTotals([line(100, 1)], "Delivery").total).toBe(125);
     expect(cartTotals([], "Delivery").total).toBe(0);
+  });
+});
+
+describe("cart quantity", () => {
+  it("clamps to whole numbers between 0 and 20", () => {
+    expect(clampLineQuantity(2.8)).toBe(2);
+    expect(clampLineQuantity(-3)).toBe(0);
+    expect(clampLineQuantity(99)).toBe(MAX_LINE_QUANTITY);
+    expect(clampLineQuantity(Number.NaN)).toBe(0);
+  });
+
+  it("drops broken stored basket rows", () => {
+    expect(
+      sanitizeCartLines([
+        { key: "ok", menuItemId: "m1", name: "Burger", unitPrice: 129, quantity: 2, options: [] },
+        { menuItemId: "m2", name: "Broken", unitPrice: 10, quantity: 0, options: [] },
+        { not: "a line" },
+      ]),
+    ).toEqual([
+      { key: "ok", menuItemId: "m1", name: "Burger", unitPrice: 129, quantity: 2, options: [] },
+    ]);
   });
 });
 

@@ -153,3 +153,38 @@ Covers FR-031 **implemented** machine, not requirements New/Confirmed/…. Does 
 | This strategy / traceability / UAT / defects / architecture | Day 3 **#4829** implemented E2E recorded; CUS-007/E2E still Blocked on Pickup/Cash/Card + VAL-001; DEF-017/018 Resolved / Verified; VAL-001 Open |
 | Backend automated tests | Present; latest **18/18** after test-data restore; GitHub Actions backend job Pass; not a substitute for UAT; not isolated from LocalDB |
 | Frontend automated tests | Still no unit/e2e runner. Production `npm run build` Pass in GitHub Actions (including after DEF-018). |
+
+
+---
+
+## Day 4 — Gamification and order lifecycle regression
+
+**Scope:** admin-created loyalty campaigns, customer reward progress, order status lifecycle and responsive customer UI.
+
+### Automated checks
+
+Run from the repository root:
+
+```bash
+npm ci
+npm test
+npm run build
+```
+
+The loyalty tests cover points earning only on Completed orders, idempotent ledger entries, insufficient-balance redemption rejection, repeat-redemption protection, and bounded milestone progress. The order-rules suite covers Placed → In kitchen → Ready → Completed, skipped-step rejection, cancellation rules, delivery fees and address validation.
+
+### Manual customer UI checks
+
+| ID | Steps | Expected result |
+|---|---|---|
+| D4-LOY-001 | Sign in as Customer; open Rewards. | Balance, tier, next reward, points activity and reward catalogue render without overlapping cards. |
+| D4-LOY-002 | As Admin, create a Points milestone with a target, audience and dates; open Rewards as an eligible Customer. | Campaign appears with a progress bar, points achieved, points remaining and end date. |
+| D4-LOY-003 | Repeat with a different audience tier. | Customers outside the configured audience do not see the campaign. |
+| D4-LOY-004 | Pause a campaign in Admin Promotions; refresh Rewards. | Paused campaign is no longer shown as active. |
+| D4-LOY-005 | Create a Double points campaign. | Admin list displays its multiplier; customer sees the eligible offer. Verify actual award multiplier only after backend support is confirmed. |
+| D4-ORD-001 | Place an order; check Customer tracking and Staff queue. | Same order reference and status appear in both views. |
+| D4-ORD-002 | Advance Placed → In kitchen → Ready → Completed and refresh both views at each step. | Status stays consistent after refresh; timeline does not skip or reorder milestones. |
+| D4-ORD-003 | Attempt to skip directly from Placed to Ready and cancel a Completed order. | API rejects invalid transitions; UI shows a useful error and does not optimistically leave the invalid status displayed. |
+| D4-UI-001 | Test Rewards, Promotions and tracking at 360px, 768px and desktop width. | No horizontal page overflow; cards stack on mobile; progress labels and controls remain readable and keyboard reachable. |
+
+**Evidence rule:** CI/build success is not the same as live UAT. Record browser/API environment, user role, order reference and screenshots for each manual case. The frontend sends optional campaign fields to the existing promotions API; persistent campaign fields and server-enforced audience/multiplier rules require compatible backend DTO, storage and order-award logic before they can be treated as live production enforcement.

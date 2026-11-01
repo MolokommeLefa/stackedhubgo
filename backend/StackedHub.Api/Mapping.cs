@@ -38,7 +38,8 @@ public static class Mapping
                 .OrderBy(x => x.At)
                 .Select(x => new OrderStatusEventDto(x.Status, x.At, x.Note))
                 .ToList(),
-                .ToList());
+            order.PaymentMethod,
+            order.SpecialInstructions);
 
     public static GroupBasketDto ToDto(this GroupBasket basket) =>
         new(
@@ -73,8 +74,6 @@ public static class Mapping
                     x.Subtotal,
                     x.SpecialInstructions))
                 .ToList());
-            order.PaymentMethod,
-            order.SpecialInstructions);
 
     public static GroupBasketDto ToDto(this GroupBasket basket) =>
         new(

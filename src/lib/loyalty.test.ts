@@ -5,6 +5,7 @@ import {
   nextReward,
   pointsForCompletedOrder,
   pointsForTotal,
+  promotionProgress,
   REWARDS,
 } from "./loyalty";
 
@@ -76,5 +77,20 @@ describe("loyalty rules", () => {
       at: "",
     });
     expect(balance(second)).toBe(20);
+  });
+});
+
+
+describe("admin campaign progress", () => {
+  it("shows accurate progress and remaining points", () => {
+    expect(promotionProgress(35, 100)).toEqual({ current: 35, target: 100, remaining: 65, percent: 35, unlocked: false });
+  });
+
+  it("caps progress at 100 percent once the milestone is unlocked", () => {
+    expect(promotionProgress(140, 100)).toEqual({ current: 140, target: 100, remaining: 0, percent: 100, unlocked: true });
+  });
+
+  it("safely handles invalid values and zero targets", () => {
+    expect(promotionProgress(Number.NaN, 0)).toEqual({ current: 0, target: 1, remaining: 1, percent: 0, unlocked: false });
   });
 });

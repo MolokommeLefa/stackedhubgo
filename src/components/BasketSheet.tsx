@@ -11,6 +11,7 @@ import {
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useCart } from "@/lib/cart";
 import { currency } from "@/lib/mock-data";
+import { MAX_LINE_QUANTITY } from "@/lib/order-rules";
 
 const BasketUi = createContext<{ openBasket: () => void } | null>(null);
 
@@ -123,7 +124,8 @@ function BasketSheet({
                       <button
                         type="button"
                         aria-label={`Add one ${l.name}`}
-                        onClick={() => setQuantity(l.key, Math.min(20, l.quantity + 1))}
+                        disabled={l.quantity >= MAX_LINE_QUANTITY}
+                        onClick={() => setQuantity(l.key, l.quantity + 1)}
                         className="grid size-9 place-items-center rounded-full bg-secondary"
                       >
                         <Plus className="size-3.5" />
@@ -144,13 +146,23 @@ function BasketSheet({
           <p className="mt-1 text-xs text-muted-foreground">
             Collection or delivery fees appear at checkout.
           </p>
-          <Link
-            to="/checkout"
-            onClick={() => onOpenChange(false)}
-            className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
-          >
-            Continue to checkout →
-          </Link>
+          {count === 0 ? (
+            <Link
+              to="/order"
+              onClick={() => onOpenChange(false)}
+              className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-secondary text-sm font-semibold"
+            >
+              Browse the menu
+            </Link>
+          ) : (
+            <Link
+              to="/checkout"
+              onClick={() => onOpenChange(false)}
+              className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+            >
+              Continue to checkout →
+            </Link>
+          )}
         </div>
       </SheetContent>
     </Sheet>

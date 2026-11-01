@@ -19,7 +19,7 @@ import {
 import { BrandMark } from "@/components/BrandMark";
 import { ADDRESS_LINES, OPENING_HOURS } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
-import { isLiveApi } from "@/lib/api-client";
+import { isLiveApi, toUserMessage } from "@/lib/api-client";
 import type { Role } from "@/lib/types";
 
 function hoursToday() {
@@ -337,10 +337,7 @@ export function LoadState({
     );
   }
   if (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "The request failed. Check your connection and try again.";
+    const message = toUserMessage(error);
     return (
       <div
         className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
@@ -360,4 +357,12 @@ export function LoadState({
     );
   }
   return null;
+}
+
+export function EmptyHint({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
 }

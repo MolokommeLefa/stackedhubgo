@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import {
@@ -12,13 +12,18 @@ import {
   removeGroupItem,
 } from "@/lib/data";
 import { currency } from "@/lib/mock-data";
+import { createIdempotencySession, createSubmitLock } from "@/lib/reliability";
 import type { GroupBasket, MenuItem } from "@/lib/types";
+import { isLiveApi } from "@/lib/api-client";
 
 export const Route = createFileRoute("/group")({
   head: () => ({
     meta: [
       { title: "Group order — StackedHub" },
-      { name: "description", content: "Share a basket with friends, customise items, and check out as one pickup order." },
+      {
+        name: "description",
+        content: "Share a basket with friends, customise items, and check out as one pickup order.",
+      },
     ],
   }),
   component: GroupOrderPage,
@@ -35,6 +40,8 @@ function GroupOrderPage() {
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
+  const submitLock = useRef(createSubmitLock());
+  const idempotency = useRef(createIdempotencySession());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,7 +50,10 @@ function GroupOrderPage() {
       const [nextBaskets, nextMenu] = await Promise.all([listGroupBaskets(), getMenu()]);
       setBaskets(nextBaskets);
       setMenu(nextMenu.filter((item) => item.available));
-      setActive((current) => nextBaskets.find((basket) => basket.id === current?.id) ?? nextBaskets[0] ?? null);
+      setActive(
+        (current) =>
+          nextBaskets.find((basket) => basket.id === current?.id) ?? nextBaskets[0] ?? null,
+      );
     } catch (err) {
       setError(err);
     } finally {
@@ -56,6 +66,7 @@ function GroupOrderPage() {
   }, [load]);
 
   const run = async (action: () => Promise<void>) => {
+    if (!submitLock.current.acquire()) return;
     setBusy(true);
     setError(null);
     try {
@@ -63,6 +74,7 @@ function GroupOrderPage() {
     } catch (err) {
       setError(err);
     } finally {
+      submitLock.current.release();
       setBusy(false);
     }
   };
@@ -108,8 +120,25 @@ function GroupOrderPage() {
 
   const checkout = () => {
     if (!user || !active) return;
+    if (active.items.length === 0) {
+      setError("Add items before checking out this group order.");
+      return;
+    }
+    if (payment === "Card" && isLiveApi()) {
+      setError(
+        "Card payments are demo-only until a payment provider is connected. Choose cash for live orders.",
+      );
+      return;
+    }
     void run(async () => {
-      const order = await checkoutGroupBasket(active.id, payment, user);
+      const fingerprint = `${active.id}:${payment}:${active.items.map((item) => `${item.menuItemId}:${item.quantity}`).join(",")}`;
+      const order = await checkoutGroupBasket(
+        active.id,
+        payment,
+        user,
+        idempotency.current.keyFor(fingerprint),
+      );
+      idempotency.current.reset();
       setNote(`Group order ${order.reference} is in. Track it from the customer portal.`);
       setActive({ ...active, status: "Converted", orderId: order.id });
       setBaskets((prev) => prev.filter((entry) => entry.id !== active.id));
@@ -169,17 +198,24 @@ function GroupOrderPage() {
               >
                 <p className="text-sm text-muted-foreground">
                   Code <span className="font-semibold text-foreground">{active.joinCode}</span>
-                  {isHost ? " — share this so friends can add their items." : ` — hosted by ${active.hostName}.`}
+                  {isHost
+                    ? " — share this so friends can add their items."
+                    : ` — hosted by ${active.hostName}.`}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {active.participants.map((person) => person.name).join(" · ")}
                 </p>
                 {active.items.length === 0 ? (
-                  <p className="mt-4 text-sm text-muted-foreground">No items yet. Add from the menu.</p>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    No items yet. Add from the menu.
+                  </p>
                 ) : (
                   <ul className="mt-4 space-y-2">
                     {active.items.map((item) => (
-                      <li key={item.id} className="glass-soft flex items-center justify-between gap-3 rounded-2xl p-4">
+                      <li
+                        key={item.id}
+                        className="glass-soft flex items-center justify-between gap-3 rounded-2xl p-4"
+                      >
                         <div>
                           <p className="text-sm font-semibold">
                             {item.quantity}× {item.name}
@@ -203,14 +239,23 @@ function GroupOrderPage() {
                     ))}
                   </ul>
                 )}
-                <p className="mt-4 text-sm font-semibold">Combined total {currency(active.total)}</p>
+                <p className="mt-4 text-sm font-semibold">
+                  Combined total {currency(active.total)}
+                </p>
                 {isHost && active.status !== "Converted" && (
                   <div className="mt-4 space-y-3">
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-muted-foreground">Pay at collection</legend>
+                      <legend className="text-xs font-semibold text-muted-foreground">
+                        Pay at collection
+                      </legend>
                       {(["Cash", "Card"] as const).map((method) => (
                         <label key={method} className="flex min-h-11 items-center gap-2 text-sm">
-                          <input type="radio" name="group-pay" checked={payment === method} onChange={() => setPayment(method)} />
+                          <input
+                            type="radio"
+                            name="group-pay"
+                            checked={payment === method}
+                            onChange={() => setPayment(method)}
+                          />
                           {method}
                         </label>
                       ))}
@@ -232,7 +277,9 @@ function GroupOrderPage() {
           <div className="space-y-6">
             <Panel title="Your groups">
               {baskets.length === 0 ? (
-                <p className="text-sm text-muted-foreground">You are not in an open group order yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  You are not in an open group order yet.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {baskets.map((basket) => (
@@ -251,14 +298,18 @@ function GroupOrderPage() {
             </Panel>
             <Panel title="Add from menu">
               {!canEdit ? (
-                <p className="text-sm text-muted-foreground">Join or create a group to add items.</p>
+                <p className="text-sm text-muted-foreground">
+                  Join or create a group to add items.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {menu.map((item) => (
                     <li key={item.id} className="flex items-center justify-between gap-3 text-sm">
                       <span>
                         {item.name}
-                        <span className="block text-xs text-muted-foreground">{currency(item.price)}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {currency(item.price)}
+                        </span>
                       </span>
                       <button
                         type="button"

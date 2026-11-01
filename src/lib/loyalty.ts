@@ -59,3 +59,23 @@ export function addEntry(ledger: LedgerEntry[], entry: LedgerEntry): LedgerEntry
   }
   return [entry, ...ledger];
 }
+
+
+/** Safe, bounded progress for loyalty missions and admin-created milestones. */
+export function promotionProgress(currentPoints: number, targetPoints: number): {
+  current: number;
+  target: number;
+  remaining: number;
+  percent: number;
+  unlocked: boolean;
+} {
+  const current = Number.isFinite(currentPoints) ? Math.max(0, Math.floor(currentPoints)) : 0;
+  const target = Number.isFinite(targetPoints) ? Math.max(1, Math.floor(targetPoints)) : 1;
+  return {
+    current,
+    target,
+    remaining: Math.max(0, target - current),
+    percent: Math.min(100, Math.round((current / target) * 100)),
+    unlocked: current >= target,
+  };
+}

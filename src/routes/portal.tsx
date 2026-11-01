@@ -1,20 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarClock, Copy, ShoppingBasket, Truck, UsersRound } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
+import { DeliveryTrackingMap } from "@/components/DeliveryTrackingMap";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
 import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
-import { getMenu, getOrderQueue, getPromotions, placeOrder } from "@/lib/data";
-import { currency } from "@/lib/mock-data";
-import { DELIVERY_FEE, validateDeliveryAddress } from "@/lib/order-rules";
-import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
+import { DELIVERY_FEE, MAX_LINE_QUANTITY, validateDeliveryAddress } from "@/lib/order-rules";
+import { createIdempotencySession, createSubmitLock } from "@/lib/reliability";
+import { validateDemoCard, validateScheduleWindow } from "@/lib/validation";
 
 export const Route = createFileRoute("/portal")({
   head: () => ({
@@ -69,7 +68,6 @@ function PortalPage() {
   const [error, setError] = useState<unknown>(null);
   const [asking, setAsking] = useState(false);
   const [ordering, setOrdering] = useState(false);
-  const [payment, setPayment] = useState<"Cash" | "Card">("Cash");
   const [when, setWhen] = useState<"now" | "schedule">("now");
   const [slots, setSlots] = useState<OrderSlot[]>([]);
   const [slot, setSlot] = useState("");
@@ -90,6 +88,8 @@ function PortalPage() {
   const [inviteRead, setInviteRead] = useState(false);
   const [basketOpen, setBasketOpen] = useState(true);
   const [headerBasketOpen, setHeaderBasketOpen] = useState(false);
+  const submitLock = useRef(createSubmitLock());
+  const idempotency = useRef(createIdempotencySession());
 
   const userId = user?.id;
   const userRole = user?.role;
@@ -117,8 +117,7 @@ function PortalPage() {
     } finally {
       setLoading(false);
     }
-  }, [updateUser, userId, userRole]);
-  }, [updateUser, user]);
+  }, [updateUser, user, userId, userRole]);
 
   useEffect(() => {
     void load();
@@ -204,7 +203,7 @@ function PortalPage() {
   const add = (id: string) => {
     setPlaced(null);
     setPlacedOrder(null);
-    setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+    setCart((c) => ({ ...c, [id]: Math.min(MAX_LINE_QUANTITY, (c[id] ?? 0) + 1) }));
   };
   const remove = (id: string) =>
     setCart((c) => {
@@ -236,25 +235,36 @@ function PortalPage() {
 
   const checkout = async () => {
     if (!user || cartItems.length === 0) return;
+    if (!submitLock.current.acquire()) return;
     const addressError = validateDeliveryAddress(fulfilment, deliveryAddress);
     if (addressError) {
+      submitLock.current.release();
       setError(addressError);
       return;
     }
     if (scheduleMode === "scheduled") {
-      const selectedTime = new Date(scheduledFor).getTime();
-      if (!scheduledFor || !Number.isFinite(selectedTime) || selectedTime < Date.now() + 45 * 60 * 1000 || selectedTime > Date.now() + 7 * 24 * 60 * 60 * 1000) {
-        setError("Choose a time at least 45 minutes from now and within the next 7 days.");
+      const scheduleError = validateScheduleWindow(scheduledFor);
+      if (scheduleError) {
+        submitLock.current.release();
+        setError(scheduleError);
         return;
       }
     }
+    if (when === "schedule" && !slot) {
+      submitLock.current.release();
+      setError("Choose an available collection slot.");
+      return;
+    }
     if (paymentMethod === "Card") {
       if (isLiveApi()) {
+        submitLock.current.release();
         setError("Card payments are demo-only until a payment provider is connected. Choose cash for live orders.");
         return;
       }
-      if (cardholder.trim().length < 2 || cardNumber.replace(/\D/g, "") !== "4242424242424242" || cardExpiry !== "12/30" || cardCvv !== "123") {
-        setError("Demo card declined. Use 4242 4242 4242 4242, expiry 12/30 and CVV 123.");
+      const cardError = validateDemoCard({ cardholder, cardNumber, cardExpiry, cardCvv });
+      if (cardError) {
+        submitLock.current.release();
+        setError(cardError);
         return;
       }
     }
@@ -267,12 +277,18 @@ function PortalPage() {
           : when === "schedule" && slot
             ? slot
             : undefined;
+      const fingerprint = JSON.stringify({
+        items: cartItems.map((m) => ({ id: m.id, quantity: cart[m.id] })),
+        fulfilment,
+        deliveryAddress: deliveryAddress.trim(),
+        paymentMethod,
+        scheduledAt,
+      });
       const order = await placeOrder({
         customerId: user.id,
         customerName: user.name,
-        paymentMethod: payment,
-        ...(when === "schedule" && slot ? { scheduledFor: slot } : {}),
         paymentMethod,
+        idempotencyKey: idempotency.current.keyFor(fingerprint),
         ...(paymentMethod === "Card" ? { paymentStatus: "Paid" as const } : {}),
         fulfilment,
         ...(fulfilment === "Delivery" ? { deliveryAddress: deliveryAddress.trim() } : {}),
@@ -288,6 +304,7 @@ function PortalPage() {
       setOrders((prev) => [order, ...prev]);
       setCart({});
       setWhen("now");
+      idempotency.current.reset();
       setPlaced(
         order.status === "Scheduled"
           ? `Order ${order.reference} is booked${order.scheduledFor ? ` for ${formatSlot(order.scheduledFor)}` : ""}.`
@@ -302,6 +319,7 @@ function PortalPage() {
     } catch (err) {
       setError(err);
     } finally {
+      submitLock.current.release();
       setOrdering(false);
     }
   };
@@ -565,7 +583,6 @@ function PortalPage() {
                 </Link>
                 .
               </p>
-              <Panel title="Your order">
               <div id="portal-basket">
               <Panel title={placedOrder ? "Order confirmation" : "Your basket · " + itemCount + " " + (itemCount === 1 ? "item" : "items")} action={
                 <button type="button" onClick={() => setBasketOpen((open) => !open)} aria-expanded={basketOpen} className="grid size-10 place-items-center rounded-full bg-secondary" aria-label={basketOpen ? "Collapse basket" : "Expand basket"}>
@@ -642,7 +659,7 @@ function PortalPage() {
                       <legend className="text-xs font-semibold text-muted-foreground">Pay at collection</legend>
                       {(["Cash", "Card"] as const).map((method) => (
                         <label key={method} className="flex min-h-11 items-center gap-2 text-sm">
-                          <input type="radio" name="payment" checked={payment === method} onChange={() => setPayment(method)} />
+                          <input type="radio" name="payment" checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} />
                           {method}
                         </label>
                       ))}
@@ -672,14 +689,6 @@ function PortalPage() {
                         </select>
                       )}
                     </fieldset>
-                    <button
-                      type="button"
-                      disabled={ordering || (when === "schedule" && !slot)}
-                      onClick={() => void checkout()}
-                      className="bg-gradient-brand mt-4 min-h-11 w-full rounded-xl py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                    >
-                      {ordering ? "Placing order…" : when === "schedule" ? "Schedule order" : "Place order"}
-                    </button>
                     <div className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
                       <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency(subtotal)}</span></div>
                       {fulfilment === "Delivery" && <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{currency(deliveryFee)}</span></div>}
@@ -746,8 +755,8 @@ function PortalPage() {
                         </div>
                       )}
                     </div>
-                    <button type="button" disabled={ordering} onClick={() => void checkout()} className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-                      {ordering ? "Placing order…" : "Confirm order"}
+                    <button type="button" disabled={ordering || cartItems.length === 0 || (when === "schedule" && !slot)} onClick={() => void checkout()} className="mt-4 min-h-11 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                      {ordering ? "Placing order…" : when === "schedule" ? "Schedule order" : "Confirm order"}
                     </button>
                     <p className="mt-2 text-xs text-muted-foreground">Review items, delivery, timing and payment here. You won't be redirected to a separate checkout screen.</p>
                   </>
@@ -757,76 +766,49 @@ function PortalPage() {
 
               {placedOrder && fulfilment === "Delivery" && (
                 <Panel title="Delivery status">
-                  <div className="rounded-2xl bg-secondary p-3">
-                    <p className="text-sm font-semibold">{placedOrder.deliveryStatus ?? placedOrder.status}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Illustrative route preview · live driver GPS is not connected yet.</p>
-                    <svg viewBox="0 0 320 112" role="img" aria-label="Illustrative route from restaurant to delivery destination" className="mt-3 h-28 w-full rounded-xl bg-[#e8eee6]">
-                      <path d="M18 88 C70 88 70 24 130 38 S210 86 300 18" stroke="#fff" strokeWidth="16" fill="none" strokeLinecap="round" />
-                      <path d="M18 88 C70 88 70 24 130 38 S210 86 300 18" stroke="#267a61" strokeWidth="4" fill="none" strokeDasharray="6 5" strokeLinecap="round" />
-                      <circle cx="18" cy="88" r="7" fill="#267a61" stroke="#fff" strokeWidth="3" /><circle cx="300" cy="18" r="8" fill="#e6a23c" stroke="#fff" strokeWidth="3" />
-                    </svg>
-                    <Link to="/track/$reference" params={{ reference: placedOrder.id }} className="mt-3 flex min-h-10 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Open full tracking →</Link>
-                  </div>
+                  <DeliveryTrackingMap order={placedOrder} />
+                  <Link to="/track/$reference" params={{ reference: placedOrder.id }} className="mt-3 flex min-h-10 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Open full tracking →</Link>
                 </Panel>
               )}
               <Panel title="Recent tickets">
-                {mine.map((o) => (
-                  <div key={o.id} className="mb-3 border-b border-border pb-3 last:border-0 last:pb-0">
-                    <Link
-                      to="/track/$reference"
-                      params={{ reference: o.id }}
-                      aria-label={`Track order ${o.reference}`}
-                      className="flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    >
-                      <span className="min-w-0">
-                        <span className="block font-medium">{o.reference}</span>
-                        <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
-                      </span>
-                      <StatusPill status={o.status} />
-                    </Link>
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span>
-                        {o.reference} · {currency(o.total)}
-                      </span>
-                      <StatusPill status={o.status} />
-                    </div>
-                    {o.scheduledFor && (
-                      <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
-                    )}
-                    {(o.status === "Placed" || o.status === "Scheduled") && (
-                      <button
-                        type="button"
-                        disabled={cancelling === o.id}
-                        onClick={() => {
-                          setCancelling(o.id);
-                          void cancelOrder(o.id)
-                            .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
-                            .catch(setError)
-                            .finally(() => setCancelling(null));
-                        }}
-                        className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                <div>
+                  {mine.map((o) => (
+                    <div key={o.id} className="mb-3">
+                      <Link
+                        to="/track/$reference"
+                        params={{ reference: o.id }}
+                        aria-label={`Track order ${o.reference}`}
+                        className="flex min-h-11 items-center justify-between gap-2 rounded-xl border-b border-border p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       >
-                        {cancelling === o.id ? "Cancelling…" : "Cancel order"}
-                      </button>
-                    )}
-                  </div>
-                  <Link
-                    key={o.id}
-                    to="/track/$reference"
-                    params={{ reference: o.id }}
-                    aria-label={`Track order ${o.reference}`}
-                    className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl p-2 text-sm transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-medium">{o.reference}</span>
-                      <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
-                    </span>
-                    <StatusPill status={o.status} />
-                  </Link>
-                ))}
-                {mine.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No orders yet.</p>
-                )}
+                        <span className="min-w-0">
+                          <span className="block font-medium">{o.reference}</span>
+                          <span className="text-xs text-muted-foreground">{currency(o.total)} · Track order →</span>
+                        </span>
+                        <StatusPill status={o.status} />
+                      </Link>
+                      {o.scheduledFor && (
+                        <p className="mt-1 text-xs text-muted-foreground">Collect {formatSlot(o.scheduledFor)}</p>
+                      )}
+                      {(o.status === "Placed" || o.status === "Scheduled") && (
+                        <button
+                          type="button"
+                          disabled={cancelling === o.id}
+                          onClick={() => {
+                            setCancelling(o.id);
+                            void cancelOrder(o.id)
+                              .then((updated) => setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item))))
+                              .catch(setError)
+                              .finally(() => setCancelling(null));
+                          }}
+                          className="mt-2 min-h-11 text-xs font-semibold text-destructive"
+                        >
+                          {cancelling === o.id ? "Cancelling…" : "Cancel order"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {mine.length === 0 && <p className="text-sm text-muted-foreground">No orders yet.</p>}
+                </div>
               </Panel>
             </div>
           </div>

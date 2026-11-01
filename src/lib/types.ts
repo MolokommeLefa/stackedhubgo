@@ -43,9 +43,6 @@ export interface Order {
   paymentMethod?: "Cash" | "Card";
   paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
   specialInstructions?: string;
-  fulfilment?: "Immediate" | "Scheduled";
-  estimatedReadyAt?: string;
-  statusHistory?: OrderStatusEvent[];
 }
 
 export interface OrderSlot {
@@ -91,17 +88,16 @@ export interface GroupBasket {
   orderId?: string;
   participants: GroupParticipant[];
   items: GroupBasketItem[];
-  specialInstructions?: string | undefined;
-  paymentMethod?: "Cash" | "Card" | undefined;
+  paymentMethod?: "Cash" | "Card";
   /** Only supplied when the payment provider/API confirms the actual payment state. */
-  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
-  fulfilment?: "Collection" | "Delivery" | undefined;
+  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded";
+  fulfilment?: "Collection" | "Delivery";
   /** Optional server-calculated estimate and actual milestone timestamps. */
-  estimatedReadyAt?: string | undefined;
-  readyAt?: string | undefined;
-  completedAt?: string | undefined;
-  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected" | undefined;
-  statusHistory?: { status: OrderStatus; at: string }[] | undefined;
+  estimatedReadyAt?: string;
+  readyAt?: string;
+  completedAt?: string;
+  deliveryStatus?: "Pending" | "Preparing" | "Ready for collection" | "Out for delivery" | "Delivered" | "Collected";
+  statusHistory?: { status: OrderStatus; at: string }[];
   updatedAt?: string;
   readyAt?: string;
   completedAt?: string;
@@ -218,6 +214,9 @@ export interface LoyaltyWallet {
   transactions: LoyaltyTransaction[];
 }
 
+export type PromotionCampaignType = "Discount" | "Double points" | "Points milestone";
+export type PromotionAudience = "Everyone" | "New" | "Regular" | "VIP";
+
 export interface Promotion {
   id: string;
   title: string;
@@ -227,6 +226,11 @@ export interface Promotion {
   endsAt: string;
   active: boolean;
   redemptions: number;
+  /** Optional campaign fields; persisted in demo mode and sent to the API when supported. */
+  campaignType?: PromotionCampaignType;
+  pointsMultiplier?: number;
+  pointsTarget?: number;
+  eligibleGroup?: PromotionAudience;
 }
 
 export interface AuditLogEntry {

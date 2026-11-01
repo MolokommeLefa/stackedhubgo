@@ -18,7 +18,7 @@ import {
   REWARDS,
 } from "./loyalty";
 import * as mock from "./mock-data";
-import { composeOrderNotes } from "./order-rules";
+import { canTransition, composeOrderNotes, MAX_LINE_QUANTITY } from "./order-rules";
 import type {
   AuditLogEntry,
   AuthUser,
@@ -26,9 +26,6 @@ import type {
   GroupBasket,
   LoyaltyTransaction,
   LoyaltyWallet,
-  MenuItem,
-  Order,
-  OrderSlot,
   MenuItem,
   Order,
   OrderSlot,
@@ -64,27 +61,7 @@ export interface PlaceOrderInput {
   deliveryAddress?: string;
   fees?: number;
   redemption?: { rewardId: string; redemptionId: string };
-  scheduledFor?: string;
-  specialInstructions?: string;
-  items: { menuItemId: string; name: string; quantity: number; unitPrice: number }[];
-  channel?: Order["channel"] | undefined;
-  paymentMethod?: "Cash" | "Card" | undefined;
-  paymentStatus?: "Pending" | "Paid" | "Failed" | "Refunded" | undefined;
-  fulfilment?: "Collection" | "Delivery" | undefined;
-  specialInstructions?: string | undefined;
-  /** Street and suburb. Required in the UI only for Delivery; packed into specialInstructions. */
-  deliveryAddress?: string | undefined;
-  /** Extra charges such as delivery, added on top of item totals. */
-  fees?: number | undefined;
-  redemption?: { rewardId: string; redemptionId: string } | undefined;
-}
-
-export interface LoyaltyWallet {
-  points: number;
-  next: ReturnType<typeof nextReward>;
-  availableRewards: typeof REWARDS;
-  history: ReturnType<typeof getCustomerLedger>;
-  rules: string[];
+  idempotencyKey?: string;
 }
 
 export interface RedemptionResult {
@@ -116,38 +93,6 @@ const LOYALTY_REWARDS = [
   { id: "off80", title: "R80 off next order", description: "Recorded as a voucher for your next pickup.", pointsCost: 250 },
 ] as const;
 
-let store: {
-  orders: Order[];
-  menu: MenuItem[];
-  users: ManagedUser[];
-  audit: AuditLogEntry[];
-  customers: Customer[];
-  promotions: Promotion[];
-  loyalty: Record<string, { balance: number; transactions: LoyaltyTransaction[] }>;
-} | null = null;
-
-function demo() {
-  if (!store) {
-    store = {
-      orders: mock.orders.map((o) => ({ ...o })),
-      menu: mock.menuItems.map((m) => ({ ...m })),
-      audit: [...mock.auditLog],
-      customers: mock.customers.map((c) => ({ ...c })),
-      promotions: mock.promotions.map((p) => ({ ...p })),
-      users: [
-        { id: "u1", name: "Thandi Mokoena", email: "thandi@stackedfoods.co.za", role: "Admin", active: true },
-        { id: "u2", name: "Jason Reid", email: "jason@stackedfoods.co.za", role: "Staff", active: true },
-        { id: "u3", name: "Nomsa Khumalo", email: "nomsa@stackedfoods.co.za", role: "Staff", active: true },
-        ...mock.customers.map((c) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          role: "Customer" as const,
-          loyaltyPoints: c.loyaltyPoints,
-          active: true,
-        })),
-      ],
-      loyalty: {},
 function demo() {
   return getDemoStore();
 }
@@ -247,57 +192,36 @@ function walletFromLedger(customerId: string): LoyaltyWallet {
   });
 }
 
-function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): LoyaltyWallet {
-  const catalog = [
+function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): import("./types").LoyaltyWallet {
+  const rewards = [
     ...LOYALTY_REWARDS.map((reward) => ({
       id: reward.id,
       title: reward.title,
       description: reward.description,
       pointsCost: reward.pointsCost,
+      affordable: account.balance >= reward.pointsCost,
     })),
     ...REWARDS.map((reward) => ({
       id: reward.id,
       title: reward.title,
       description: `R${reward.value} off at checkout`,
       pointsCost: reward.points,
+      affordable: account.balance >= reward.points,
     })),
   ];
-  const rewards = catalog.map((reward) => ({
-    ...reward,
-function demoLoyalty(user: AuthUser) {
-  const d = demo();
-  if (!d.loyalty[user.id]) {
-    const seeded = d.customers.find((c) => c.id === user.id)?.loyaltyPoints ?? user.loyaltyPoints ?? 0;
-    d.loyalty[user.id] = {
-      balance: seeded,
-      transactions:
-        user.id === "c1"
-          ? [
-              { id: "lt1", points: 14, type: "Earn", reason: "Order completed", at: "2026-10-18T10:12:00Z" },
-              { id: "lt2", points: -50, type: "Redeem", reason: "Free homemade lemonade", at: "2026-10-10T09:40:00Z" },
-            ]
-          : [],
-    };
-  }
-  return d.loyalty[user.id]!;
-}
-
-function buildWallet(account: { balance: number; transactions: LoyaltyTransaction[] }): LoyaltyWallet {
-  const rewards = LOYALTY_REWARDS.map((reward) => ({
-    id: reward.id,
-    title: reward.title,
-    description: reward.description,
-    pointsCost: reward.pointsCost,
-    affordable: account.balance >= reward.pointsCost,
-  }));
   const nextTier =
     account.balance < 100
       ? { label: "Regular", current: account.balance, target: 100, remaining: 100 - account.balance }
       : account.balance < 400
         ? { label: "VIP", current: account.balance, target: 400, remaining: 400 - account.balance }
         : undefined;
-  const nextRewardDef = catalog.find((reward) => account.balance < reward.pointsCost);
-  const nextRewardDef = LOYALTY_REWARDS.find((reward) => account.balance < reward.pointsCost);
+  const nextRewardDef = [...LOYALTY_REWARDS.map((reward) => ({
+    title: reward.title,
+    pointsCost: reward.pointsCost,
+  })), ...REWARDS.map((reward) => ({
+    title: reward.title,
+    pointsCost: reward.points,
+  }))].find((reward) => account.balance < reward.pointsCost);
   return {
     balance: account.balance,
     tier: loyaltyTier(account.balance),
@@ -363,6 +287,14 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
+  if (!canTransition(order.status, status)) {
+    throw new ApiError(
+      `This order cannot move from ${order.status} to ${status}.`,
+      409,
+      "http",
+      false,
+    );
+  }
   order.status = status;
   order.updatedAt = new Date().toISOString();
   applyCompletedOrderEarn(order.customerId, order.id, status, order.total);
@@ -371,8 +303,23 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
-  const total = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const scheduled = Boolean(input.scheduledFor);
+  if (!input.items.length) {
+    throw new ApiError("Your cart is empty.", 400, "http", false);
+  }
+  if (
+    input.items.some(
+      (item) =>
+        !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > MAX_LINE_QUANTITY,
+    )
+  ) {
+    throw new ApiError(
+      `Each item quantity must be between 1 and ${MAX_LINE_QUANTITY}.`,
+      400,
+      "http",
+      false,
+    );
+  }
   const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const fees = input.fees ?? 0;
   let discount = 0;
@@ -386,6 +333,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       }) ?? null;
     return apiRequest<Order>(endpoints.orders, {
       method: "POST",
+      ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       body: json({
         items: input.items.map((item) => ({
           menuItemId: item.menuItemId,
@@ -394,17 +342,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         })),
         channel: input.channel ?? "Website",
         paymentMethod: input.paymentMethod ?? "Cash",
-        scheduledFor: input.scheduledFor,
-        specialInstructions: input.specialInstructions,
-        paymentMethod: input.paymentMethod ?? "Cash",
-        specialInstructions: notes,
-        items: input.items.map((item) => ({
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
-          specialInstructions: item.specialInstructions,
-        })),
-        channel: input.channel ?? "Website",
         ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
+        specialInstructions: notes,
+        ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       }),
     });
   }
@@ -433,7 +373,6 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     status: scheduled ? "Scheduled" : "Placed",
     placedAt: new Date().toISOString(),
     fulfilment: input.fulfilment ?? (scheduled ? "Scheduled" : "Immediate"),
-    fulfilment: scheduled ? "Scheduled" : "Immediate",
     statusHistory: [
       {
         status: scheduled ? "Scheduled" : "Placed",
@@ -445,10 +384,6 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
     ...(input.paymentStatus ? { paymentStatus: input.paymentStatus } : {}),
     ...(notes ? { specialInstructions: notes } : {}),
-    paymentMethod: input.paymentMethod,
-    paymentStatus: input.paymentStatus,
-    fulfilment: input.fulfilment,
-    specialInstructions: notes,
   };
   const store = demo();
   store.orders.unshift(created);
@@ -496,22 +431,6 @@ export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promis
   if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
   const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
   return walletFromLedger(customerId);
-export async function getLoyaltyWallet(customerId: string): Promise<LoyaltyWallet> {
-  if (isLiveApi())
-    return apiRequest<LoyaltyWallet>(`${endpoints.loyaltyWallet}?customerId=${customerId}`);
-  const history = getCustomerLedger(customerId);
-  const points = balance(history);
-  return {
-    points,
-    next: nextReward(points),
-    availableRewards: REWARDS,
-    history,
-    rules: [
-      "Earn 1 point for every R10 spent.",
-      "Points are earned when an order is marked Completed.",
-      "Redeem points at checkout for available rewards.",
-    ],
-  };
 }
 
 export async function redeemReward(input: {
@@ -537,7 +456,15 @@ export async function redeemReward(input: {
 }
 
 export async function getOrder(id: string): Promise<Order> {
-  if (isLiveApi()) return apiRequest<Order>(`${endpoints.orders}/${id}`);
+  if (isLiveApi()) {
+    try {
+      return await apiRequest<Order>(`${endpoints.orders}/${id}`);
+    } catch (err) {
+      const demoOrder = demo().orders.find((o) => o.id === id);
+      if (demoOrder) return { ...demoOrder };
+      throw err;
+    }
+  }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("We couldn't find that order.", 404);
   return { ...order };
@@ -799,14 +726,9 @@ export async function removeGroupItem(basketId: string, itemId: string): Promise
   return groupTotal(basket);
 }
 
-export async function getLoyaltyWallet(user: AuthUser): Promise<LoyaltyWallet> {
-  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
-  return buildWallet(demoLoyalty(user));
-}
-
-export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<LoyaltyWallet> {
+export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Promise<import("./types").LoyaltyWallet> {
   if (isLiveApi()) {
-    return apiRequest<LoyaltyWallet>(endpoints.loyaltyRedeem, {
+    return apiRequest<import("./types").LoyaltyWallet>(endpoints.loyaltyRedeem, {
       method: "POST",
       body: json({ rewardId }),
     });
@@ -817,40 +739,22 @@ export async function redeemLoyaltyReward(rewardId: string, user: AuthUser): Pro
     redemptionId: `redeem:${user.id}:${rewardId}:${Date.now()}`,
   });
   return walletFromLedger(user.id);
-  const reward = LOYALTY_REWARDS.find((item) => item.id === rewardId);
-  if (!reward) throw new ApiError("That reward is not available.", 400);
-  const account = demoLoyalty(user);
-  if (account.balance < reward.pointsCost) {
-    throw new ApiError(`You need ${reward.pointsCost - account.balance} more points to redeem ${reward.title}.`, 400);
-  }
-  account.balance -= reward.pointsCost;
-  account.transactions = [
-    {
-      id: `lt${Date.now()}`,
-      points: -reward.pointsCost,
-      type: "Redeem",
-      reason: reward.title,
-      at: new Date().toISOString(),
-    },
-    ...account.transactions,
-  ];
-  const customer = demo().customers.find((item) => item.id === user.id);
-  if (customer) {
-    customer.loyaltyPoints = account.balance;
-    customer.tier = loyaltyTier(account.balance);
-  }
-  return buildWallet(account);
 }
 
 export async function checkoutGroupBasket(
   basketId: string,
   paymentMethod: "Cash" | "Card",
   user: AuthUser,
+  idempotencyKey?: string,
 ): Promise<Order> {
   if (isLiveApi()) {
     return apiRequest<Order>(endpoints.groupCheckout(basketId), {
       method: "POST",
-      body: json({ paymentMethod }),
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+      body: json({
+        paymentMethod,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
+      }),
     });
   }
   const basket = demoGroups.find((item) => item.id === basketId);

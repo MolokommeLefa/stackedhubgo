@@ -56,6 +56,43 @@ export function delayLevel(
 }
 
 export const DELIVERY_FEE = 25;
+export const MAX_LINE_QUANTITY = 20;
+
+export function clampLineQuantity(quantity: number) {
+  if (!Number.isFinite(quantity)) return 0;
+  return Math.min(MAX_LINE_QUANTITY, Math.max(0, Math.floor(quantity)));
+}
+
+export function sanitizeCartLines(raw: unknown): CartLine[] {
+  if (!Array.isArray(raw)) return [];
+  const lines: CartLine[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Partial<CartLine>;
+    if (typeof row.menuItemId !== "string" || typeof row.name !== "string") continue;
+    if (typeof row.unitPrice !== "number" || !Number.isFinite(row.unitPrice) || row.unitPrice < 0)
+      continue;
+    const quantity = clampLineQuantity(typeof row.quantity === "number" ? row.quantity : 0);
+    if (quantity < 1) continue;
+    const options = Array.isArray(row.options)
+      ? row.options.filter((option): option is string => typeof option === "string")
+      : [];
+    const key =
+      typeof row.key === "string" && row.key
+        ? row.key
+        : `${row.menuItemId}|${[...options].sort().join(",")}|${row.note ?? ""}`;
+    lines.push({
+      key,
+      menuItemId: row.menuItemId,
+      name: row.name,
+      unitPrice: row.unitPrice,
+      quantity,
+      options,
+      ...(typeof row.note === "string" && row.note ? { note: row.note } : {}),
+    });
+  }
+  return lines;
+}
 
 export interface CartLine {
   key: string;

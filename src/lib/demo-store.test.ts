@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("./api-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api-client")>();
+  return { ...actual, isLiveApi: () => false };
+});
+
 import { getLoyaltyWallet, getOrderQueue, getReport, placeOrder, updateOrderStatus } from "./data";
 import {
   bestSellersFromOrders,
@@ -93,6 +99,38 @@ describe("demo store persistence", () => {
     expect(report.hourlyOrders.reduce((sum, row) => sum + row.orders, 0)).toBe(report.orderCount);
   });
 
+  it("rejects an invalid staff status jump", async () => {
+    const created = await placeOrder({
+      customerId: "c1",
+      customerName: "Priya Nair",
+      items: [{ menuItemId: "m2", name: "Double Smash Burger", quantity: 1, unitPrice: 145 }],
+    });
+    await expect(updateOrderStatus(created.id, "Completed")).rejects.toThrow(
+      "This order cannot move from Placed to Completed.",
+    );
+    const queue = await getOrderQueue();
+    expect(queue.find((order) => order.id === created.id)?.status).toBe("Placed");
+  });
+
+  it("rejects empty baskets and over-limit quantities", async () => {
+    await expect(
+      placeOrder({
+        customerId: "c1",
+        customerName: "Priya Nair",
+        items: [],
+      }),
+    ).rejects.toThrow("Your cart is empty.");
+    await expect(
+      placeOrder({
+        customerId: "c1",
+        customerName: "Priya Nair",
+        items: [
+          { menuItemId: "m1", name: "Peri-Peri Chicken Stack", quantity: 21, unitPrice: 129 },
+        ],
+      }),
+    ).rejects.toThrow("Each item quantity must be between 1 and 20.");
+  });
+
   it("earns points only after an order is completed", async () => {
     const before = await getLoyaltyWallet("c1");
     const created = await placeOrder({
@@ -103,6 +141,8 @@ describe("demo store persistence", () => {
     });
     const afterPlaced = await getLoyaltyWallet("c1");
     expect(afterPlaced.balance).toBe(before.balance);
+    await updateOrderStatus(created.id, "In kitchen");
+    await updateOrderStatus(created.id, "Ready");
     await updateOrderStatus(created.id, "Completed");
     const afterCompleted = await getLoyaltyWallet("c1");
     expect(afterCompleted.balance).toBe(before.balance + 12);

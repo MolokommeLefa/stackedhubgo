@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { cartTotals, type CartLine } from "./order-rules";
+import { cartTotals, clampLineQuantity, sanitizeCartLines, type CartLine } from "./order-rules";
 
 const KEY = "stackedhub.cart";
 
@@ -24,7 +24,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(KEY);
-      if (raw) setLines(JSON.parse(raw) as CartLine[]);
+      if (raw) setLines(sanitizeCartLines(JSON.parse(raw)));
     } catch {
       /* ignore broken cart */
     }
@@ -43,23 +43,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
       subtotal,
       bump,
       add: (line) => {
+        const quantity = clampLineQuantity(line.quantity);
+        if (quantity < 1) return;
         const key = `${line.menuItemId}|${[...line.options].sort().join(",")}|${line.note ?? ""}`;
         setLines((prev) => {
           const existing = prev.find((l) => l.key === key);
           if (existing)
             return prev.map((l) =>
-              l.key === key ? { ...l, quantity: l.quantity + line.quantity } : l,
+              l.key === key ? { ...l, quantity: clampLineQuantity(l.quantity + quantity) } : l,
             );
-          return [...prev, { ...line, key }];
+          return [...prev, { ...line, key, quantity }];
         });
         setBump((b) => b + 1);
       },
       setQuantity: (key, quantity) =>
-        setLines((prev) =>
-          quantity <= 0
+        setLines((prev) => {
+          const nextQuantity = clampLineQuantity(quantity);
+          return nextQuantity <= 0
             ? prev.filter((l) => l.key !== key)
-            : prev.map((l) => (l.key === key ? { ...l, quantity } : l)),
-        ),
+            : prev.map((l) => (l.key === key ? { ...l, quantity: nextQuantity } : l));
+        }),
       remove: (key) => setLines((prev) => prev.filter((l) => l.key !== key)),
       clear: () => setLines([]),
     };

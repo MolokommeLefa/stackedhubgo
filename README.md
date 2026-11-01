@@ -79,7 +79,10 @@ Create a `.env` file in the project root:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5032
+VITE_GOOGLE_MAPS_API_KEY=your-google-maps-embed-key
 ```
+
+Delivery tracking uses Google Maps on `/track/:reference`. If the key is missing, the app still embeds Google Maps in demo form; if Maps or GPS fail, it falls back to a backup map and written directions.
 
 Then restart:
 
