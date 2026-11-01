@@ -235,7 +235,6 @@ public class GroupOrderService
         {
             basket.Status = GroupBasketStatus.Locked;
             basket.LockedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
         }
 
         var lines = basket.Items.Select(item => new CartLineRequest(

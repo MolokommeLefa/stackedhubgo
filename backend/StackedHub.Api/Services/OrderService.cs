@@ -245,6 +245,7 @@ public class OrderService
             }
             catch (InvalidOperationException ex)
             {
+                _db.ChangeTracker.Clear();
                 var order = await _db.Orders.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
                 if (order is null)
                 {
@@ -298,6 +299,12 @@ public class OrderService
             note ??= "Scheduled order released to the kitchen.";
         }
 
+        if (next == OrderStatus.Cancelled
+            && order.Status is OrderStatus.Placed or OrderStatus.InKitchen or OrderStatus.Ready)
+        {
+            await RestoreStock(order, cancellationToken);
+        }
+
         order.Status = next;
         if (staffId is not null)
         {
@@ -349,6 +356,7 @@ public class OrderService
 
     private async Task ReserveStock(Order order, CancellationToken cancellationToken)
     {
+        var reserved = new List<(MenuItem Item, int Quantity)>();
         foreach (var line in order.Items)
         {
             var menuItem = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == line.MenuItemId, cancellationToken)
@@ -358,10 +366,33 @@ public class OrderService
                 throw new InvalidOperationException($"{menuItem.Name} is unavailable and cannot be released to the kitchen.");
             }
 
-            menuItem.Stock -= line.Quantity;
+            reserved.Add((menuItem, line.Quantity));
+        }
+
+        foreach (var (menuItem, quantity) in reserved)
+        {
+            menuItem.Stock -= quantity;
             if (menuItem.Stock <= 0)
             {
                 menuItem.Available = false;
+            }
+        }
+    }
+
+    private async Task RestoreStock(Order order, CancellationToken cancellationToken)
+    {
+        foreach (var line in order.Items)
+        {
+            var menuItem = await _db.MenuItems.FirstOrDefaultAsync(x => x.Id == line.MenuItemId, cancellationToken);
+            if (menuItem is null)
+            {
+                continue;
+            }
+
+            menuItem.Stock += line.Quantity;
+            if (menuItem.Stock > 0)
+            {
+                menuItem.Available = true;
             }
         }
     }

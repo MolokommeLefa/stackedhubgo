@@ -27,7 +27,9 @@ export function googleMapsKey(): string {
   return typeof key === "string" ? key.trim() : "";
 }
 
-export function parseDeliveryAddress(order: Pick<Order, "specialInstructions"> & { deliveryAddress?: string }): string | null {
+export function parseDeliveryAddress(
+  order: Pick<Order, "specialInstructions"> & { deliveryAddress?: string | undefined },
+): string | null {
   const direct = order.deliveryAddress?.trim();
   if (direct) return direct;
   const notes = order.specialInstructions ?? "";
@@ -46,7 +48,7 @@ export function destinationPoint(address: string | null): GeoPoint | null {
 }
 
 /** Progress 0 at kitchen, 1 at the door. */
-export function deliveryProgress(order: Pick<Order, "status" | "deliveryStatus">): number {
+export function deliveryProgress(order: Pick<Order, "status"> & Partial<Pick<Order, "deliveryStatus">>): number {
   if (order.status === "Completed" || order.deliveryStatus === "Delivered") return 1;
   if (order.deliveryStatus === "Out for delivery") return 0.62;
   if (order.status === "Ready" || order.deliveryStatus === "Ready for collection") return 0.08;
@@ -63,7 +65,7 @@ export function interpolate(from: GeoPoint, to: GeoPoint, t: number): GeoPoint {
 }
 
 export function driverPoint(
-  order: Pick<Order, "status" | "deliveryStatus"> & { driverLocation?: { lat: number; lng: number } },
+  order: Pick<Order, "status"> & Partial<Pick<Order, "deliveryStatus" | "driverLocation">>,
   destination: GeoPoint | null,
 ): GeoPoint | null {
   if (order.driverLocation) {
@@ -75,7 +77,8 @@ export function driverPoint(
 }
 
 export function estimatedDeliveryLabel(
-  order: Pick<Order, "status" | "deliveryStatus" | "estimatedReadyAt" | "estimatedDeliveryAt" | "completedAt">,
+  order: Pick<Order, "status"> &
+    Partial<Pick<Order, "deliveryStatus" | "estimatedReadyAt" | "estimatedDeliveryAt" | "completedAt">>,
 ): string {
   if (order.status === "Completed" || order.deliveryStatus === "Delivered") return "Arrived";
   if (order.deliveryStatus === "Out for delivery") {
