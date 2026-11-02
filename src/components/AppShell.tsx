@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BarChart3,
   ClipboardList,
@@ -19,7 +19,7 @@ import {
 import { BrandMark } from "@/components/BrandMark";
 import { ADDRESS_LINES, OPENING_HOURS } from "@/components/site-info";
 import { useAuth } from "@/lib/auth";
-import { isLiveApi, toUserMessage } from "@/lib/api-client";
+import { isLiveApi, subscribeToApiState, toUserMessage } from "@/lib/api-client";
 import type { Role } from "@/lib/types";
 
 function hoursToday() {
@@ -95,7 +95,7 @@ export function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
-  const { user, ready, signOut } = useAuth();
+  const { user, ready, signOut } = useAuth();\n  const [live, setLive] = useState(isLiveApi());\n  useEffect(() => subscribeToApiState(() => setLive(isLiveApi())), []);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const returnPath = useRef(pathname);
