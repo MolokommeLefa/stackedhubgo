@@ -477,7 +477,8 @@ function buildDemoSlots(): OrderSlot[] {
   }
   return slots;
 }
-\nexport async function getOrderSlots(): Promise<OrderSlot[]> {
+
+export async function getOrderSlots(): Promise<OrderSlot[]> {
   if (isLiveApi()) return liveOrDemo(() => apiRequest<OrderSlot[]>(endpoints.orderSlots), () => buildDemoSlots());
   return buildDemoSlots();
 }
@@ -699,7 +700,8 @@ function buildDemoReport(): Report {
     salesByChannel: [...channels].map(([channel, total]) => ({ channel, total })),
   };
 }
-\nexport async function getReport(): Promise<Report> {
+
+export async function getReport(): Promise<Report> {
   if (isLiveApi()) {
     return liveOrDemo(
       () => firstOk([
