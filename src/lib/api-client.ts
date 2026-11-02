@@ -222,7 +222,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     });
   } catch (err) {
     if (init.signal?.aborted) throw err;
-    const error = networkError(base, timedOut);\n    markApiOffline();\n    throw error;
+    const error = networkError(base, timedOut);
+    markApiOffline();
+    throw error;
   } finally {
     clearTimeout(timer);
     init.signal?.removeEventListener("abort", onUserAbort);
@@ -242,6 +244,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError("Your account doesn't have access to this.", 403, "http", false);
   }
   if (!response.ok) {
+    if (response.status >= 500) markApiOffline();
     throw new ApiError(
       await readError(response),
       response.status,
