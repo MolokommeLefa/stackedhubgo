@@ -95,7 +95,9 @@ export function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
-  const { user, ready, signOut } = useAuth();\n  const [live, setLive] = useState(isLiveApi());\n  useEffect(() => subscribeToApiState(() => setLive(isLiveApi())), []);
+  const { user, ready, signOut } = useAuth();
+  const [live, setLive] = useState(isLiveApi());
+  useEffect(() => subscribeToApiState(() => setLive(isLiveApi())), []);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const returnPath = useRef(pathname);
