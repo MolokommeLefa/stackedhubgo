@@ -6,6 +6,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
 import { Toaster } from "@/components/ui/sonner";
+import { ApiStatusBanner } from "@/components/ApiStatusBanner";
 
 function NotFoundComponent() {
   return (
