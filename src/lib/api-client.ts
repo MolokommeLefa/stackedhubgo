@@ -252,13 +252,18 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       readOnly && response.status >= 500,
     );
   }
-  if (response.status === 204) {\n    markApiOnline();\n    return undefined as T;\n  }
+  if (response.status === 204) {
+    markApiOnline();
+    return undefined as T;
+  }
 
   const text = await response.text().catch(() => "");
   if (!text.trim()) {
     throw new ApiError("The server sent an empty response.", response.status, "parse", readOnly);
   }
-  const parsed = parseSuccessBody<T>(text, response.status, readOnly);\n  markApiOnline();\n  return parsed;
+  const parsed = parseSuccessBody<T>(text, response.status, readOnly);
+  markApiOnline();
+  return parsed;
 }
 
 /** Endpoints from Role 2 (`ROLE-2.md` on Backend-database), plus staff aliases. */
