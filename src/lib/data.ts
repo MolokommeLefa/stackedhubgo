@@ -542,18 +542,14 @@ export async function getMenu(): Promise<MenuItem[]> {
 
 export async function setAvailability(id: string, available: boolean): Promise<MenuItem> {
   if (isLiveApi()) {
-    return firstOk([
-      () =>
-        apiRequest<MenuItem>(endpoints.staffAvailability(id), {
-          method: "PATCH",
-          body: json({ available }),
-        }),
-      () =>
-        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
-          method: "PATCH",
-          body: json({ available }),
-        }),
-    ]);
+    try {
+      return await firstOk([
+        () => apiRequest<MenuItem>(endpoints.staffAvailability(id), { method: "PATCH", body: json({ available }) }),
+        () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ available }) }),
+      ]);
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
@@ -564,15 +560,14 @@ export async function setAvailability(id: string, available: boolean): Promise<M
 
 export async function setMenuStock(id: string, stock: number): Promise<MenuItem> {
   if (isLiveApi()) {
-    return firstOk([
-      () =>
-        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
-          method: "PATCH",
-          body: json({ stock }),
-        }),
-      () =>
-        apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
-    ]);
+    try {
+      return await firstOk([
+        () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ stock }) }),
+        () => apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
+      ]);
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
@@ -584,10 +579,14 @@ export async function setMenuStock(id: string, stock: number): Promise<MenuItem>
 
 export async function saveMenuItem(input: MenuInput, id?: string): Promise<MenuItem> {
   if (isLiveApi()) {
-    return apiRequest<MenuItem>(id ? endpoints.adminMenuItem(id) : endpoints.adminMenu, {
-      method: id ? "PUT" : "POST",
-      body: json(input),
-    });
+    try {
+      return await apiRequest<MenuItem>(id ? endpoints.adminMenuItem(id) : endpoints.adminMenu, {
+        method: id ? "PUT" : "POST",
+        body: json(input),
+      });
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const menu = demo().menu;
   if (id) {
@@ -614,11 +613,12 @@ export async function getUsers(): Promise<ManagedUser[]> {
 
 export async function setUserActive(id: string, active: boolean): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(endpoints.adminUser(id), {
-      method: "PATCH",
-      body: json({ isActive: active }),
-    });
-    return;
+    try {
+      await apiRequest(endpoints.adminUser(id), { method: "PATCH", body: json({ isActive: active }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const user = demo().users.find((u) => u.id === id);
   if (!user) throw new ApiError("That user was not found.", 404);
@@ -635,8 +635,12 @@ export async function getCustomers(): Promise<Customer[]> {
 
 export async function updateCustomerNote(id: string, note: string): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(`${endpoints.customers}/${id}`, { method: "PATCH", body: json({ note }) });
-    return;
+    try {
+      await apiRequest(`${endpoints.customers}/${id}`, { method: "PATCH", body: json({ note }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const customer = demo().customers.find((c) => c.id === id);
   if (customer) {
@@ -654,7 +658,11 @@ export async function savePromotion(
   input: Omit<Promotion, "id" | "active" | "redemptions">,
 ): Promise<Promotion> {
   if (isLiveApi()) {
-    return apiRequest<Promotion>(endpoints.promotions, { method: "POST", body: json(input) });
+    try {
+      return await apiRequest<Promotion>(endpoints.promotions, { method: "POST", body: json(input) });
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const created: Promotion = { ...input, id: `p${Date.now()}`, active: true, redemptions: 0 };
   demo().promotions.unshift(created);
@@ -664,8 +672,12 @@ export async function savePromotion(
 
 export async function setPromotionActive(id: string, active: boolean): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(endpoints.promotion(id), { method: "PATCH", body: json({ active }) });
-    return;
+    try {
+      await apiRequest(endpoints.promotion(id), { method: "PATCH", body: json({ active }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const promo = demo().promotions.find((p) => p.id === id);
   if (promo) {
