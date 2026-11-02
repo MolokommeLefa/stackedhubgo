@@ -4,6 +4,7 @@ import {
   ApiError,
   apiRequest,
   isReadOnlyMethod,
+  selectApiBaseUrl,
   toUserMessage,
 } from "./api-client";
 
@@ -65,7 +66,7 @@ describe("apiRequest", () => {
     expect(error.retryable).toBe(true);
   });
 
-  it("times out hung requests after 15 seconds", async () => {
+  it("times out hung requests after the configured timeout", async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
@@ -93,6 +94,23 @@ describe("apiRequest", () => {
     const init = vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit;
     const headers = new Headers(init.headers);
     expect(headers.get("Idempotency-Key")).toBe("abc-123");
+  });
+});
+
+describe("API address selection", () => {
+  const render = "https://stackedhubgo.onrender.com";
+  const azure = "https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net";
+  const otherAzure =
+    "https://stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net";
+
+  it("uses Render when the baked environment URL is a retired Azure host", () => {
+    expect(selectApiBaseUrl(azure, null)).toBe(render);
+    expect(selectApiBaseUrl(otherAzure, null)).toBe(render);
+  });
+
+  it("replaces only a saved Azure address and keeps another saved address", () => {
+    expect(selectApiBaseUrl(render, `${azure}/`)).toBe(render);
+    expect(selectApiBaseUrl(render, "http://localhost:5032")).toBe("http://localhost:5032");
   });
 });
 

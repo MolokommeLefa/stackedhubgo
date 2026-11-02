@@ -4,7 +4,6 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 import {
   checkApiConnection,
   getApiConnectionState,
-  isLiveApi,
   subscribeToApiState,
   type ApiConnectionState,
 } from "@/lib/api-client";
@@ -17,7 +16,7 @@ export function ApiStatusBanner() {
 
   useEffect(() => {
     const unsubscribe = subscribeToApiState(setState);
-    if (isLiveApi() && getApiConnectionState() === "unknown") {
+    if (getApiConnectionState() !== "online") {
       void checkApiConnection();
     }
     return unsubscribe;
