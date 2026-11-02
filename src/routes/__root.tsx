@@ -84,6 +84,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
+          <ApiStatusBanner />
           <Outlet />
           <Toaster position="top-center" richColors />
         </CartProvider>
