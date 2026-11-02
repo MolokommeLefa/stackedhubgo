@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiRequest, endpoints, isLiveApi, setUnauthorizedHandler, tokenStore } from "./api-client";
+import { apiRequest, endpoints, isApiOffline, isLiveApi, setUnauthorizedHandler, tokenStore } from "./api-client";
 import type { AuthUser, Role } from "./types";
 
 const USER_KEY = "stackedhub.user";
@@ -89,9 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!cancelled) persist(me);
         } catch {
           if (!cancelled) {
-            window.localStorage.removeItem(USER_KEY);
-            tokenStore.clear();
-            setUser(null);
+            if (isApiOffline() && stored) {
+              setUser(stored);
+            } else {
+              window.localStorage.removeItem(USER_KEY);
+              tokenStore.clear();
+              setUser(null);
+            }
           }
         }
       } else if (stored) {
@@ -110,12 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback<AuthContextValue["signIn"]>(async ({ email, password, role }) => {
     let next: AuthUser;
     if (isLiveApi()) {
-      const res = await apiRequest<{ token: string; user: AuthUser }>(endpoints.login, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-      tokenStore.set(res.token);
-      next = res.user;
+      try {
+        const res = await apiRequest<{ token: string; user: AuthUser }>(endpoints.login, {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        });
+        tokenStore.set(res.token);
+        next = res.user;
+      } catch (error) {
+        if (!isApiOffline()) throw error;
+        next = { ...demoUsers[role], email: email || demoUsers[role].email };
+        tokenStore.set(`demo.${role.toLowerCase()}.token`);
+      }
     } else {
       next = { ...demoUsers[role], email: email || demoUsers[role].email };
       tokenStore.set(`demo.${role.toLowerCase()}.token`);

@@ -3,7 +3,7 @@
  * when an address is configured, otherwise it works on the browser-session
  * demo store (sessionStorage). Live API behaviour is unchanged.
  */
-import { ApiError, apiRequest, endpoints, isLiveApi } from "./api-client";
+import { ApiError, apiRequest, endpoints, isApiOffline, isLiveApi } from "./api-client";
 import {
   bestSellersFromOrders,
   getDemoStore,
@@ -256,34 +256,71 @@ function logDemo(action: string, target: string) {
 
 const json = (body: unknown) => JSON.stringify(body);
 
+/** Cache successful live reads so the session demo store has the latest known restaurant data. */
+function cacheLiveOrders(orders: Order[]) {
+  demo().orders = orders.map((order) => ({ ...order, items: [...order.items] }));
+  persistDemoStore();
+}
+function cacheLiveMenu(items: MenuItem[]) {
+  demo().menu = items.map((item) => ({ ...item }));
+  persistDemoStore();
+}
+function cacheLiveUsers(users: ManagedUser[]) {
+  demo().users = users.map((user) => ({ ...user }));
+  persistDemoStore();
+}
+function cacheLiveCustomers(customers: Customer[]) {
+  demo().customers = customers.map((customer) => ({ ...customer }));
+  persistDemoStore();
+}
+async function liveOrDemo<T>(
+  request: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+  cache?: (value: T) => void,
+): Promise<T> {
+  try {
+    const value = await request();
+    cache?.(value);
+    return value;
+  } catch (error) {
+    if (isApiOffline()) return fallback();
+    throw error;
+  }
+}
+
 export async function getOrderQueue(): Promise<Order[]> {
   if (isLiveApi()) {
-    const live = await firstOk([
-      () => apiRequest<Order[]>(endpoints.orders),
-      () => apiRequest<Order[]>(endpoints.staffOrders),
-    ]);
-    try {
-      const scheduled = await apiRequest<Order[]>(`${endpoints.orders}?status=Scheduled`);
-      const seen = new Set(live.map((order) => order.id));
-      return [...scheduled.filter((order) => !seen.has(order.id)), ...live];
-    } catch {
-      return live;
-    }
+    return liveOrDemo(async () => {
+      const live = await firstOk([
+        () => apiRequest<Order[]>(endpoints.orders),
+        () => apiRequest<Order[]>(endpoints.staffOrders),
+      ]);
+      try {
+        const scheduled = await apiRequest<Order[]>(`${endpoints.orders}?status=Scheduled`);
+        const seen = new Set(live.map((order) => order.id));
+        return [...scheduled.filter((order) => !seen.has(order.id)), ...live];
+      } catch {
+        return live;
+      }
+    }, () => [...demo().orders], cacheLiveOrders);
   }
   return [...demo().orders];
 }
 
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
   if (isLiveApi()) {
-    return firstOk([
-      () =>
-        apiRequest<Order>(endpoints.orderStatus(id), { method: "PATCH", body: json({ status }) }),
-      () =>
-        apiRequest<Order>(endpoints.staffOrderStatus(id), {
-          method: "PATCH",
-          body: json({ status }),
-        }),
-    ]);
+    try {
+      const updated = await firstOk([
+        () => apiRequest<Order>(endpoints.orderStatus(id), { method: "PATCH", body: json({ status }) }),
+        () => apiRequest<Order>(endpoints.staffOrderStatus(id), { method: "PATCH", body: json({ status }) }),
+      ]);
+      const cached = demo().orders.find((order) => order.id === id);
+      if (cached) Object.assign(cached, updated);
+      persistDemoStore();
+      return updated;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
@@ -331,7 +368,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         specialInstructions: input.specialInstructions,
         includeFulfilment: true,
       }) ?? null;
-    return apiRequest<Order>(endpoints.orders, {
+    try {
+      const created = await apiRequest<Order>(endpoints.orders, {
       method: "POST",
       ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       body: json({
@@ -346,7 +384,13 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         specialInstructions: notes,
         ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       }),
-    });
+      });
+      demo().orders.unshift({ ...created, items: [...created.items] });
+      persistDemoStore();
+      return created;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   if (input.redemption) {
     const redeemed = redeemInDemo({
@@ -398,7 +442,15 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
 
 export async function cancelOrder(id: string): Promise<Order> {
   if (isLiveApi()) {
-    return apiRequest<Order>(endpoints.orderCancel(id), { method: "POST" });
+    try {
+      const cancelled = await apiRequest<Order>(endpoints.orderCancel(id), { method: "POST" });
+      const cached = demo().orders.find((item) => item.id === id);
+      if (cached) Object.assign(cached, cancelled);
+      persistDemoStore();
+      return cancelled;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const order = demo().orders.find((item) => item.id === id);
   if (!order) throw new ApiError("That order is no longer on the board.", 404);
@@ -409,8 +461,7 @@ export async function cancelOrder(id: string): Promise<Order> {
   return { ...order };
 }
 
-export async function getOrderSlots(): Promise<OrderSlot[]> {
-  if (isLiveApi()) return apiRequest<OrderSlot[]>(endpoints.orderSlots);
+function buildDemoSlots(): OrderSlot[] {
   const slots: OrderSlot[] = [];
   const cursor = new Date();
   cursor.setSeconds(0, 0);
@@ -427,8 +478,13 @@ export async function getOrderSlots(): Promise<OrderSlot[]> {
   return slots;
 }
 
+export async function getOrderSlots(): Promise<OrderSlot[]> {
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<OrderSlot[]>(endpoints.orderSlots), () => buildDemoSlots());
+  return buildDemoSlots();
+}
+
 export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<LoyaltyWallet> {
-  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<LoyaltyWallet>(endpoints.loyalty), () => walletFromLedger(typeof userOrId === "string" ? userOrId : userOrId.id));
   const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
   return walletFromLedger(customerId);
 }
@@ -457,13 +513,20 @@ export async function redeemReward(input: {
 
 export async function getOrder(id: string): Promise<Order> {
   if (isLiveApi()) {
-    try {
-      return await apiRequest<Order>(`${endpoints.orders}/${id}`);
-    } catch (err) {
-      const demoOrder = demo().orders.find((o) => o.id === id);
-      if (demoOrder) return { ...demoOrder };
-      throw err;
-    }
+    return liveOrDemo(
+      () => apiRequest<Order>(`${endpoints.orders}/${id}`),
+      () => {
+        const demoOrder = demo().orders.find((order) => order.id === id);
+        if (demoOrder) return { ...demoOrder };
+        throw new ApiError("We couldn't find that order.", 404);
+      },
+      (order) => {
+        const index = demo().orders.findIndex((item) => item.id === order.id);
+        if (index >= 0) demo().orders[index] = { ...order };
+        else demo().orders.unshift({ ...order });
+        persistDemoStore();
+      },
+    );
   }
   const order = demo().orders.find((o) => o.id === id);
   if (!order) throw new ApiError("We couldn't find that order.", 404);
@@ -472,24 +535,22 @@ export async function getOrder(id: string): Promise<Order> {
 
 /** Public menu for the customer ordering pages. */
 export async function getMenu(): Promise<MenuItem[]> {
-  if (isLiveApi()) return apiRequest<MenuItem[]>(endpoints.menu);
+  if (isLiveApi()) {
+    return liveOrDemo(() => apiRequest<MenuItem[]>(endpoints.menu), () => [...demo().menu], cacheLiveMenu);
+  }
   return [...demo().menu];
 }
 
 export async function setAvailability(id: string, available: boolean): Promise<MenuItem> {
   if (isLiveApi()) {
-    return firstOk([
-      () =>
-        apiRequest<MenuItem>(endpoints.staffAvailability(id), {
-          method: "PATCH",
-          body: json({ available }),
-        }),
-      () =>
-        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
-          method: "PATCH",
-          body: json({ available }),
-        }),
-    ]);
+    try {
+      return await firstOk([
+        () => apiRequest<MenuItem>(endpoints.staffAvailability(id), { method: "PATCH", body: json({ available }) }),
+        () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ available }) }),
+      ]);
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
@@ -500,15 +561,14 @@ export async function setAvailability(id: string, available: boolean): Promise<M
 
 export async function setMenuStock(id: string, stock: number): Promise<MenuItem> {
   if (isLiveApi()) {
-    return firstOk([
-      () =>
-        apiRequest<MenuItem>(endpoints.inventoryItem(id), {
-          method: "PATCH",
-          body: json({ stock }),
-        }),
-      () =>
-        apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
-    ]);
+    try {
+      return await firstOk([
+        () => apiRequest<MenuItem>(endpoints.inventoryItem(id), { method: "PATCH", body: json({ stock }) }),
+        () => apiRequest<MenuItem>(endpoints.adminMenuItem(id), { method: "PUT", body: json({ stock }) }),
+      ]);
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
@@ -520,10 +580,14 @@ export async function setMenuStock(id: string, stock: number): Promise<MenuItem>
 
 export async function saveMenuItem(input: MenuInput, id?: string): Promise<MenuItem> {
   if (isLiveApi()) {
-    return apiRequest<MenuItem>(id ? endpoints.adminMenuItem(id) : endpoints.adminMenu, {
-      method: id ? "PUT" : "POST",
-      body: json(input),
-    });
+    try {
+      return await apiRequest<MenuItem>(id ? endpoints.adminMenuItem(id) : endpoints.adminMenu, {
+        method: id ? "PUT" : "POST",
+        body: json(input),
+      });
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const menu = demo().menu;
   if (id) {
@@ -543,18 +607,19 @@ export async function saveMenuItem(input: MenuInput, id?: string): Promise<MenuI
 
 export async function getUsers(): Promise<ManagedUser[]> {
   if (isLiveApi()) {
-    return apiRequest<ManagedUser[]>(endpoints.adminUsers);
+    return liveOrDemo(() => apiRequest<ManagedUser[]>(endpoints.adminUsers), () => demo().users.map((u) => ({ ...u })), cacheLiveUsers);
   }
   return demo().users.map((u) => ({ ...u }));
 }
 
 export async function setUserActive(id: string, active: boolean): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(endpoints.adminUser(id), {
-      method: "PATCH",
-      body: json({ isActive: active }),
-    });
-    return;
+    try {
+      await apiRequest(endpoints.adminUser(id), { method: "PATCH", body: json({ isActive: active }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const user = demo().users.find((u) => u.id === id);
   if (!user) throw new ApiError("That user was not found.", 404);
@@ -563,14 +628,20 @@ export async function setUserActive(id: string, active: boolean): Promise<void> 
 }
 
 export async function getCustomers(): Promise<Customer[]> {
-  if (isLiveApi()) return apiRequest<Customer[]>(endpoints.customers);
+  if (isLiveApi()) {
+    return liveOrDemo(() => apiRequest<Customer[]>(endpoints.customers), () => demo().customers.map((c) => ({ ...c })), cacheLiveCustomers);
+  }
   return demo().customers.map((c) => ({ ...c }));
 }
 
 export async function updateCustomerNote(id: string, note: string): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(`${endpoints.customers}/${id}`, { method: "PATCH", body: json({ note }) });
-    return;
+    try {
+      await apiRequest(`${endpoints.customers}/${id}`, { method: "PATCH", body: json({ note }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const customer = demo().customers.find((c) => c.id === id);
   if (customer) {
@@ -580,7 +651,7 @@ export async function updateCustomerNote(id: string, note: string): Promise<void
 }
 
 export async function getPromotions(): Promise<Promotion[]> {
-  if (isLiveApi()) return apiRequest<Promotion[]>(endpoints.promotions);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<Promotion[]>(endpoints.promotions), () => demo().promotions.map((p) => ({ ...p })), (items) => { demo().promotions = items.map((p) => ({ ...p })); persistDemoStore(); });
   return demo().promotions.map((p) => ({ ...p }));
 }
 
@@ -588,7 +659,11 @@ export async function savePromotion(
   input: Omit<Promotion, "id" | "active" | "redemptions">,
 ): Promise<Promotion> {
   if (isLiveApi()) {
-    return apiRequest<Promotion>(endpoints.promotions, { method: "POST", body: json(input) });
+    try {
+      return await apiRequest<Promotion>(endpoints.promotions, { method: "POST", body: json(input) });
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const created: Promotion = { ...input, id: `p${Date.now()}`, active: true, redemptions: 0 };
   demo().promotions.unshift(created);
@@ -598,8 +673,12 @@ export async function savePromotion(
 
 export async function setPromotionActive(id: string, active: boolean): Promise<void> {
   if (isLiveApi()) {
-    await apiRequest(endpoints.promotion(id), { method: "PATCH", body: json({ active }) });
-    return;
+    try {
+      await apiRequest(endpoints.promotion(id), { method: "PATCH", body: json({ active }) });
+      return;
+    } catch (error) {
+      if (!isApiOffline()) throw error;
+    }
   }
   const promo = demo().promotions.find((p) => p.id === id);
   if (promo) {
@@ -608,19 +687,13 @@ export async function setPromotionActive(id: string, active: boolean): Promise<v
   }
 }
 
-export async function getReport(): Promise<Report> {
-  if (isLiveApi()) {
-    return firstOk([
-      () => apiRequest<Report>(endpoints.reports),
-      () => apiRequest<Report>(endpoints.adminReports),
-    ]);
-  }
+function buildDemoReport(): Report {
   const orders = demo().orders;
   const channels = new Map<string, number>();
-  orders.forEach((o) => channels.set(o.channel, (channels.get(o.channel) ?? 0) + o.total));
+  orders.forEach((order) => channels.set(order.channel, (channels.get(order.channel) ?? 0) + order.total));
   return {
     orderCount: orders.length,
-    completedSales: orders.filter((o) => o.status === "Completed").reduce((s, o) => s + o.total, 0),
+    completedSales: orders.filter((order) => order.status === "Completed").reduce((sum, order) => sum + order.total, 0),
     hourlyOrders: hourlyFromOrders(orders),
     revenueByDay: mock.revenueByDay,
     bestSellers: bestSellersFromOrders(orders),
@@ -628,12 +701,28 @@ export async function getReport(): Promise<Report> {
   };
 }
 
+export async function getReport(): Promise<Report> {
+  if (isLiveApi()) {
+    return liveOrDemo(
+      () => firstOk([
+        () => apiRequest<Report>(endpoints.reports),
+        () => apiRequest<Report>(endpoints.adminReports),
+      ]),
+      () => buildDemoReport(),
+    );
+  }
+  return buildDemoReport();
+}
+
 export async function getAuditLog(): Promise<AuditLogEntry[]> {
   if (isLiveApi()) {
-    return firstOk([
-      () => apiRequest<AuditLogEntry[]>(endpoints.auditLogs),
-      () => apiRequest<AuditLogEntry[]>(endpoints.adminAudit),
-    ]);
+    return liveOrDemo(
+      () => firstOk([
+        () => apiRequest<AuditLogEntry[]>(endpoints.auditLogs),
+        () => apiRequest<AuditLogEntry[]>(endpoints.adminAudit),
+      ]),
+      () => [...demo().audit],
+    );
   }
   return [...demo().audit];
 }
@@ -651,12 +740,16 @@ function groupTotal(basket: GroupBasket) {
 }
 
 export async function listGroupBaskets(): Promise<GroupBasket[]> {
-  if (isLiveApi()) return apiRequest<GroupBasket[]>(endpoints.groups);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<GroupBasket[]>(endpoints.groups), () => demoGroups.filter((basket) => basket.status === "Open" || basket.status === "Locked").map((basket) => ({ ...basket, items: [...basket.items], participants: [...basket.participants] })));
   return demoGroups.filter((basket) => basket.status === "Open" || basket.status === "Locked").map((basket) => ({ ...basket, items: [...basket.items], participants: [...basket.participants] }));
 }
 
 export async function getGroupBasket(id: string): Promise<GroupBasket> {
-  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.group(id));
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<GroupBasket>(endpoints.group(id)), () => {
+    const cached = demoGroups.find((item) => item.id === id);
+    if (!cached) throw new ApiError("Group order not found.", 404);
+    return { ...cached, items: [...cached.items], participants: [...cached.participants] };
+  });
   const basket = demoGroups.find((item) => item.id === id);
   if (!basket) throw new ApiError("Group order not found.", 404);
   return { ...basket, items: [...basket.items], participants: [...basket.participants] };

@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import burger from "@/assets/food-mains.jpg";
 import { BrandMark } from "@/components/BrandMark";
 import { fieldClass, primaryBtnClass } from "@/components/AuthCard";
 import { SLOGAN } from "@/components/site-info";
 import { demoEmailForRole, homeRouteForRole, useAuth } from "@/lib/auth";
-import { isLiveApi } from "@/lib/api-client";
+import { isApiOffline, isLiveApi, subscribeToApiState } from "@/lib/api-client";
 import { validateEmail, validatePassword } from "@/lib/validation";
 import type { Role } from "@/lib/types";
 
@@ -74,9 +75,13 @@ function SignInPage() {
   const [email, setEmail] = useState(demoEmailForRole("Staff"));
   const [password, setPassword] = useState("Stacked123!");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => setLive(isLiveApi()), []);
+  useEffect(() => {
+    setLive(isLiveApi());
+    return subscribeToApiState(() => setLive(isLiveApi()));
+  }, []);
   useEffect(() => {
     if (ready && user) void navigate({ to: destinationAfterLogin(user.role, redirect) });
   }, [ready, user, navigate, redirect]);
@@ -208,6 +213,11 @@ function SignInPage() {
                 className={fieldClass}
               />
             </label>
+            {notice && (
+              <p className="rounded-xl bg-warning/15 px-3 py-2 text-sm text-foreground" role="status">
+                {notice}
+              </p>
+            )}
             {error && (
               <p
                 className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"

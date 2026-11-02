@@ -17,6 +17,63 @@ const TOKEN_KEY = "stackedhub.jwt";
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
+export type ApiConnectionState = "unknown" | "online" | "offline";
+const API_STATE_KEY = "stackedhub.apiConnection";
+let apiConnectionState: ApiConnectionState =
+  typeof window !== "undefined" && window.sessionStorage.getItem(API_STATE_KEY) === "offline"
+    ? "offline"
+    : "unknown";
+const apiStateListeners = new Set<(state: ApiConnectionState) => void>();
+
+export function getApiConnectionState(): ApiConnectionState {
+  return apiConnectionState;
+}
+
+export function isApiOffline(): boolean {
+  return apiConnectionState === "offline";
+}
+
+export function subscribeToApiState(listener: (state: ApiConnectionState) => void) {
+  apiStateListeners.add(listener);
+  return () => {
+    apiStateListeners.delete(listener);
+  };
+}
+
+function setApiConnectionState(state: ApiConnectionState) {
+  if (apiConnectionState === state) return;
+  apiConnectionState = state;
+  try {
+    if (typeof window !== "undefined") {
+      if (state === "offline") window.sessionStorage.setItem(API_STATE_KEY, "offline");
+      else window.sessionStorage.removeItem(API_STATE_KEY);
+    }
+  } catch {
+    /* Session storage is optional. */
+  }
+  apiStateListeners.forEach((listener) => listener(state));
+}
+
+export function markApiOffline() {
+  setApiConnectionState("offline");
+}
+
+export function markApiOnline() {
+  setApiConnectionState("online");
+}
+
+export async function checkApiConnection(): Promise<boolean> {
+  if (!getApiBaseUrl()) return false;
+  try {
+    await apiRequest<{ status?: string }>("/health", { timeoutMs: 5_000 });
+    markApiOnline();
+    return true;
+  } catch {
+    markApiOffline();
+    return false;
+  }
+}
+
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler;
 }
@@ -35,7 +92,7 @@ export function setApiBaseUrl(url: string) {
   else window.localStorage.removeItem(API_URL_KEY);
 }
 
-export const isLiveApi = () => getApiBaseUrl().length > 0;
+export const isLiveApi = () => getApiBaseUrl().length > 0 && !isApiOffline();
 
 export const tokenStore = {
   get(): string | null {
@@ -167,7 +224,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     });
   } catch (err) {
     if (init.signal?.aborted) throw err;
-    throw networkError(base, timedOut);
+    const error = networkError(base, timedOut);
+    markApiOffline();
+    throw error;
   } finally {
     clearTimeout(timer);
     init.signal?.removeEventListener("abort", onUserAbort);
@@ -187,6 +246,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError("Your account doesn't have access to this.", 403, "http", false);
   }
   if (!response.ok) {
+    if (response.status >= 500) markApiOffline();
     throw new ApiError(
       await readError(response),
       response.status,
@@ -194,13 +254,18 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       readOnly && response.status >= 500,
     );
   }
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) {
+    markApiOnline();
+    return undefined as T;
+  }
 
   const text = await response.text().catch(() => "");
   if (!text.trim()) {
     throw new ApiError("The server sent an empty response.", response.status, "parse", readOnly);
   }
-  return parseSuccessBody<T>(text, response.status, readOnly);
+  const parsed = parseSuccessBody<T>(text, response.status, readOnly);
+  markApiOnline();
+  return parsed;
 }
 
 /** Endpoints from Role 2 (`ROLE-2.md` on Backend-database), plus staff aliases. */
