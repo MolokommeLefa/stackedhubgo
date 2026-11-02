@@ -35,7 +35,7 @@ export function isApiOffline(): boolean {
 
 export function subscribeToApiState(listener: (state: ApiConnectionState) => void) {
   apiStateListeners.add(listener);
-  return () => apiStateListeners.delete(listener);
+  return () => {\n    apiStateListeners.delete(listener);\n  };
 }
 
 function setApiConnectionState(state: ApiConnectionState) {
