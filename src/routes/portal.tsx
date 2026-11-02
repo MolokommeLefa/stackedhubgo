@@ -7,7 +7,7 @@ import { AppShell, LoadState, Panel, StatusPill } from "@/components/AppShell";
 import { DeliveryTrackingMap } from "@/components/DeliveryTrackingMap";
 import { MenuPhoto } from "@/components/MenuPhoto";
 import { useAuth } from "@/lib/auth";
-import { apiRequest, endpoints, isLiveApi } from "@/lib/api-client";
+import { apiRequest, endpoints, isApiOffline, isLiveApi } from "@/lib/api-client";
 import { cancelOrder, getLoyaltyWallet, getMenu, getOrderQueue, getOrderSlots, getPromotions, placeOrder, redeemLoyaltyReward } from "@/lib/data";
 import { currency, formatSlot } from "@/lib/mock-data";
 import type { LoyaltyWallet, MenuItem, Order, OrderSlot, Promotion } from "@/lib/types";
@@ -227,7 +227,12 @@ function PortalPage() {
           : await new Promise((r) => setTimeout(() => r(demoSuggest(prompt, menu)), 600)),
       );
     } catch (err) {
-      setError(err);
+      if (isApiOffline()) {
+        setError(null);
+        setSuggestions(demoSuggest(prompt, menu));
+      } else {
+        setError(err);
+      }
     } finally {
       setAsking(false);
     }
