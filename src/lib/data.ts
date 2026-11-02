@@ -461,8 +461,7 @@ export async function cancelOrder(id: string): Promise<Order> {
   return { ...order };
 }
 
-export async function getOrderSlots(): Promise<OrderSlot[]> {
-  if (isLiveApi()) return apiRequest<OrderSlot[]>(endpoints.orderSlots);
+function buildDemoSlots(): OrderSlot[] {
   const slots: OrderSlot[] = [];
   const cursor = new Date();
   cursor.setSeconds(0, 0);
@@ -478,9 +477,13 @@ export async function getOrderSlots(): Promise<OrderSlot[]> {
   }
   return slots;
 }
+\nexport async function getOrderSlots(): Promise<OrderSlot[]> {
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<OrderSlot[]>(endpoints.orderSlots), () => buildDemoSlots());
+  return buildDemoSlots();
+}
 
 export async function getLoyaltyWallet(userOrId: AuthUser | string = ""): Promise<LoyaltyWallet> {
-  if (isLiveApi()) return apiRequest<LoyaltyWallet>(endpoints.loyalty);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<LoyaltyWallet>(endpoints.loyalty), () => walletFromLedger(typeof userOrId === "string" ? userOrId : userOrId.id));
   const customerId = typeof userOrId === "string" ? userOrId : userOrId.id;
   return walletFromLedger(customerId);
 }
@@ -643,7 +646,7 @@ export async function updateCustomerNote(id: string, note: string): Promise<void
 }
 
 export async function getPromotions(): Promise<Promotion[]> {
-  if (isLiveApi()) return apiRequest<Promotion[]>(endpoints.promotions);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<Promotion[]>(endpoints.promotions), () => demo().promotions.map((p) => ({ ...p })), (items) => { demo().promotions = items.map((p) => ({ ...p })); persistDemoStore(); });
   return demo().promotions.map((p) => ({ ...p }));
 }
 
@@ -671,32 +674,41 @@ export async function setPromotionActive(id: string, active: boolean): Promise<v
   }
 }
 
-export async function getReport(): Promise<Report> {
-  if (isLiveApi()) {
-    return firstOk([
-      () => apiRequest<Report>(endpoints.reports),
-      () => apiRequest<Report>(endpoints.adminReports),
-    ]);
-  }
+function buildDemoReport(): Report {
   const orders = demo().orders;
   const channels = new Map<string, number>();
-  orders.forEach((o) => channels.set(o.channel, (channels.get(o.channel) ?? 0) + o.total));
+  orders.forEach((order) => channels.set(order.channel, (channels.get(order.channel) ?? 0) + order.total));
   return {
     orderCount: orders.length,
-    completedSales: orders.filter((o) => o.status === "Completed").reduce((s, o) => s + o.total, 0),
+    completedSales: orders.filter((order) => order.status === "Completed").reduce((sum, order) => sum + order.total, 0),
     hourlyOrders: hourlyFromOrders(orders),
     revenueByDay: mock.revenueByDay,
     bestSellers: bestSellersFromOrders(orders),
     salesByChannel: [...channels].map(([channel, total]) => ({ channel, total })),
   };
 }
+\nexport async function getReport(): Promise<Report> {
+  if (isLiveApi()) {
+    return liveOrDemo(
+      () => firstOk([
+        () => apiRequest<Report>(endpoints.reports),
+        () => apiRequest<Report>(endpoints.adminReports),
+      ]),
+      () => buildDemoReport(),
+    );
+  }
+  return buildDemoReport();
+}
 
 export async function getAuditLog(): Promise<AuditLogEntry[]> {
   if (isLiveApi()) {
-    return firstOk([
-      () => apiRequest<AuditLogEntry[]>(endpoints.auditLogs),
-      () => apiRequest<AuditLogEntry[]>(endpoints.adminAudit),
-    ]);
+    return liveOrDemo(
+      () => firstOk([
+        () => apiRequest<AuditLogEntry[]>(endpoints.auditLogs),
+        () => apiRequest<AuditLogEntry[]>(endpoints.adminAudit),
+      ]),
+      () => [...demo().audit],
+    );
   }
   return [...demo().audit];
 }
@@ -714,12 +726,16 @@ function groupTotal(basket: GroupBasket) {
 }
 
 export async function listGroupBaskets(): Promise<GroupBasket[]> {
-  if (isLiveApi()) return apiRequest<GroupBasket[]>(endpoints.groups);
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<GroupBasket[]>(endpoints.groups), () => demoGroups.filter((basket) => basket.status === "Open" || basket.status === "Locked").map((basket) => ({ ...basket, items: [...basket.items], participants: [...basket.participants] })));
   return demoGroups.filter((basket) => basket.status === "Open" || basket.status === "Locked").map((basket) => ({ ...basket, items: [...basket.items], participants: [...basket.participants] }));
 }
 
 export async function getGroupBasket(id: string): Promise<GroupBasket> {
-  if (isLiveApi()) return apiRequest<GroupBasket>(endpoints.group(id));
+  if (isLiveApi()) return liveOrDemo(() => apiRequest<GroupBasket>(endpoints.group(id)), () => {
+    const cached = demoGroups.find((item) => item.id === id);
+    if (!cached) throw new ApiError("Group order not found.", 404);
+    return { ...cached, items: [...cached.items], participants: [...cached.participants] };
+  });
   const basket = demoGroups.find((item) => item.id === id);
   if (!basket) throw new ApiError("Group order not found.", 404);
   return { ...basket, items: [...basket.items], participants: [...basket.participants] };
