@@ -122,8 +122,6 @@ export function AppShell({
     );
   }
 
-  const live = isLiveApi();
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] gap-6 p-4 lg:p-6">
