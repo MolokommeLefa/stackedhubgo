@@ -1,28 +1,44 @@
 /**
  * Single integration point for the StackedHub ASP.NET Core Web API.
  *
- * The API address comes from (in order): the address saved on the Settings
- * page (localStorage), then `VITE_API_BASE_URL`. With neither set, the app
- * runs on bundled demo data. Every live call attaches the JWT as
+ * The API address comes from a non-Azure Settings address, then a non-Azure
+ * `VITE_API_BASE_URL`, then the deployed Render API. Retired Azure hosts are
+ * replaced automatically. If Render cannot be reached, screens fall back to
+ * bundled demo data. Every live call attaches the JWT as
  * `Authorization: Bearer <token>`.
  */
 
 const ENV_API_URL: string = import.meta.env["VITE_API_BASE_URL"] ?? "";
 /** Deployed ASP.NET Core API used when neither deployment env nor a saved URL is configured. */
-export const DEFAULT_API_BASE_URL =
-  "https://stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net";
+export const DEFAULT_API_BASE_URL = "https://stackedhubgo.onrender.com";
 const API_URL_KEY = "stackedhub.apiUrl";
+/** Long enough for a sleeping Render instance to wake on the first request. */
+export const API_TIMEOUT_MS = 45_000;
 const TOKEN_KEY = "stackedhub.jwt";
+/** Previous hosted hosts. A saved Settings URL for these is replaced by the configured API. */
+const LEGACY_AZURE_HOSTS = new Set([
+  "stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net",
+  "stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net",
+]);
+
+function apiHost(url: string): string | null {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isLegacyAzureApi(url: string) {
+  const host = apiHost(url);
+  return host !== null && LEGACY_AZURE_HOSTS.has(host);
+}
 
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
 export type ApiConnectionState = "unknown" | "online" | "offline";
-const API_STATE_KEY = "stackedhub.apiConnection";
-let apiConnectionState: ApiConnectionState =
-  typeof window !== "undefined" && window.sessionStorage.getItem(API_STATE_KEY) === "offline"
-    ? "offline"
-    : "unknown";
+let apiConnectionState: ApiConnectionState = "unknown";
 const apiStateListeners = new Set<(state: ApiConnectionState) => void>();
 
 export function getApiConnectionState(): ApiConnectionState {
@@ -43,14 +59,6 @@ export function subscribeToApiState(listener: (state: ApiConnectionState) => voi
 function setApiConnectionState(state: ApiConnectionState) {
   if (apiConnectionState === state) return;
   apiConnectionState = state;
-  try {
-    if (typeof window !== "undefined") {
-      if (state === "offline") window.sessionStorage.setItem(API_STATE_KEY, "offline");
-      else window.sessionStorage.removeItem(API_STATE_KEY);
-    }
-  } catch {
-    /* Session storage is optional. */
-  }
   apiStateListeners.forEach((listener) => listener(state));
 }
 
@@ -65,10 +73,11 @@ export function markApiOnline() {
 export async function checkApiConnection(): Promise<boolean> {
   if (!getApiBaseUrl()) return false;
   try {
-    await apiRequest<{ status?: string }>("/health", { timeoutMs: 5_000 });
+    await apiRequest<{ status?: string }>("/health", { timeoutMs: API_TIMEOUT_MS });
     markApiOnline();
     return true;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return false;
     markApiOffline();
     return false;
   }
@@ -78,12 +87,30 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
   unauthorizedHandler = handler;
 }
 
+/** Retired Azure hosts never win over the Render API, even when baked into an old build. */
+export function selectApiBaseUrl(
+  envUrl: string,
+  savedUrl: string | null,
+  fallback = DEFAULT_API_BASE_URL,
+): string {
+  const fromEnv = envUrl.trim().replace(/\/+$/, "");
+  const configured =
+    fromEnv && !isLegacyAzureApi(fromEnv) ? fromEnv : fallback.trim().replace(/\/+$/, "");
+  const saved = savedUrl?.trim().replace(/\/+$/, "") ?? "";
+  if (!saved) return configured;
+  if (isLegacyAzureApi(saved) && configured && !isLegacyAzureApi(configured)) return configured;
+  return saved;
+}
+
 export function getApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    const saved = window.localStorage.getItem(API_URL_KEY);
-    if (saved) return saved;
+  const saved =
+    typeof window !== "undefined" ? window.localStorage.getItem(API_URL_KEY) : null;
+  const selected = selectApiBaseUrl(ENV_API_URL, saved);
+  if (typeof window !== "undefined" && saved) {
+    const normalized = saved.trim().replace(/\/+$/, "");
+    if (normalized && normalized !== selected) window.localStorage.setItem(API_URL_KEY, selected);
   }
-  return ENV_API_URL || DEFAULT_API_BASE_URL;
+  return selected;
 }
 
 export function setApiBaseUrl(url: string) {
@@ -107,8 +134,6 @@ export const tokenStore = {
     window.localStorage.removeItem(TOKEN_KEY);
   },
 };
-
-export const API_TIMEOUT_MS = 15_000;
 
 export type ApiErrorCode = "timeout" | "offline" | "network" | "http" | "parse" | "config";
 
@@ -223,7 +248,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       },
     });
   } catch (err) {
-    if (init.signal?.aborted) throw err;
+    const abortedByCaller =
+      !timedOut &&
+      (init.signal?.aborted || (err instanceof Error && err.name === "AbortError"));
+    // A route change aborts the request. That is not an API outage.
+    if (abortedByCaller) throw err;
     const error = networkError(base, timedOut);
     markApiOffline();
     throw error;

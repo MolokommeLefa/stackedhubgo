@@ -6,9 +6,8 @@ import { wsBtnGhost, wsBtnPrimary, wsField } from "@/components/workspace";
 import { endpoints, getApiBaseUrl, isLiveApi, setApiBaseUrl, tokenStore } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth";
 
-/** Hosted Azure Web API (deployed by .github/workflows/deploy-api.yml). */
-export const HOSTED_API_URL =
-  "https://stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net";
+/** Hosted Render Web API. Settings uses this when no address is saved yet. */
+export const HOSTED_API_URL = "https://stackedhubgo.onrender.com";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -118,14 +117,14 @@ function SettingsPage() {
           <p className="mb-4 rounded-2xl bg-secondary px-4 py-3 text-sm" role="status">
             <span className="font-semibold text-foreground">Live API</span>
             <span className="mt-1 block text-muted-foreground">
-              The app is connected to a hosted API. Clear the address and save to return to demo
-              data.
+              The app is connected to the hosted API. If that API cannot be reached, StackedHub
+              falls back to demo data until the connection recovers.
             </span>
           </p>
         )}
         <p className="mb-4 text-sm text-muted-foreground">
-          The hosted Azure API is filled in below. Test the connection, then save to sign in with
-          live data. Clear it to use demo data instead.
+          The hosted API is filled in below. Test the connection, then save to sign in with live
+          data. If the API cannot be reached, the app falls back to demo data.
         </p>
         <label className="block text-xs font-semibold text-muted-foreground">
           API base URL
@@ -197,11 +196,9 @@ function SettingsPage() {
         <div className="mt-4 rounded-2xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
           <p className="font-semibold text-foreground">Hosted API</p>
           <p className="mt-1">
-            The StackedHub API runs on Azure at{" "}
-            <code className="break-all">
-              stackedhub-api-eufvdfc5duhwcpe4.southafricanorth-01.azurewebsites.net
-            </code>
-            . Demo logins: thandi@stackedfoods.co.za (Admin), jason@stackedfoods.co.za (Staff),
+            The StackedHub API runs at{" "}
+            <code className="break-all">stackedhubgo.onrender.com</code>. Demo logins:
+            thandi@stackedfoods.co.za (Admin), jason@stackedfoods.co.za (Staff),
             priya.nair@example.co.za (Customer), password <code>Stacked123!</code>.
           </p>
         </div>

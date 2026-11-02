@@ -15,7 +15,7 @@ It can run in:
 https://stackedhubgo.lovable.app
 
 ### Live API
-https://stackedhub-api-2026-hxh8cdbuhzcbhbhg.uaenorth-01.azurewebsites.net
+https://stackedhubgo.onrender.com
 
 ---
 
