@@ -74,10 +74,14 @@ function SignInPage() {
   const [role, setRole] = useState<Role>("Staff");
   const [email, setEmail] = useState(demoEmailForRole("Staff"));
   const [password, setPassword] = useState("Stacked123!");
-  const [error, setError] = useState<string | null>(null);\n  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {\n    setLive(isLiveApi());\n    return subscribeToApiState(() => setLive(isLiveApi()));\n  }, []);
+  useEffect(() => {
+    setLive(isLiveApi());
+    return subscribeToApiState(() => setLive(isLiveApi()));
+  }, []);
   useEffect(() => {
     if (ready && user) void navigate({ to: destinationAfterLogin(user.role, redirect) });
   }, [ready, user, navigate, redirect]);
@@ -209,7 +213,12 @@ function SignInPage() {
                 className={fieldClass}
               />
             </label>
-            {notice && (\n              <p className="rounded-xl bg-warning/15 px-3 py-2 text-sm text-foreground" role="status">\n                {notice}\n              </p>\n            )}\n            {error && (
+            {notice && (
+              <p className="rounded-xl bg-warning/15 px-3 py-2 text-sm text-foreground" role="status">
+                {notice}
+              </p>
+            )}
+            {error && (
               <p
                 className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
                 role="alert"
