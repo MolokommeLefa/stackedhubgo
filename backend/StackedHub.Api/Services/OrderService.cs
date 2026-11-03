@@ -111,6 +111,17 @@ public class OrderService
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(cancellationToken);
         order.Reference = $"#{4800 + order.Id}";
+        var customerName = await _db.Users.AsNoTracking()
+            .Where(x => x.Id == customerId)
+            .Select(x => (x.FirstName + " " + x.LastName).Trim())
+            .FirstAsync(cancellationToken);
+        AuditTrail.Add(
+            _db,
+            customerId,
+            AuditTrail.PlacementAction(order, idempotencyKey),
+            "Order",
+            order.Id,
+            AuditTrail.DescribeOrder(order, customerName));
 
         if (idempotencyKey is not null)
         {
@@ -305,6 +316,7 @@ public class OrderService
             await RestoreStock(order, cancellationToken);
         }
 
+        var previous = order.Status;
         order.Status = next;
         if (staffId is not null)
         {
@@ -316,9 +328,38 @@ public class OrderService
             await AwardLoyalty(order, cancellationToken);
         }
 
+        var actorId = await ResolveActor(staffId, customerId, order.CustomerId, cancellationToken);
+        AuditTrail.Add(
+            _db,
+            actorId,
+            AuditTrail.TransitionAction(previous, next, customerCancel, note, order.SpecialInstructions),
+            "Order",
+            order.Id,
+            AuditTrail.DescribeOrder(order));
+
         RecordHistory(order, next, staffId ?? customerId, note);
         await _db.SaveChangesAsync(cancellationToken);
         return order;
+    }
+
+    private async Task<int> ResolveActor(int? staffId, int? customerId, int fallbackCustomerId, CancellationToken cancellationToken)
+    {
+        if (staffId is not null)
+        {
+            return staffId.Value;
+        }
+
+        if (customerId is not null)
+        {
+            return customerId.Value;
+        }
+
+        var adminId = await _db.Users.AsNoTracking()
+            .Where(x => x.Role == UserRole.Admin && x.IsActive)
+            .OrderBy(x => x.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return adminId ?? fallbackCustomerId;
     }
 
     private async Task AwardLoyalty(Order order, CancellationToken cancellationToken)
@@ -352,6 +393,13 @@ public class OrderService
             Type = "Earn",
             Reason = "Order completed"
         });
+        AuditTrail.Add(
+            _db,
+            customer.Id,
+            "Awarded loyalty points",
+            "Loyalty",
+            order.Id,
+            $"{order.Reference} · {points} points · {customer.Name}");
     }
 
     private async Task ReserveStock(Order order, CancellationToken cancellationToken)

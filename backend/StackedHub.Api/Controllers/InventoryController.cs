@@ -44,15 +44,25 @@ public class InventoryController : ControllerBase
             return NotFound(new { error = "Menu item not found." });
         }
 
+        var stockChanged = request.Stock is not null && request.Stock != item.Stock;
+        var availabilityChanged = request.Available is not null && request.Available != item.Available;
         MenuStock.Apply(item, request);
         item.UpdatedAt = DateTime.UtcNow;
+        var action = stockChanged && availabilityChanged
+            ? "Updated menu item"
+            : stockChanged
+                ? "Adjusted stock level"
+                : item.Available
+                    ? "Marked menu item available"
+                    : "Marked menu item unavailable";
+        var details = stockChanged ? $"{item.Name} · stock {item.Stock}" : item.Name;
         _db.AuditLogs.Add(new AuditLog
         {
             AdminId = User.RequireUserId(),
-            Action = "Adjusted stock level",
+            Action = action,
             Entity = "MenuItem",
             EntityId = item.Id,
-            Details = item.Name
+            Details = details
         });
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(item.ToDto());

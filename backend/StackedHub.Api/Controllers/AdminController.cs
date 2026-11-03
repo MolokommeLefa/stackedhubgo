@@ -112,8 +112,9 @@ public class AdminController : ControllerBase
     {
         var rows = await _db.AuditLogs.AsNoTracking()
             .Include(x => x.Admin)
-            .OrderByDescending(x => x.Id)
-            .Take(50)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(100)
             .ToListAsync(cancellationToken);
         return Ok(rows.Select(x => x.ToDto()));
     }

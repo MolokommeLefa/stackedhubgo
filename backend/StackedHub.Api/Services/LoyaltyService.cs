@@ -87,6 +87,13 @@ public class LoyaltyService
             Type = "Redeem",
             Reason = reward.Title
         });
+        AuditTrail.Add(
+            _db,
+            customer.Id,
+            "Redeemed loyalty reward",
+            "Loyalty",
+            null,
+            $"{reward.Title} · {reward.PointsCost} points · {customer.Name}");
         await _db.SaveChangesAsync(cancellationToken);
         return await BuildWallet(customer, cancellationToken);
     }
