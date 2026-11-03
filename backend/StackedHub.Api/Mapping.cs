@@ -30,7 +30,9 @@ public static class Mapping
             order.Status,
             order.PlacedAt,
             order.ScheduledFor,
-            order.ScheduledFor is null ? "Immediate" : "Scheduled",
+            order.SpecialInstructions?.Contains("Deliver to:", StringComparison.OrdinalIgnoreCase) == true
+                ? "Delivery"
+                : order.ScheduledFor is null ? "Immediate" : "Scheduled",
             order.ScheduledFor ?? order.PlacedAt.AddMinutes(order.PrepLeadMinutes),
             order.PrepLeadMinutes,
             order.ReleaseError,

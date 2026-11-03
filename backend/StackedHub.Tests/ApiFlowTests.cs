@@ -313,6 +313,7 @@ public class ApiFlowTests : IClassFixture<ApiFactory>
             [new CartLineRequest(rings.Id, 1, null)]), Json.Options);
         created.EnsureSuccessStatusCode();
         var order = await created.Content.ReadFromJsonAsync<OrderDto>(Json.Options);
+        Assert.Equal("Delivery", order!.Fulfilment);
 
         using var staff = await SignIn("jason@stackedfoods.co.za");
         using var patch = new HttpRequestMessage(HttpMethod.Patch, $"/api/orders/{order!.Id}/status")

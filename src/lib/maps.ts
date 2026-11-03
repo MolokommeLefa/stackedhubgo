@@ -37,6 +37,36 @@ export function parseDeliveryAddress(
   return match?.[1]?.trim() || null;
 }
 
+export function addressHasKnownArea(address: string | null): boolean {
+  if (!address) return false;
+  const haystack = address.toLowerCase();
+  return Object.keys(DESTINATION_OFFSETS).some((suburb) => haystack.includes(suburb));
+}
+
+/** Resolve a street address near Johannesburg. Photon allows browser requests. */
+export async function geocodeAddress(address: string): Promise<GeoPoint | null> {
+  const query = /johannesburg|gauteng|south africa/i.test(address)
+    ? address
+    : `${address}, Johannesburg, South Africa`;
+  const response = await fetch(
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`,
+    { headers: { Accept: "application/json" } },
+  );
+  if (!response.ok) return null;
+  const data = (await response.json()) as {
+    features?: { geometry?: { coordinates?: number[] }; properties?: { countrycode?: string } }[];
+  };
+  const feature = data.features?.[0];
+  const country = feature?.properties?.countrycode;
+  if (country && country !== "ZA") return null;
+  const coords = feature?.geometry?.coordinates;
+  if (!coords || coords.length < 2) return null;
+  const [lng, lat] = coords;
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  if (lat < -35 || lat > -22 || lng < 16 || lng > 33) return null;
+  return { lat, lng, label: address };
+}
+
 export function destinationPoint(address: string | null): GeoPoint | null {
   if (!address) return null;
   const key = Object.keys(DESTINATION_OFFSETS).find((suburb) => address.toLowerCase().includes(suburb));
