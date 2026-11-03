@@ -8,7 +8,7 @@ import type { LedgerEntry } from "./loyalty";
 import type { AuditLogEntry, AuthUser, Customer, MenuItem, Order, Promotion } from "./types";
 
 export const DEMO_STORE_KEY = "stackedhub.demoStore";
-export const DEMO_STORE_VERSION = 2;
+export const DEMO_STORE_VERSION = 3;
 
 interface DemoLoyaltyState {
   ledgers: Record<string, LedgerEntry[]>;

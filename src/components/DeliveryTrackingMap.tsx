@@ -2,44 +2,45 @@ import { useState } from "react";
 import { MapPin, Navigation, TriangleAlert } from "lucide-react";
 import type { Order } from "@/lib/types";
 import {
-  destinationPoint,
-  driverPoint,
+  deliverySeparation,
   estimatedDeliveryLabel,
+  formatDistanceFromAddress,
   googleEmbedSrc,
   googleMapsKey,
   KITCHEN_LOCATION,
   mapsDirectionsUrl,
   osmEmbedSrc,
-  parseDeliveryAddress,
 } from "@/lib/maps";
 
 export function DeliveryTrackingMap({ order }: { order: Order }) {
   const [googleFailed, setGoogleFailed] = useState(false);
-  const address = parseDeliveryAddress(order);
-  const destination = destinationPoint(address);
-  const driver = destination ? driverPoint(order, destination) : null;
-  const gpsAvailable = Boolean(driver);
+  const { address, destination, courier, km } = deliverySeparation(order);
+  const onTheWay = order.deliveryStatus === "Out for delivery" || Boolean(order.driverLocation);
+  const arrived = km !== null && km < 0.08;
   const mapsAvailable = Boolean(destination) && !googleFailed;
   const key = googleMapsKey();
-  const origin = driver ?? KITCHEN_LOCATION;
+  const origin = courier ?? KITCHEN_LOCATION;
   const embedSrc = destination && mapsAvailable ? googleEmbedSrc(origin, destination, key) : "";
-  const fallbackSrc = destination ? osmEmbedSrc(gpsAvailable ? driver! : destination) : "";
+  const fallbackSrc = destination ? osmEmbedSrc(courier ?? destination) : "";
   const eta = estimatedDeliveryLabel(order);
   const statusLabel =
     order.deliveryStatus ??
     (order.status === "Completed" ? "Delivered" : order.status === "Ready" ? "Ready for dispatch" : "Waiting for kitchen");
+  const distanceLabel = km === null ? "Distance unavailable" : formatDistanceFromAddress(km);
+  const distanceDetail = !address
+    ? "Add a street and suburb so we can measure the trip."
+    : arrived
+      ? `The driver is at ${address}.`
+      : onTheWay
+        ? `Still travelling to ${address}.`
+        : `The driver is still at the kitchen, ${distanceLabel.replace(" from your address", "")} from ${address}.`;
 
   return (
     <section className="mt-5 overflow-hidden rounded-2xl border border-border" aria-label="Driver tracking map">
       <div className="flex items-start justify-between gap-3 p-4">
         <div>
-          <p className="text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">Delivery map</p>
-          <h2 className="mt-1 font-display text-xl font-semibold">
-            {gpsAvailable ? "Your driver is on the way" : order.status === "Completed" ? "Delivery completed" : "Your delivery"}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {address ? `Destination: ${address}` : "No delivery address is stored on this order yet."}
-          </p>
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{distanceLabel}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{distanceDetail}</p>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{statusLabel}</span>
       </div>
@@ -62,7 +63,7 @@ export function DeliveryTrackingMap({ order }: { order: Order }) {
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
             <p>
               {destination
-                ? "Google Maps could not be loaded. Showing a backup map and written directions instead."
+                ? "Google Maps could not be loaded. The distance above still uses your address, with a backup map."
                 : "Map services are unavailable because this order has no delivery destination."}
             </p>
           </div>
@@ -77,13 +78,11 @@ export function DeliveryTrackingMap({ order }: { order: Order }) {
         </div>
       )}
 
-      {!gpsAvailable && destination && (
-        <p className="px-4 pt-3 text-xs text-muted-foreground">
-          Driver GPS is not available yet. The map shows the kitchen and destination until dispatch starts.
-        </p>
-      )}
-
       <div className="grid gap-2 p-4 sm:grid-cols-3">
+        <div className="rounded-xl bg-secondary p-3">
+          <p className="text-xs text-muted-foreground">Distance left</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">{distanceLabel}</p>
+        </div>
         <div className="rounded-xl bg-secondary p-3">
           <p className="text-xs text-muted-foreground">Order status</p>
           <p className="mt-1 text-sm font-semibold">{statusLabel}</p>
@@ -91,10 +90,6 @@ export function DeliveryTrackingMap({ order }: { order: Order }) {
         <div className="rounded-xl bg-secondary p-3">
           <p className="text-xs text-muted-foreground">Estimated delivery</p>
           <p className="mt-1 text-sm font-semibold">{eta}</p>
-        </div>
-        <div className="rounded-xl bg-secondary p-3">
-          <p className="text-xs text-muted-foreground">Location updates</p>
-          <p className="mt-1 text-sm font-semibold">{gpsAvailable ? "Driver location on map" : "GPS unavailable"}</p>
         </div>
       </div>
 

@@ -95,6 +95,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     DatabaseInitializer.Apply(db);
     DbSeeder.Seed(db);
+    AuditTrail.BackfillOrders(db);
 }
 
 app.UseSwagger();

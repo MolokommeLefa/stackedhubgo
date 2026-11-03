@@ -301,6 +301,48 @@ public class ApiFlowTests : IClassFixture<ApiFactory>
         Assert.Equal(OrderChannel.WhatsApp, order!.Channel);
     }
 
+    [Fact]
+    public async Task Admin_audit_log_includes_new_orders_delivery_and_status_changes()
+    {
+        using var customer = await SignIn("priya.nair@example.co.za");
+        var menu = await customer.GetFromJsonAsync<List<MenuItemDto>>("/api/menu", Json.Options);
+        var rings = menu!.First(x => x.Name == "Onion Rings");
+        var created = await customer.PostAsJsonAsync("/api/orders", new PlaceOrderRequest(
+            PaymentMethod.Cash,
+            "Delivery — Deliver to: 12 Tyrwhitt Avenue, Rosebank",
+            [new CartLineRequest(rings.Id, 1, null)]), Json.Options);
+        created.EnsureSuccessStatusCode();
+        var order = await created.Content.ReadFromJsonAsync<OrderDto>(Json.Options);
+
+        using var staff = await SignIn("jason@stackedfoods.co.za");
+        using var patch = new HttpRequestMessage(HttpMethod.Patch, $"/api/orders/{order!.Id}/status")
+        {
+            Content = JsonContent.Create(new UpdateStatusRequest(OrderStatus.InKitchen, null), options: Json.Options),
+        };
+        var patched = await staff.SendAsync(patch);
+        patched.EnsureSuccessStatusCode();
+
+        using var admin = await SignIn("thandi@stackedfoods.co.za");
+        var logs = await admin.GetFromJsonAsync<List<AuditLogDto>>("/api/audit-logs", Json.Options);
+        Assert.NotNull(logs);
+        Assert.Contains(logs, x =>
+            x.Action == "Placed delivery order"
+            && x.Actor == "Priya Nair"
+            && x.Role == UserRole.Customer
+            && x.Target.Contains(order.Reference)
+            && x.Target.Contains("Rosebank"));
+        Assert.Contains(logs, x =>
+            x.Action == "Changed order status to In kitchen"
+            && x.Actor == "Jason Reid"
+            && x.Role == UserRole.Staff
+            && x.Target.Contains(order.Reference));
+        Assert.Contains(logs, x => x.Action == "Placed order" && x.Target.Contains("#4821") && x.Actor == "Priya Nair");
+        Assert.Contains(logs, x => x.Action == "Changed order status to Ready" && x.Target.Contains("#4820"));
+
+        var adminOnly = await admin.GetFromJsonAsync<List<AuditLogDto>>("/api/admin/audit", Json.Options);
+        Assert.Contains(adminOnly!, x => x.Action == "Placed delivery order" && x.Target.Contains(order.Reference));
+    }
+
     private async Task<HttpClient> SignIn(string email)
     {
         var client = _factory.CreateClient();

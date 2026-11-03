@@ -25,6 +25,7 @@ public class AuditLogsController : ControllerBase
         var rows = await _db.AuditLogs.AsNoTracking()
             .Include(x => x.Admin)
             .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
             .Take(100)
             .ToListAsync(cancellationToken);
         return Ok(rows.Select(x => x.ToDto()));

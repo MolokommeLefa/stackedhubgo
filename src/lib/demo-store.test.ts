@@ -5,7 +5,7 @@ vi.mock("./api-client", async (importOriginal) => {
   return { ...actual, isLiveApi: () => false };
 });
 
-import { getLoyaltyWallet, getOrderQueue, getReport, placeOrder, updateOrderStatus } from "./data";
+import { getAuditLog, getLoyaltyWallet, getOrderQueue, getReport, placeOrder, updateOrderStatus } from "./data";
 import {
   bestSellersFromOrders,
   createSeedStore,
@@ -169,6 +169,34 @@ describe("demo store persistence", () => {
     const afterSecond = await getLoyaltyWallet("c1");
     expect(afterFirst.balance).toBe(before.balance - 50);
     expect(afterSecond.balance).toBe(afterFirst.balance);
+  });
+
+  it("records delivery orders and status changes on the admin audit log", async () => {
+    window.localStorage.setItem(
+      "stackedhub.user",
+      JSON.stringify({ id: "u2", name: "Jason Reid", email: "jason@stackedfoods.co.za", role: "Staff" }),
+    );
+    const created = await placeOrder({
+      customerId: "c1",
+      customerName: "Priya Nair",
+      items: [{ menuItemId: "m6", name: "Onion Rings", quantity: 1, unitPrice: 45 }],
+      fulfilment: "Delivery",
+      deliveryAddress: "12 Tyrwhitt Avenue, Rosebank",
+    });
+    await updateOrderStatus(created.id, "In kitchen");
+    await updateOrderStatus(created.id, "Ready");
+    const log = await getAuditLog();
+    expect(log[0]).toMatchObject({
+      actor: "Jason Reid",
+      role: "Staff",
+      action: "Marked delivery ready",
+    });
+    expect(log[0]?.target).toContain("Rosebank");
+    expect(log.some((entry) => entry.action === "Placed delivery order" && entry.actor === "Priya Nair" && entry.role === "Customer")).toBe(true);
+    expect(created.deliveryAddress).toBe("12 Tyrwhitt Avenue, Rosebank");
+    expect(created.fulfilment).toBe("Delivery");
+    expect(log.some((entry) => entry.action === "Placed delivery order" && entry.target.includes("#4822"))).toBe(true);
+    expect(log.some((entry) => entry.actor === "Thandi Mokoena" && entry.action === "Updated promotion" && entry.target === "Loyalty Double Points")).toBe(true);
   });
 
   it("reseeds when stored JSON is invalid or from an older version", () => {

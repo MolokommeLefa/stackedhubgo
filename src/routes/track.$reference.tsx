@@ -94,7 +94,8 @@ function TrackPage() {
   // The current API stores fulfilment in the existing order notes; prefer a structured field if one is returned.
   const isDelivery =
     order.fulfilment === "Delivery" ||
-    (order.fulfilment == null && /^Delivery(?:\s|—|-|$)/i.test(order.specialInstructions ?? ""));
+    Boolean(order.deliveryAddress?.trim()) ||
+    /deliver to:/i.test(order.specialInstructions ?? "");
   const steps = STEPS.map((s) =>
     s.status === "Ready" && isDelivery
       ? { ...s, label: order.deliveryStatus === "Out for delivery" ? "Out for delivery" : "Ready for dispatch" }
