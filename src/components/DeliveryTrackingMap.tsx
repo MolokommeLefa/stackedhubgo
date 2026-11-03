@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Navigation, TriangleAlert } from "lucide-react";
 import type { Order } from "@/lib/types";
 import {
+  addressHasKnownArea,
+  courierPoint,
   deliverySeparation,
+  distanceKm,
   estimatedDeliveryLabel,
   formatDistanceFromAddress,
+  geocodeAddress,
   googleEmbedSrc,
   googleMapsKey,
+  type GeoPoint,
   KITCHEN_LOCATION,
   mapsDirectionsUrl,
   osmEmbedSrc,
@@ -14,7 +19,41 @@ import {
 
 export function DeliveryTrackingMap({ order }: { order: Order }) {
   const [googleFailed, setGoogleFailed] = useState(false);
-  const { address, destination, courier, km } = deliverySeparation(order);
+  const separation = deliverySeparation(order);
+  const { address } = separation;
+  const [geocoded, setGeocoded] = useState<GeoPoint | null>(null);
+  const knownArea = addressHasKnownArea(address);
+  const [locating, setLocating] = useState(() => Boolean(address) && !addressHasKnownArea(address));
+  const [trackedAddress, setTrackedAddress] = useState(address);
+  if (trackedAddress !== address) {
+    setTrackedAddress(address);
+    setGeocoded(null);
+    setLocating(Boolean(address) && !addressHasKnownArea(address));
+  }
+
+  useEffect(() => {
+    if (!address) return;
+    let cancelled = false;
+    setLocating(true);
+    setGeocoded(null);
+    void geocodeAddress(address)
+      .then((point) => {
+        if (!cancelled) setGeocoded(point);
+      })
+      .catch(() => {
+        if (!cancelled) setGeocoded(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLocating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
+
+  const destination = geocoded ?? (knownArea || !locating ? separation.destination : null);
+  const courier = courierPoint(order, destination);
+  const km = destination && courier ? distanceKm(courier, destination) : null;
   const onTheWay = order.deliveryStatus === "Out for delivery" || Boolean(order.driverLocation);
   const arrived = km !== null && km < 0.08;
   const mapsAvailable = Boolean(destination) && !googleFailed;
@@ -26,14 +65,17 @@ export function DeliveryTrackingMap({ order }: { order: Order }) {
   const statusLabel =
     order.deliveryStatus ??
     (order.status === "Completed" ? "Delivered" : order.status === "Ready" ? "Ready for dispatch" : "Waiting for kitchen");
-  const distanceLabel = km === null ? "Distance unavailable" : formatDistanceFromAddress(km);
+  const distanceLabel =
+    km === null ? (locating ? "Measuring the trip…" : "Distance unavailable") : formatDistanceFromAddress(km);
   const distanceDetail = !address
     ? "Add a street and suburb so we can measure the trip."
-    : arrived
-      ? `The driver is at ${address}.`
-      : onTheWay
-        ? `Still travelling to ${address}.`
-        : `The driver is still at the kitchen, ${distanceLabel.replace(" from your address", "")} from ${address}.`;
+    : locating && !geocoded
+      ? `Finding ${address} so we can measure how far the driver is.`
+      : arrived
+        ? `The driver is at ${address}.`
+        : onTheWay
+          ? `Still travelling to ${address}.`
+          : `The driver is still at the kitchen, ${distanceLabel.replace(" from your address", "")} from ${address}.`;
 
   return (
     <section className="mt-5 overflow-hidden rounded-2xl border border-border" aria-label="Driver tracking map">
