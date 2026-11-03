@@ -18,6 +18,7 @@ import {
   REWARDS,
 } from "./loyalty";
 import * as mock from "./mock-data";
+import { parseDeliveryAddress } from "./maps";
 import { canTransition, composeOrderNotes, MAX_LINE_QUANTITY } from "./order-rules";
 import type {
   AuditLogEntry,
@@ -31,6 +32,7 @@ import type {
   OrderSlot,
   OrderStatus,
   Promotion,
+  Role,
 } from "./types";
 
 export interface ManagedUser extends AuthUser {
@@ -125,6 +127,13 @@ function applyCompletedOrderEarn(
     at: new Date().toISOString(),
   });
   syncCustomerPoints(customerId);
+  const order = store.orders.find((item) => item.id === orderId);
+  const customer = store.customers.find((item) => item.id === customerId);
+  logDemo(
+    "Awarded loyalty points",
+    `${order?.reference ?? orderId} · ${points} points · ${customer?.name ?? "Customer"}`,
+    { actor: customer?.name ?? "Customer", role: "Customer" },
+  );
 }
 
 function catalogReward(id: string): { id: string; title: string; points: number; value: number } | undefined {
@@ -164,7 +173,11 @@ function redeemInDemo(input: {
   });
   store.loyalty.usedRedemptionIds.push(input.redemptionId);
   syncCustomerPoints(input.customerId);
-  persistDemoStore();
+  const customer = store.customers.find((c) => c.id === input.customerId);
+  logDemo(`Redeemed loyalty reward`, `${reward.title} · ${reward.points} points · ${customer?.name ?? "Customer"}`, {
+    actor: customer?.name ?? "Customer",
+    role: "Customer",
+  });
   return {
     rewardId: reward.id,
     redemptionId: input.redemptionId,
@@ -242,16 +255,50 @@ function buildWallet(account: { balance: number; transactions: LoyaltyTransactio
   };
 }
 
-function logDemo(action: string, target: string) {
+function actingUser(): { actor: string; role: Role } {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem("stackedhub.user");
+      if (raw) {
+        const user = JSON.parse(raw) as { name?: string; role?: Role };
+        if (user.name && (user.role === "Admin" || user.role === "Staff" || user.role === "Customer")) {
+          return { actor: user.name, role: user.role };
+        }
+      }
+    } catch {
+      /* keep the admin fallback when the stored session is unreadable */
+    }
+  }
+  return { actor: "Thandi Mokoena", role: "Admin" };
+}
+
+function logDemo(action: string, target: string, actor?: { actor: string; role: Role }) {
+  const who = actor ?? actingUser();
   demo().audit.unshift({
     id: `a${Date.now()}`,
-    actor: "You (demo)",
-    role: "Admin",
+    actor: who.actor,
+    role: who.role,
     action,
     target,
     at: new Date().toISOString(),
   });
   persistDemoStore();
+}
+
+function orderAuditTarget(order: Pick<Order, "reference" | "customerName" | "specialInstructions" | "items" | "deliveryAddress">) {
+  const address = parseDeliveryAddress(order);
+  const items = order.items.map((item) => `${item.quantity}× ${item.name}`).join(", ");
+  const where = address ? `Deliver to ${address}` : "Collection";
+  return `${order.reference} · ${order.customerName} · ${where}${items ? ` · ${items}` : ""}`;
+}
+
+function statusAuditAction(status: OrderStatus, delivery: boolean) {
+  if (delivery && status === "Ready") return "Marked delivery ready";
+  if (delivery && status === "Completed") return "Completed delivery order";
+  if (delivery && status === "Cancelled") return "Cancelled delivery order";
+  if (status === "Cancelled") return "Cancelled order";
+  if (status === "Scheduled") return "Scheduled collection order";
+  return `Changed order status to ${status}`;
 }
 
 const json = (body: unknown) => JSON.stringify(body);
@@ -335,7 +382,8 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   order.status = status;
   order.updatedAt = new Date().toISOString();
   applyCompletedOrderEarn(order.customerId, order.id, status, order.total);
-  persistDemoStore();
+  const delivery = Boolean(parseDeliveryAddress(order));
+  logDemo(statusAuditAction(status, delivery), orderAuditTarget(order));
   return { ...order };
 }
 
@@ -385,9 +433,17 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
       }),
       });
-      demo().orders.unshift({ ...created, items: [...created.items] });
+      const instructions = created.specialInstructions ?? (notes || undefined);
+      const enriched: Order = {
+        ...created,
+        items: [...created.items],
+        fulfilment: input.fulfilment ?? created.fulfilment ?? "Immediate",
+        ...(instructions ? { specialInstructions: instructions } : {}),
+        ...(input.deliveryAddress?.trim() ? { deliveryAddress: input.deliveryAddress.trim() } : {}),
+      };
+      demo().orders.unshift(enriched);
       persistDemoStore();
-      return created;
+      return enriched;
     } catch (error) {
       if (!isApiOffline()) throw error;
     }
@@ -417,6 +473,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     status: scheduled ? "Scheduled" : "Placed",
     placedAt: new Date().toISOString(),
     fulfilment: input.fulfilment ?? (scheduled ? "Scheduled" : "Immediate"),
+    ...(input.deliveryAddress?.trim() ? { deliveryAddress: input.deliveryAddress.trim() } : {}),
     statusHistory: [
       {
         status: scheduled ? "Scheduled" : "Placed",
@@ -436,7 +493,16 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     customer.orders += 1;
     customer.spend += total;
   }
-  persistDemoStore();
+  const deliveryAddress = input.fulfilment === "Delivery" ? input.deliveryAddress?.trim() : undefined;
+  const placedAction = input.scheduledFor
+    ? "Scheduled collection order"
+    : deliveryAddress
+      ? "Placed delivery order"
+      : "Placed order";
+  logDemo(placedAction, orderAuditTarget({ ...created, ...(deliveryAddress ? { deliveryAddress } : {}) }), {
+    actor: input.customerName,
+    role: "Customer",
+  });
   return created;
 }
 
@@ -458,6 +524,11 @@ export async function cancelOrder(id: string): Promise<Order> {
     throw new ApiError("This order can no longer be cancelled.", 409);
   }
   order.status = "Cancelled";
+  const delivery = Boolean(parseDeliveryAddress(order));
+  logDemo(delivery ? "Cancelled delivery order" : "Cancelled order", orderAuditTarget(order), {
+    actor: order.customerName,
+    role: "Customer",
+  });
   return { ...order };
 }
 
@@ -555,7 +626,7 @@ export async function setAvailability(id: string, available: boolean): Promise<M
   const item = demo().menu.find((m) => m.id === id);
   if (!item) throw new ApiError("That menu item was not found.", 404);
   item.available = available;
-  persistDemoStore();
+  logDemo(available ? "Marked menu item available" : "Marked menu item unavailable", item.name);
   return { ...item };
 }
 
@@ -574,7 +645,7 @@ export async function setMenuStock(id: string, stock: number): Promise<MenuItem>
   if (!item) throw new ApiError("That menu item was not found.", 404);
   item.stock = stock;
   item.available = stock > 0 ? item.available : false;
-  persistDemoStore();
+  logDemo("Adjusted stock level", `${item.name} · stock ${item.stock}`);
   return { ...item };
 }
 
@@ -646,7 +717,7 @@ export async function updateCustomerNote(id: string, note: string): Promise<void
   const customer = demo().customers.find((c) => c.id === id);
   if (customer) {
     customer.note = note;
-    persistDemoStore();
+    logDemo("Updated customer note", customer.name);
   }
 }
 
@@ -683,7 +754,7 @@ export async function setPromotionActive(id: string, active: boolean): Promise<v
   const promo = demo().promotions.find((p) => p.id === id);
   if (promo) {
     promo.active = active;
-    persistDemoStore();
+    logDemo("Updated promotion", promo.title);
   }
 }
 

@@ -64,6 +64,55 @@ export function interpolate(from: GeoPoint, to: GeoPoint, t: number): GeoPoint {
   };
 }
 
+const EARTH_KM = 6371;
+
+export function distanceKm(from: Pick<GeoPoint, "lat" | "lng">, to: Pick<GeoPoint, "lat" | "lng">): number {
+  const toRad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+export function formatDistanceFromAddress(km: number): string {
+  if (km < 0.08) return "At your address";
+  if (km < 1) return `${Math.max(50, Math.round(km * 1000 / 50) * 50)} m from your address`;
+  const rounded = km < 10 ? km.toFixed(1) : String(Math.round(km));
+  return `${rounded} km from your address`;
+}
+
+/** Where the courier is relative to the address the customer typed. */
+export function courierPoint(
+  order: Pick<Order, "status"> & Partial<Pick<Order, "deliveryStatus" | "driverLocation">>,
+  destination: GeoPoint | null,
+): GeoPoint | null {
+  if (!destination || order.status === "Cancelled") return null;
+  if (order.driverLocation) {
+    return { lat: order.driverLocation.lat, lng: order.driverLocation.lng, label: "Driver" };
+  }
+  if (order.status === "Completed" || order.deliveryStatus === "Delivered") {
+    return { ...destination, label: "Driver" };
+  }
+  if (order.deliveryStatus === "Out for delivery") {
+    return interpolate(KITCHEN_LOCATION, destination, deliveryProgress(order));
+  }
+  return { ...KITCHEN_LOCATION, label: "Driver" };
+}
+
+export function deliverySeparation(
+  order: Pick<Order, "status" | "specialInstructions"> &
+    Partial<Pick<Order, "deliveryStatus" | "driverLocation" | "deliveryAddress">>,
+): { address: string | null; destination: GeoPoint | null; courier: GeoPoint | null; km: number | null } {
+  const address = parseDeliveryAddress(order);
+  const destination = destinationPoint(address);
+  const courier = courierPoint(order, destination);
+  const km = destination && courier ? distanceKm(courier, destination) : null;
+  return { address, destination, courier, km };
+}
+
 export function driverPoint(
   order: Pick<Order, "status"> & Partial<Pick<Order, "deliveryStatus" | "driverLocation">>,
   destination: GeoPoint | null,

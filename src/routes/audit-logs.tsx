@@ -38,11 +38,14 @@ function AuditPage() {
   const [query, setQuery] = useState("");
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return data.filter(
-      (a) =>
-        (role === "All" || a.role === role) &&
-        (!q || `${a.actor} ${a.action} ${a.target}`.toLowerCase().includes(q)),
-    );
+    return data
+      .filter(
+        (a) =>
+          (role === "All" || a.role === role) &&
+          (!q || `${a.actor} ${a.action} ${a.target}`.toLowerCase().includes(q)),
+      )
+      .slice()
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   }, [data, role, query]);
 
   return (
@@ -60,7 +63,7 @@ function AuditPage() {
         }
       >
         <p className="mb-4 text-sm text-muted-foreground">
-          System and user actions across StackedHub.
+          Orders, delivery, loyalty, menu, and account changes across StackedHub.
         </p>
         <FilterTabs options={[...tabs]} value={role} onChange={setRole} label="Actor role" />
         <LoadState loading={loading} error={error} />

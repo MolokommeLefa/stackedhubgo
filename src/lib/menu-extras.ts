@@ -24,30 +24,64 @@ export const FALLBACK_IMAGE = mains;
  * gaps so cards do not reuse the burger hero for every main. See
  * src/assets/IMAGE-CREDITS.md. MenuPhoto falls back to the category image.
  */
-const byId: Record<string, { src: string; position: string }> = {
+type Photo = { src: string; position: string; frame?: string };
+
+const byId: Record<string, Photo> = {
   m1: { src: periPeri, position: "object-center" },
   m2: { src: mains, position: "object-center" },
   m3: { src: bunnyChow, position: "object-center" },
   m4: { src: boerewors, position: "object-center" },
   m5: { src: sides, position: "object-center" },
   m6: { src: onionRings, position: "object-center" },
-  m7: { src: drinksDesserts, position: "object-[18%_48%]" },
+  m7: { src: drinksDesserts, position: "object-left", frame: "w-[205%] max-w-none" },
   m8: { src: icedRooibos, position: "object-center" },
-  m9: { src: drinksDesserts, position: "object-[82%_58%]" },
+  m9: { src: drinksDesserts, position: "object-right", frame: "w-[205%] max-w-none -translate-x-[48%]" },
   m10: { src: koeksisters, position: "object-center" },
 };
 
-export function imageFor(item: { id?: string; category?: MenuItem["category"] }) {
-  const match = item.id ? byId[item.id] : undefined;
+/** Live API ids are numeric; demo ids are m1–m10. Names stay stable across both. */
+const byName: Record<string, Photo> = {
+  "peri peri chicken stack": byId["m1"]!,
+  "double smash burger": byId["m2"]!,
+  "bunny chow": byId["m3"]!,
+  "boerewors roll": byId["m4"]!,
+  "chakalaka fries": byId["m5"]!,
+  "onion rings": byId["m6"]!,
+  "homemade lemonade": byId["m7"]!,
+  "iced rooibos": byId["m8"]!,
+  "malva pudding": byId["m9"]!,
+  "koeksister bites": byId["m10"]!,
+};
+
+function dishKey(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function photoFor(item: { id?: string; name?: string; category?: MenuItem["category"] }): Photo | undefined {
+  if (item.name) {
+    const named = byName[dishKey(item.name)];
+    if (named) return named;
+  }
+  if (!item.id) return undefined;
+  if (byId[item.id]) return byId[item.id];
+  if (/^\d+$/.test(item.id)) return byId[`m${Number(item.id)}`];
+  return undefined;
+}
+
+export function imageFor(item: { id?: string; name?: string; category?: MenuItem["category"] }) {
+  const match = photoFor(item);
   if (match) return match.src;
   if (item.category) return categoryImage[item.category] ?? FALLBACK_IMAGE;
   return FALLBACK_IMAGE;
 }
 
-export function imagePosition(item: { id?: string; category?: MenuItem["category"] }) {
-  const match = item.id ? byId[item.id] : undefined;
-  if (match) return match.position;
-  return "object-center";
+export function imagePosition(item: { id?: string; name?: string; category?: MenuItem["category"] }) {
+  return photoFor(item)?.position ?? "object-center";
+}
+
+/** Extra frame classes when one photo contains two dishes. */
+export function imageFrame(item: { id?: string; name?: string; category?: MenuItem["category"] }) {
+  return photoFor(item)?.frame ?? "w-full";
 }
 
 export interface ItemOption {

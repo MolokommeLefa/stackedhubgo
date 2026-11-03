@@ -75,6 +75,7 @@ function PortalPage() {
   const [wallet, setWallet] = useState<LoyaltyWallet | null>(null);
   const [redeeming, setRedeeming] = useState<string | null>(null);
   const [fulfilment, setFulfilment] = useState<"Collection" | "Delivery">("Collection");
+  const [category, setCategory] = useState<"All" | MenuItem["category"]>("All");
   const [scheduleMode, setScheduleMode] = useState<"asap" | "scheduled">("asap");
   const [scheduledFor, setScheduledFor] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -165,6 +166,7 @@ function PortalPage() {
   const deliveryFee = fulfilment === "Delivery" && cartItems.length > 0 ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
   const available = menu.filter((m) => m.available);
+  const shownMenu = available.filter((item) => category === "All" || item.category === category);
 
   const shareGroupBasket = async () => {
     if (cartItems.length === 0) { toast.error("Add items to your basket before sharing a group order."); return; }
@@ -391,6 +393,8 @@ function PortalPage() {
               </button>
             </section>
           )}
+          <div className="flex flex-col gap-6">
+          <div className="order-2 space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="glass rounded-3xl p-5">
               <p className="text-xs text-muted-foreground">Loyalty points</p>
@@ -539,21 +543,40 @@ function PortalPage() {
               </div>
             )}
           </Panel>
+          </div>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="order-1 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <Panel title="Menu">
-              {available.length === 0 ? (
+              <div className="mb-4 flex gap-2 overflow-x-auto" role="tablist" aria-label="Menu categories">
+                {(["All", "Mains", "Sides", "Drinks", "Desserts"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="tab"
+                    aria-selected={category === option}
+                    onClick={() => setCategory(option)}
+                    className={
+                      category === option
+                        ? "inline-flex min-h-11 shrink-0 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                        : "inline-flex min-h-11 shrink-0 items-center rounded-full bg-secondary px-4 text-sm font-medium"
+                    }
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              {shownMenu.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nothing is on the menu right now. Try again shortly.
                 </p>
               ) : (
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {available.map((m) => (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  {shownMenu.map((m) => (
                     <article key={m.id} className="min-w-0">
                       <MenuPhoto
                         item={m}
                         alt={m.name}
-                        className="aspect-[5/4] w-full rounded-[1.4rem]"
+                        className="aspect-[4/3] w-full rounded-2xl"
                       />
                       <div className="mt-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -710,7 +733,7 @@ function PortalPage() {
                       {fulfilment === "Delivery" && (
                         <label className="block text-sm font-medium">Delivery address
                           <textarea value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Street, suburb, city" className="mt-2 w-full rounded-2xl bg-secondary px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary" />
-                          <span className="mt-1 block text-xs text-muted-foreground">Delivery fee: R25. Driver tracking is currently a demo map preview.</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">Delivery fee: R25. After you order, tracking shows how far the driver is from this address.</span>
                         </label>
                       )}
                       <div>
@@ -817,6 +840,20 @@ function PortalPage() {
               </Panel>
             </div>
           </div>
+          </div>
+          {itemCount > 0 && !placedOrder && (
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-3 backdrop-blur xl:hidden">
+              <button
+                type="button"
+                onClick={() => document.getElementById("portal-basket")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="flex min-h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+              >
+                <span>{itemCount} in basket</span>
+                <span>{currency(total)} · Checkout</span>
+              </button>
+            </div>
+          )}
+          <div className="h-20 xl:hidden" aria-hidden />
         </>
       )}
     </AppShell>
