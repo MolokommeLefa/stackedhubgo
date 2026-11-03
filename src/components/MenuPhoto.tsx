@@ -1,4 +1,4 @@
-import { FALLBACK_IMAGE, imageFor, imageFrame, imagePosition } from "@/lib/menu-extras";
+import { FALLBACK_IMAGE, imageFor } from "@/lib/menu-extras";
 import type { MenuItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ export function MenuPhoto({
             ? imageFor({ category: item.category })
             : FALLBACK_IMAGE;
         }}
-        className={cn("h-full max-w-none object-cover", imageFrame(item), imagePosition(item))}
+        className="h-full w-full object-cover object-center"
       />
     </div>
   );
